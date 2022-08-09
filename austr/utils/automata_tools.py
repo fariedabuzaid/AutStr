@@ -1,6 +1,7 @@
 from automata.fa.dfa import DFA
+from automata.fa.nfa import NFA
 import itertools as it
-from typing import List, Tuple
+from typing import List, Tuple, Callable
 
 from austr.buildin.automata import one
 from austr.utils.misc import generate_new_elements
@@ -212,3 +213,49 @@ def product(dfa, n):
         result = result.intersection(base).minify()
 
     return result
+
+
+def iterate_language(dfa: DFA, decoder: Callable=None, backward=False):
+    """
+    Generator over the language that is represented by a DFA. Provides functionality for decoding of word by user
+    defined decoder functions.
+    :param dfa: the automaton
+    :param decoder: decoder function that maps (tuples of) words to python object
+    :param backward: If True, iterate over the elements of the reversed language
+    :return:
+    """
+    nfa = NFA.from_dfa(dfa)
+    if backward:
+        nfa = nfa.reverse()
+
+    # check from which states one can accept a word
+    non_empty = set()
+    for q in nfa.states:
+        reachable = {q}
+        last_reachable = None
+        while reachable != last_reachable:
+            last_reachable = reachable
+            for p in reachable:
+                for a in nfa.transitions[p]:
+                    reachable = reachable.union(nfa.transitions[p][a])
+        if len(reachable.intersection(nfa.final_states)) > 0:
+            non_empty = non_empty.union({q})
+
+    arity = len(list(dfa.input_symbols)[0])
+    queue = [(('',)*arity, nfa.initial_state)]
+    while len(queue) > 0:
+        word, state = queue.pop(0)
+        states = nfa._get_lambda_closure(state)
+        if any([p in nfa.final_states for p in states]):
+            if decoder is None:
+                yield word
+            else:
+                yield decoder(word)
+        for p in states:
+            for a in sorted(list(nfa.transitions[p])):
+                if a != '':
+                    for q in nfa.transitions[p][a]:
+                        if q in non_empty:
+                            queue.append(
+                                (tuple([f'{wordcomp}{b}' for wordcomp, b in zip(word, a)]), q)
+                            )

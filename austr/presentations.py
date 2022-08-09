@@ -4,7 +4,7 @@ from automata.fa.dfa import DFA
 from typing import Dict, Optional
 
 from austr.buildin.automata import zero, one
-from austr.utils.automata import stringlify_states, product, projection, expand, unpad, pad
+from austr.utils.automata_tools import stringlify_states, product, projection, expand, unpad, pad
 from austr.utils.logic import get_free_elementary_vars
 
 

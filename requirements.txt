@@ -1,0 +1,3 @@
+nltk~=3.7
+setuptools~=63.4.1
+automata-lib
