@@ -1,6 +1,6 @@
 import nltk
 from nltk.sem.logic import Expression
-from typing import Set, List
+from typing import List
 
 
 def get_free_elementary_vars(phi: Expression) -> List[str]:
@@ -16,4 +16,5 @@ def get_free_elementary_vars(phi: Expression) -> List[str]:
     free_vars.sort()
 
     return free_vars
+
 

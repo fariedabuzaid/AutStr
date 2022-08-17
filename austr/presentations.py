@@ -1,7 +1,7 @@
 
 from nltk.sem import logic
 from automata.fa.dfa import DFA
-from typing import Dict, Optional
+from typing import Dict, Optional, Union, List
 
 from austr.buildin.automata import zero, one
 from austr.utils.automata_tools import stringlify_states, product, projection, expand, unpad, pad
@@ -27,6 +27,13 @@ class AutomaticPresentation:
                 domain = product(universe, arity)
                 self.automata[R] = pad(stringlify_states(automata[R])).intersection(domain).minify()
 
+    def get_relation_symbols(self):
+        """
+        Returns list of all defined relation symbols. The symbol 'U' must always be defined and denotes the Universe
+        :return: list of all defined relation symbols.
+        """
+        return list(self.automata.keys())
+
     def update(self, **kwargs) -> None:
         for key in kwargs:
             if isinstance(kwargs[key], DFA):
@@ -48,20 +55,32 @@ class AutomaticPresentation:
         """
         return not self._build_automaton(phi).isempty()
 
-    def evaluate(self, phi: logic.Expression) -> DFA:
+    def evaluate(self, phi: Union[str, logic.Expression], updates: Optional[Dict[str, Union[DFA, str]]] = None) -> DFA:
         """Evaluates a given first-order query on the presented structure. Returns a presentation of the set of all
         satisfying assignments.
         :param phi: the first order formula.
-        :returns: the truth value of the formula, if the formula where all free variables are existentially quantified.
+        :param updates: Temporarily update the relations for the evaluation
+        :returns: The truth value of the formula, if the formula where all free variables are existentially quantified.
         """
         if isinstance(phi, str):
             phi = logic.Expression.fromstring(phi)
+        if updates is not None:
+            for key in updates:
+                if isinstance(updates[key], str):
+                    updates[key] = self._prepare_automaton(self._build_automaton(updates[key]))
+                else:
+                    updates[key] = self._prepare_automaton(updates[key])
+            automata_backup = self.automata
+            self.automata = dict(self.automata, **updates)
 
         dfa_phi = self._build_automaton(phi)
         if len(get_free_elementary_vars(phi)) > 0:
-            return unpad(self._build_automaton(phi))
-        else:
-            return dfa_phi
+            dfa_phi = unpad(self._build_automaton(phi))
+
+        if updates is not None:
+            self.automata = automata_backup
+
+        return dfa_phi
 
     def _build_automaton(self, phi: logic.Expression, verbose=False) -> DFA:
         """
@@ -99,7 +118,8 @@ class AutomaticPresentation:
                     else:
                         result = zero()
 
-                print(f'{str(phi)}: {len(result.states)} states')
+                if verbose:
+                    print(f'{str(phi)}: {len(result.states)} states')
                 return result
         elif isinstance(phi, logic.ExistsExpression):
             psi = phi.term
@@ -113,7 +133,8 @@ class AutomaticPresentation:
                 if len(free_vars) > 1:
                     result = projection(dfa_rec, pos).minify()
                 else:
-                    print(f'{str(phi)}: 1 state')
+                    if verbose:
+                        print(f'{str(phi)}: 1 state')
                     if dfa_rec.isempty():
                         return zero()
                     else:
@@ -123,7 +144,8 @@ class AutomaticPresentation:
 
             result = pad(unpad(result))
 
-            print(f'{str(phi)}: {len(result.states)} states')
+            if verbose:
+                print(f'{str(phi)}: {len(result.states)} states')
             return result
         elif isinstance(phi, logic.AndExpression):
             left = phi.first
@@ -137,7 +159,8 @@ class AutomaticPresentation:
             dfa_r = expand(self._build_automaton(right), len(free_vars), pos=[free_vars.index(v) for v in free_r])
 
             result = dfa_l.intersection(dfa_r).minify()
-            print(f'{str(phi)}: {len(result.states)} states')
+            if verbose:
+                print(f'{str(phi)}: {len(result.states)} states')
             return result
 
         elif isinstance(phi, logic.NegatedExpression):
@@ -148,7 +171,8 @@ class AutomaticPresentation:
 
             result = self._build_automaton(psi).complement()
             result = result.intersection(domain).minify()
-            print(f'{str(phi)}: {len(result.states)} states')
+            if verbose:
+                print(f'{str(phi)}: {len(result.states)} states')
             return result
         elif isinstance(phi, logic.OrExpression):
             left = phi.first
@@ -162,7 +186,8 @@ class AutomaticPresentation:
             dfa_r = expand(self._build_automaton(right), len(free_vars), pos=[free_vars.index(v) for v in free_r])
 
             result = dfa_l.union(dfa_r).minify()
-            print(f'{str(phi)}: {len(result.states)} states')
+            if verbose:
+                print(f'{str(phi)}: {len(result.states)} states')
             return result
         elif isinstance(phi, logic.ApplicationExpression):
             R = str(phi.pred)
@@ -174,5 +199,8 @@ class AutomaticPresentation:
                 [variables.index(v) for v in [str(v) for v in phi.args]]
             ).minify()
 
-            print(f'{str(phi)}: {len(result.states)} states')
+            if verbose:
+                print(f'{str(phi)}: {len(result.states)} states')
             return result
+
+

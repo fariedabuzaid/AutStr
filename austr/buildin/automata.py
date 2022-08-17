@@ -1,5 +1,7 @@
 from automata.fa.dfa import DFA
 
+
+
 def length_automaton(n, sigma):
     """
 

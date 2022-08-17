@@ -3,7 +3,11 @@ import itertools as it
 from austr.presentations import AutomaticPresentation
 
 
-def buechi_arithmetic():
+def buechi_arithmetic() -> AutomaticPresentation:
+    """
+
+    :rtype: object
+    """
     universe = DFA(
         states={'i', '0', '0+', '1', '*'},
         input_symbols={('0',), ('1',), ('*',)},
@@ -75,5 +79,9 @@ def buechi_arithmetic():
     )
 
     presentation = AutomaticPresentation({'U': universe, 'A': addition, 'B': weak_div})
+    presentation.update(Z='A(x,x,x)')
+    presentation.update(Eq='exists z.(Z(z) and A(x,z,y))')
+    presentation.update(Pt='B(x,x)')
+    presentation.update(Lt='exists z.(not Z(z) and A(x, z, y))')
 
     return presentation

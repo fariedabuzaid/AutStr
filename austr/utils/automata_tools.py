@@ -1,12 +1,19 @@
+import math
+
+import numpy as np
 from automata.fa.dfa import DFA
 from automata.fa.nfa import NFA
 import itertools as it
-from typing import List, Tuple, Callable
+from typing import List, Tuple, Callable, Union
 
 from austr.buildin.automata import one
 from austr.utils.misc import generate_new_elements
+from austr.utils.misc import heapify_llex as heapify
+from austr.utils.misc import heappop_llex as heappop
+from austr.utils.misc import heappush_llex as heappush
 
-def stringlify_states(dfa: DFA, convert_orgnames: bool = True):
+
+def stringlify_states(dfa: Union[DFA, NFA], convert_orgnames: bool = True):
     """
     Auxiliary function to turn the states of a finite automation into strings
     :param dfa: the automaton A
@@ -16,17 +23,31 @@ def stringlify_states(dfa: DFA, convert_orgnames: bool = True):
     """
     mapping = {s: str(s) if convert_orgnames else str(i) for i, s in enumerate(dfa.states)}
     states = {mapping[q] for q in dfa.states}
-    transitions = {mapping[q]: {a: mapping[dfa.transitions[q][a]] for a in dfa.input_symbols} for q in dfa.states}
+    if isinstance(dfa, DFA):
+        transitions = {mapping[q]: {a: mapping[dfa.transitions[q][a]] for a in dfa.input_symbols} for q in dfa.states}
+    else:
+        transitions = {
+            mapping[q]: {a: {mapping[p] for p in dfa.transitions[q][a]} for a in dfa.transitions[q]} for q in dfa.states
+        }
     initial_state = mapping[dfa.initial_state]
     final_states = {mapping[q] for q in dfa.final_states}
 
-    dfa_str = DFA(
-        initial_state=initial_state,
-        states=states,
-        transitions=transitions,
-        input_symbols=dfa.input_symbols,
-        final_states=final_states
-    )
+    if isinstance(dfa, DFA):
+        dfa_str = DFA(
+            initial_state=initial_state,
+            states=states,
+            transitions=transitions,
+            input_symbols=dfa.input_symbols,
+            final_states=final_states
+        )
+    else:
+        dfa_str = NFA(
+            initial_state=initial_state,
+            states=states,
+            transitions=transitions,
+            input_symbols=dfa.input_symbols,
+            final_states=final_states
+        )
     return dfa_str
 
 
@@ -111,7 +132,8 @@ def expand(dfa: DFA, n: int, pos: List):
         states=dfa.states,
         transitions={
             x: {
-                symbol: dfa.transitions[x][tuple(symbol[i] for i in pos)] for symbol in it.product(base_symbols, repeat=n)
+                symbol: dfa.transitions[x][tuple(symbol[i] for i in pos)] for symbol in
+                it.product(base_symbols, repeat=n)
             } for x in dfa.states
         },
         final_states=dfa.final_states
@@ -132,10 +154,10 @@ def pad(dfa: DFA, padding_symbol=('*',)):
     good, bad = generate_new_elements(dfa.states, 2)
     states = dfa.states.union({good, bad})
     padding_transitions = {
-        q: {padding_symbol*arity: good if q in dfa.final_states else bad} for q in dfa.states
+        q: {padding_symbol * arity: good if q in dfa.final_states else bad} for q in dfa.states
     }
     transitions = {q: dfa.transitions[q] | padding_transitions[q] for q in dfa.states}
-    transitions[good] = {a: good if a == padding_symbol*arity else bad for a in input_symbols}
+    transitions[good] = {a: good if a == padding_symbol * arity else bad for a in input_symbols}
     transitions[bad] = {a: bad for a in input_symbols}
     final_states = dfa.final_states.union({good})
 
@@ -154,6 +176,7 @@ def unpad(dfa: DFA, padding_symbol: Tuple = ('*',), remove_blank=False):
     """
     Creates an automaton that recognizes {w | exists x in (padding_symbol^k)^*: wx in L(dfa)} where k is the arity of
     the relation that is recognized by dfa.
+    :param remove_blank: If True, removes the blank symbol from the input symbols
     :param dfa: The automaton
     :param padding_symbol: The padding symbol. Needs to be a length one tuple
     :return: Automaton that recognizes {w | exists x in padding_symbol^*: wx in L(dfa)}
@@ -165,7 +188,7 @@ def unpad(dfa: DFA, padding_symbol: Tuple = ('*',), remove_blank=False):
         states = dfa.states.union({sink})
         transitions = {
             q: {
-                a: dfa.transitions[q][a] if padding_symbol*arity != a else sink for a in dfa.input_symbols
+                a: dfa.transitions[q][a] if padding_symbol * arity != a else sink for a in dfa.input_symbols
             } for q in dfa.states
         }
         transitions[sink] = {a: sink for a in input_symbols}
@@ -215,22 +238,52 @@ def product(dfa, n):
     return result
 
 
-def iterate_language(dfa: DFA, decoder: Callable=None, backward=False):
+def iterate_language(dfa: DFA, decoder: Callable = None, backward=False, padding_symbol='*'):
     """
-    Generator over the language that is represented by a DFA. Provides functionality for decoding of word by user
-    defined decoder functions.
-    :param dfa: the automaton
-    :param decoder: decoder function that maps (tuples of) words to python object
+    Generator over the language that is represented by a DFA. Provides functionality for decoding of words by user
+    defined decoder functions. Iterates through the words in length-lexicographic order.
+    :param dfa: The automaton
+    :param decoder: Decoder function that maps (tuples of) words to python object
     :param backward: If True, iterate over the elements of the reversed language
+    :param padding_symbol: The padding symbol
     :return:
     """
-    nfa = NFA.from_dfa(dfa)
-    if backward:
-        nfa = nfa.reverse()
+    arity = len(list(dfa.input_symbols)[0])
+    nfa = dfa
 
-    # check from which states one can accept a word
-    non_empty = set()
+    nfa = stringlify_states(nfa)
+    nonempty = set()
     for q in nfa.states:
+        nfa_q = DFA(
+            states=nfa.states,
+            input_symbols=nfa.input_symbols,
+            initial_state=nfa.initial_state,
+            final_states={q},
+            transitions=nfa.transitions
+        )
+        if not nfa_q.isempty():
+            nonempty.add(q)
+
+    reverse_transitions = {q: {a: set() for a in nfa.input_symbols} for q in nfa.states}
+    for p in nfa.states:
+        for q in nfa.states:
+            for a in nfa.transitions[q]:
+                reverse_transitions[nfa.transitions[q][a]][a].add(q)
+
+    """
+    for q in nfa.states:
+        nfa_q = DFA(
+            states=nfa.states,
+            input_symbols=nfa.input_symbols,
+            initial_state=q,
+            final_states=nfa.final_states,
+            transitions=nfa.transitions
+        )
+        if not nfa_q.isempty():
+            non_empty = non_empty.union({q})
+
+
+
         reachable = {q}
         last_reachable = None
         while reachable != last_reachable:
@@ -240,22 +293,54 @@ def iterate_language(dfa: DFA, decoder: Callable=None, backward=False):
                     reachable = reachable.union(nfa.transitions[p][a])
         if len(reachable.intersection(nfa.final_states)) > 0:
             non_empty = non_empty.union({q})
+        """
 
     arity = len(list(dfa.input_symbols)[0])
-    queue = [(('',)*arity, nfa.initial_state)]
+    queue = [(('',) * arity, q) for q in nfa.final_states]
+    queue = heapify(queue)
     while len(queue) > 0:
-        word, state = queue.pop(0)
-        states = nfa._get_lambda_closure(state)
-        if any([p in nfa.final_states for p in states]):
+        word, state = heappop(queue)
+
+        if state == nfa.initial_state:
             if decoder is None:
                 yield word
             else:
                 yield decoder(word)
-        for p in states:
-            for a in sorted(list(nfa.transitions[p])):
-                if a != '':
-                    for q in nfa.transitions[p][a]:
-                        if q in non_empty:
-                            queue.append(
-                                (tuple([f'{wordcomp}{b}' for wordcomp, b in zip(word, a)]), q)
-                            )
+
+        for a in reverse_transitions[state]:
+            if a != (padding_symbol,) * arity:
+                for q in reverse_transitions[state][a]:
+                    if q in nonempty:
+                        heappush(
+                            queue,
+                            (tuple(
+                                [f'{wordcomp}{b}' if b != padding_symbol else wordcomp for wordcomp, b in
+                                 zip(word, a)]
+                            ), q)
+                        )
+
+def lsbf_automaton(n: int):
+    """
+    generates an automation that recognizes exactly the least-significant-bit-first binary encoding of n
+    """
+    bits = format(n, 'b')[::-1]
+    n_bits = len(bits)
+
+    states = set(range(n_bits+2))
+    initial_state = 0
+    final_states = {n_bits}
+    input_symbols = {('0',), ('1',), ('*',)}
+
+    transitions = {i: {a: i+1 if a == (bits[i],) else n_bits+1 for a in input_symbols} for i in range(n_bits)}
+    transitions[n_bits] = {a: n_bits+1 for a in input_symbols}
+    transitions[n_bits+1] = {a: n_bits+1 for a in input_symbols}
+
+    result = DFA(
+        states=states,
+        input_symbols=input_symbols,
+        initial_state=initial_state,
+        transitions=transitions,
+        final_states=final_states
+    )
+
+    return stringlify_states(result)
