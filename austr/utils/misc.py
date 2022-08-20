@@ -1,46 +1,8 @@
 from functools import cmp_to_key
 from heapq import heapify, heappop, heappush
-from typing import Set, List
+from typing import Set, List, Union
 
-from automata.fa.dfa import DFA
-from visual_automata.fa.dfa import VisualDFA
-
-
-def generate_new_elements(M: Set, n: int):
-    """
-    Generate a list of n elements which are not contained in x
-    :param M: The set
-    :param n: The number of new elements to generate
-    :return: List of string elements that guaranteed to be not in M
-    """
-    i = 0
-    result = []
-    for _ in range(n):
-        while True:
-            element = str(i)
-            if element not in M:
-                result.append(element)
-                i += 1
-                break
-            else:
-                i += 1
-
-    if n == 1:
-        return result[0]
-    else:
-        return result
-
-
-def draw_automaton(dfa: DFA):
-    """
-    Convenience method for better drawings of an automaton.
-    :param dfa: the automaton
-    :return:
-    """
-    return VisualDFA(dfa).show_diagram()
-
-
-def cmp_llex(v: str, w: str, padding_symbol: str = '*'):
+def cmp_llex(v: str, w: str) -> int:
     """
     Length-lexicographic ordering of a tuple of strings ignoring the padding symbol
     :param v:
@@ -64,7 +26,7 @@ def cmp_llex(v: str, w: str, padding_symbol: str = '*'):
         return 0
 
 
-def heapify_llex(arr: list):
+def heapify_llex(arr: List[object]) -> List[object]:
     """
     heaplyfy a list under the llex order
     :param arr:
@@ -75,7 +37,7 @@ def heapify_llex(arr: list):
     return s
 
 
-def heappop_llex(heap):
+def heappop_llex(heap: List[object]) -> object:
     """
     heapop wrapper for llex order
     :param heap: The heap list
@@ -84,7 +46,7 @@ def heappop_llex(heap):
     return heappop(heap).obj
 
 
-def heappush_llex(heap, x):
+def heappush_llex(heap: List[object], x: object) -> None:
     """
     Heappop wrapper for lllex order
     :param heap: The heap list
@@ -95,7 +57,7 @@ def heappush_llex(heap, x):
     heappush(heap, x)
 
 
-def get_unique_id(current_id: List[str], n: int = 1):
+def get_unique_id(current_id: List[str], n: int = 1) -> Union[str, List[str]]:
     max_element = max(current_id)
     if n == 1:
         return f'{max_element}0'

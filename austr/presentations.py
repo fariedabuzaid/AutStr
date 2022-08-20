@@ -27,7 +27,7 @@ class AutomaticPresentation:
                 domain = product(universe, arity)
                 self.automata[R] = pad(stringlify_states(automata[R])).intersection(domain).minify()
 
-    def get_relation_symbols(self):
+    def get_relation_symbols(self) -> List[str]:
         """
         Returns list of all defined relation symbols. The symbol 'U' must always be defined and denotes the Universe
         :return: list of all defined relation symbols.
@@ -41,7 +41,7 @@ class AutomaticPresentation:
             elif isinstance(kwargs[key], str):
                 self.automata[key] = self._prepare_automaton(self._build_automaton(kwargs[key]))
 
-    def _prepare_automaton(self, dfa) -> DFA:
+    def _prepare_automaton(self, dfa: DFA) -> DFA:
         """Applies restriction to the universe and padding to the automaton"""
         arity = len(list(dfa.input_symbols)[0])
         domain = product(self.automata['U'], arity)

@@ -5,6 +5,8 @@ from copy import deepcopy, copy
 from typing import List, Union, Tuple, Dict
 import math
 
+from automata.fa.dfa import DFA
+
 from austr.utils.automata_tools import lsbf_automaton, iterate_language
 from austr.buildin.presentations import buechi_arithmetic
 from austr.utils.misc import get_unique_id
@@ -20,7 +22,7 @@ class Term(ABC):
         self.presentation = None
 
     @abstractmethod
-    def update_presentation(self, recursive=True):
+    def update_presentation(self, recursive=True) -> None:
         """
         Updates the internal presentation of the term
         :param recursive: If True, recursively updates the presentation of all subrelations
@@ -28,7 +30,7 @@ class Term(ABC):
         """
         raise NotImplementedError
 
-    def evaluate(self):
+    def evaluate(self) -> DFA:
         """
         Returns automatic presentation of the relation.
         :return:
@@ -39,7 +41,7 @@ class Term(ABC):
         return self.presentation
 
     @abstractmethod
-    def get_variables(self):
+    def get_variables(self) -> List[str]:
         """
         Get all free variables of a term
         :return:
@@ -47,7 +49,7 @@ class Term(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def substitute(self, allow_collision: bool = False, **kwargs):
+    def substitute(self, allow_collision: bool = False, **kwargs) -> Term:
         """
         Substitute variable names in the relation
         :param allow_collision: if True, does not check collision with quantified
@@ -61,7 +63,8 @@ class RelationalAlgebraTerm(Term, ABC):
     """
     Abstract class that
     """
-    def __and__(self, other: RelationalAlgebraTerm):
+
+    def __and__(self, other: RelationalAlgebraTerm) -> IntersectionRATerm:
         """
         Intersection
         :param other:
@@ -69,7 +72,7 @@ class RelationalAlgebraTerm(Term, ABC):
         """
         return IntersectionRATerm(self, other)
 
-    def __or__(self, other: RelationalAlgebraTerm):
+    def __or__(self, other: RelationalAlgebraTerm) -> UnionRATerm:
         """
         Union
         :param other:
@@ -84,7 +87,7 @@ class RelationalAlgebraTerm(Term, ABC):
         """
         return ComplementRATerm(self)
 
-    def drop(self, variables: List):
+    def drop(self, variables: List[Union[str, VariableETerm]]) -> DropRARelation:
         """
         Drop variables
         :param variables: The variables to drop
@@ -93,7 +96,7 @@ class RelationalAlgebraTerm(Term, ABC):
         """
         return DropRARelation(self, variables)
 
-    def isempty(self):
+    def isempty(self) -> bool:
         """
         Checks if the current relation is empty
         :return: True, if self presents an empty relation
@@ -130,7 +133,8 @@ class BaseRATerm(RelationalAlgebraTerm):
     """
     Represents a term of the form R(t1,...,tn) for elementary terms t1,...,tn
     """
-    def substitute(self, allow_collision: bool = False, **kwargs):
+
+    def substitute(self, allow_collision: bool = False, **kwargs) -> BaseRATerm:
         kwargs = {
             str(x): ElementaryTerm.to_term(kwargs[x]) for x in kwargs
         }
@@ -149,7 +153,7 @@ class BaseRATerm(RelationalAlgebraTerm):
         self.R = relation_symbol
         self.terms = [ConstantETerm(t) if isinstance(t, int) else t for t in terms]
 
-    def get_variables(self):
+    def get_variables(self) -> List[str]:
         variables = []
         for t in self.terms:
             variables = variables + t.get_variables()
@@ -157,7 +161,11 @@ class BaseRATerm(RelationalAlgebraTerm):
         variables.sort()
         return variables
 
-    def update_presentation(self, recursive=True, **kwargs):
+    def update_presentation(self, recursive=True, **kwargs) -> None:
+        if recursive:
+            for t in self.terms:
+                t.update_presentation(recursive)
+
         phi, update = self.to_fo()
 
         update = {R: update[R].evaluate() for R in update}
@@ -165,7 +173,7 @@ class BaseRATerm(RelationalAlgebraTerm):
         arithmetic.update(**update)
         self.presentation = arithmetic.evaluate(phi)
 
-    def to_fo(self) -> Tuple[str, Dict]:
+    def to_fo(self) -> Tuple[str, Dict[str, ElementaryTerm]]:
         """
         Creates the a translation of the atomic formula R(t1, ..., tn) into a relational first-order formula with new
         predicates for T1,..., Tn for the graphs of t1,...,tn. The result will be of shape "exists y1,...,yn.(T1(y1)
@@ -202,14 +210,15 @@ class BinaryRATerm(RelationalAlgebraTerm, ABC):
     """
     Abstract class that represents binary relational algebra terms.
     """
-    def substitute(self, allow_collision: bool = False, **kwargs):
+
+    def substitute(self, allow_collision: bool = False, **kwargs) -> BinaryRATerm:
         self.left.substitute(allow_collision, **kwargs)
         self.right.substitute(allow_collision, **kwargs)
         self.presentation = None
 
         return self
 
-    def get_variables(self):
+    def get_variables(self) -> List[str]:
         result = list(set(self.left.get_variables() + self.right.get_variables()))
         result.sort()
         return result
@@ -220,7 +229,7 @@ class BinaryRATerm(RelationalAlgebraTerm, ABC):
         self.left = left
         self.right = right
 
-    def update_presentation(self, recursive=True):
+    def update_presentation(self, recursive=True) -> None:
         """
             Builds presentation from the two sub-relations and combines then through a logical formula
             :param template: a first order formula with as str with 2 placeholders that will be replaced by the relations
@@ -239,22 +248,24 @@ class BinaryRATerm(RelationalAlgebraTerm, ABC):
         arithmetic.update(**{R0: self.left.evaluate(), R1: self.right.evaluate()})
         self.presentation = arithmetic.evaluate(phi)
 
+
 class IntersectionRATerm(BinaryRATerm):
     """
     Intersection of two relations.
     """
+
     def __init__(self, left: RelationalAlgebraTerm, right: RelationalAlgebraTerm):
         super(IntersectionRATerm, self).__init__(left, right)
         self._template = "(({} and {}))"
-
 
 
 class UnionRATerm(BinaryRATerm):
     """
     Union of two relations.
     """
+
     def __init__(self, left: RelationalAlgebraTerm, right: RelationalAlgebraTerm):
-        super(IntersectionRATerm, self).__init__(left, right)
+        super().__init__(left, right)
         self._template = "(({} or {}))"
 
 
@@ -262,17 +273,21 @@ class ComplementRATerm(RelationalAlgebraTerm):
     """
     The complement of a relation
     """
-    def substitute(self, allow_collision: bool = False, **kwargs):
+
+    def substitute(self, allow_collision: bool = False, **kwargs) -> ComplementRATerm:
         self.relation.substitute(allow_collision, **kwargs)
         self.presentation = None
 
         return self
 
-    def __init__(self, relation):
+    def __init__(self, relation: RelationalAlgebraTerm):
         super().__init__()
         self.relation = relation
 
-    def update_presentation(self):
+    def update_presentation(self, recursive=True) -> None:
+        if recursive:
+            self.relation.update_presentation(recursive)
+
         arithmetic = deepcopy(self.arithmetic)
         R0 = get_unique_id(arithmetic.get_relation_symbols(), 1)
         psi_R0 = R0 + '(' + ','.join(self.relation.get_variables()) + ')'
@@ -280,7 +295,7 @@ class ComplementRATerm(RelationalAlgebraTerm):
         arithmetic.update(**{R0: self.relation.evaluate()})
         self.presentation = arithmetic.evaluate(phi)
 
-    def get_variables(self):
+    def get_variables(self) -> List[str]:
         return self.relation.get_variables()
 
 
@@ -288,7 +303,8 @@ class DropRARelation(RelationalAlgebraTerm):
     """
     Relation of the shape {(x1,...,xn) | (x1,...,xn,y1,...,yn) in R}
     """
-    def substitute(self, allow_collision: bool = False, **kwargs):
+
+    def substitute(self, allow_collision: bool = False, **kwargs) -> None:
         kwrec = copy(kwargs)
         for x in self.variables:
             if x in kwargs:
@@ -306,7 +322,10 @@ class DropRARelation(RelationalAlgebraTerm):
 
         return self
 
-    def update_presentation(self):
+    def update_presentation(self, recursive: bool = True) -> None:
+        if recursive:
+            self.relation.update_presentation()
+
         ex_args = ' '.join(self.variables)
         R_args = ','.join(self.relation.get_variables())
         arithmetic = deepcopy(self.arithmetic)
@@ -316,7 +335,7 @@ class DropRARelation(RelationalAlgebraTerm):
         arithmetic.update(**{R0: self.relation.evaluate()})
         self.presentation = arithmetic.evaluate(phi)
 
-    def get_variables(self):
+    def get_variables(self) -> List[str]:
         result = [v for v in self.relation.get_variables() if v not in self.variables]
         result.sort()
         return result
@@ -331,7 +350,7 @@ class DropRARelation(RelationalAlgebraTerm):
 
 class ElementaryTerm(Term, ABC):
     @classmethod
-    def to_term(self, x: Union[str, int, ElementaryTerm]):
+    def to_term(self, x: Union[str, int, ElementaryTerm]) -> ElementaryTerm:
         """
         Classmethod for converting str and int into variables and constants, respectively
         :param x: The input parameter
@@ -343,7 +362,7 @@ class ElementaryTerm(Term, ABC):
         super().__init__()
         self.presentation = None
 
-    def eq(self, other: ElementaryTerm):
+    def eq(self, other: ElementaryTerm) -> BaseRATerm:
         """
         Creates the relation self = other
         :param other: the rhs of the equality
@@ -351,7 +370,7 @@ class ElementaryTerm(Term, ABC):
         """
         return BaseRATerm('Eq', [self, other])
 
-    def lt(self, other):
+    def lt(self, other) -> BaseRATerm:
         """
         Creates the relation self < other
         :param other: The term on the rhs
@@ -359,7 +378,7 @@ class ElementaryTerm(Term, ABC):
         """
         return BaseRATerm('Lt', [self, other])
 
-    def gt(self, other):
+    def gt(self, other) -> BaseRATerm:
         """
         Creates the relation other < self
         :param other: The term on the lhs
@@ -367,7 +386,7 @@ class ElementaryTerm(Term, ABC):
         """
         return BaseRATerm('Lt', [other, self])
 
-    def evaluate(self):
+    def evaluate(self) -> DFA:
         if self.presentation is None:
             self.update_presentation()
 
@@ -384,7 +403,7 @@ class ElementaryTerm(Term, ABC):
 
         return AdditionETerm(self, other)
 
-    def __mul__(self, other: ConstantETerm) -> AdditionETerm:
+    def __mul__(self, other) -> AdditionETerm:
         """
         Creates a term that is equivalent to self*other in linear arithmetic. Note that other needs to be a constant.
         The method creates a nested addition and guarantees to create only O(log2(other)) many distinct terms on object
@@ -438,7 +457,7 @@ class ElementaryTerm(Term, ABC):
         return BaseRATerm(relation_symbol="B", terms=[self, other])
 
     @abstractmethod
-    def update_presentation(self, **kwargs) -> None:
+    def update_presentation(self, recursive: bool = True, **kwargs) -> None:
         raise NotImplementedError
 
 
@@ -449,7 +468,7 @@ class ConstantETerm(ElementaryTerm):
     def get_variables(self) -> List[str]:
         return []
 
-    def update_presentation(self, **kwargs) -> None:
+    def update_presentation(self, recursive=True, **kwargs) -> None:
         self.presentation = lsbf_automaton(self.n)
 
     def __init__(self, n: int):
@@ -461,10 +480,10 @@ class ConstantETerm(ElementaryTerm):
 
 
 class VariableETerm(ElementaryTerm):
-    def substitute(self, allow_collision: bool = False, **kwargs):
+    def substitute(self, allow_collision: bool = False, **kwargs) -> VariableETerm:
         return self
 
-    def update_presentation(self, **kwargs):
+    def update_presentation(self, recursive=True, **kwargs) -> None:
         arithmetic = deepcopy(self.arithmetic)
         self.presentation = arithmetic.automata['U']
 
@@ -503,7 +522,7 @@ class VariableETerm(ElementaryTerm):
 
 
 class AdditionETerm(ElementaryTerm):
-    def substitute(self, allow_collision: bool = False, **kwargs):
+    def substitute(self, allow_collision: bool = False, **kwargs) -> AdditionETerm:
         kwargs = {
             str(x): ElementaryTerm.to_term(kwargs[x]) for x in kwargs
         }
@@ -521,7 +540,11 @@ class AdditionETerm(ElementaryTerm):
 
         return self
 
-    def update_presentation(self, **kwargs) -> None:
+    def update_presentation(self, recursive=True, **kwargs) -> None:
+        if recursive:
+            self.left.update_presentation()
+            self.right.update_presentation()
+
         left_is_var = isinstance(self.left, VariableETerm)
         right_is_var = isinstance(self.right, VariableETerm)
 
@@ -570,7 +593,7 @@ class AdditionETerm(ElementaryTerm):
         result.sort()
         return result
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         if isinstance(other, AdditionETerm):
             return self.left == other.left and self.right == other.right
         else:
@@ -580,4 +603,3 @@ class AdditionETerm(ElementaryTerm):
         super().__init__()
         self.left = left
         self.right = right
-
