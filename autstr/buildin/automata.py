@@ -22,6 +22,7 @@ def length_automaton(n, sigma) -> DFA:
 def zero() -> DFA:
     """
     Creates an automaton over the empty symbol set that recognizes the empty language
+
     :return:
     """
     result = DFA(
@@ -38,6 +39,7 @@ def zero() -> DFA:
 def one() -> DFA:
     """
         Creates an automaton over the empty symbol set that recognizes language that contains only the empty word.
+
         :return:
         """
     result = DFA(

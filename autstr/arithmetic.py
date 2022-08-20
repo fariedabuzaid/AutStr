@@ -7,16 +7,16 @@ import math
 
 from automata.fa.dfa import DFA
 
-from autstr.utils.automata_tools import lsbf_automaton, iterate_language
-from autstr.buildin.presentations import buechi_arithmetic
+from autstr.utils.automata_tools import iterate_language, lsbf_Z_automaton
+from autstr.buildin.presentations import buechi_arithmetic_Z
 from autstr.utils.misc import get_unique_id
 
 
 class Term(ABC):
     """
-    Abstract class representing a term over the (base 2) Büchi arithmetic
+    Abstract class representing a term over the (base 2) Büchi arithmetic over the integers :math:`\\mathbb{Z}`
     """
-    arithmetic = buechi_arithmetic()
+    arithmetic = buechi_arithmetic_Z()
 
     def __init__(self):
         self.presentation = None
@@ -24,8 +24,9 @@ class Term(ABC):
     @abstractmethod
     def update_presentation(self, recursive=True) -> None:
         """
-        Updates the internal presentation of the term
-        :param recursive: If True, recursively updates the presentation of all subrelations
+        Updates the internal presentation of the term.
+
+        :param recursive: If True, recursively updates the presentation of all sub-relations
         :return:
         """
         raise NotImplementedError
@@ -33,6 +34,7 @@ class Term(ABC):
     def evaluate(self) -> DFA:
         """
         Returns automatic presentation of the relation.
+
         :return:
         """
         if self.presentation is None:
@@ -43,7 +45,8 @@ class Term(ABC):
     @abstractmethod
     def get_variables(self) -> List[str]:
         """
-        Get all free variables of a term
+        Get all free variables of a term.
+
         :return:
         """
         raise NotImplementedError
@@ -51,7 +54,8 @@ class Term(ABC):
     @abstractmethod
     def substitute(self, allow_collision: bool = False, **kwargs) -> Term:
         """
-        Substitute variable names in the relation
+        Substitute variable names in the relation.
+
         :param allow_collision: if True, does not check collision with quantified
         :param kwargs:
         :return:
@@ -60,13 +64,10 @@ class Term(ABC):
 
 
 class RelationalAlgebraTerm(Term, ABC):
-    """
-    Abstract class that
-    """
-
     def __and__(self, other: RelationalAlgebraTerm) -> IntersectionRATerm:
         """
         Intersection
+
         :param other:
         :return: A term that presents the intersection of self and other
         """
@@ -75,6 +76,7 @@ class RelationalAlgebraTerm(Term, ABC):
     def __or__(self, other: RelationalAlgebraTerm) -> UnionRATerm:
         """
         Union
+
         :param other:
         :return: A term that presents the union of self and other
         """
@@ -83,13 +85,33 @@ class RelationalAlgebraTerm(Term, ABC):
     def __invert__(self):
         """
         Complement
+
         :return: A term that presents the complement of the current relation
         """
         return ComplementRATerm(self)
 
+    def __contains__(self, item):
+        """
+        Check if a tuple is in the relation.
+
+        :param item:
+        :return:
+        """
+        words = tuple(format(n, 'b')[::-1] for n in item)
+        l_max = max([len(w) for w in words])
+        for i, w in enumerate(words):
+            if len(w) < l_max:
+                difference = l_max - len(w)
+                words[i] = w + ('*' * difference)
+
+        input = [(w[i] for w in words) for i in range(l_max)]
+        return self.presentation.accepts_input(input)
+
+
     def drop(self, variables: List[Union[str, VariableETerm]]) -> DropRARelation:
         """
-        Drop variables
+        Drop variables.
+
         :param variables: The variables to drop
         :return: presentation of the projection of the current relation onto the variables self.get_variables without
             @variables
@@ -98,7 +120,8 @@ class RelationalAlgebraTerm(Term, ABC):
 
     def isempty(self) -> bool:
         """
-        Checks if the current relation is empty
+        Checks if the current relation is empty.
+
         :return: True, if self presents an empty relation
         """
         if self.presentation is None:
@@ -109,6 +132,7 @@ class RelationalAlgebraTerm(Term, ABC):
     def isfinite(self) -> bool:
         """
         checks if the number of solutions is finite.
+
         :return: True, if the relation contains only finitely many tuples
         """
         if self.presentation is None:
@@ -118,20 +142,27 @@ class RelationalAlgebraTerm(Term, ABC):
 
     def __iter__(self):
         """
-        Iterates all solutions by successively enumerating all solution tuples smaller than (2^n,...,2^n) in
+        Iterates all solutions by successively enumerating all solution tuples smaller than :math:`(2^n,...,2^n)` in
         lexicographic order. The procedure guarantees that every solution tuple is enumerated exactly once.
+
         :return:
         """
         if self.presentation is None:
             self.update_presentation()
 
         for t in iterate_language(self.presentation, backward=True):
-            yield tuple(int(n.replace('*', ''), base=2) for n in t)
+            yield tuple(
+                int(
+                    n.replace('*', '')[:-1], base=2
+                ) if n.replace('*', '')[-1] == '0' else -int(
+                    n.replace('*', '')[:-1], base=2
+                ) for n in t
+            )
 
 
 class BaseRATerm(RelationalAlgebraTerm):
     """
-    Represents a term of the form R(t1,...,tn) for elementary terms t1,...,tn
+    Represents a term of the form :math:`R(t_1,...,t_n)` for elementary terms :math:`t_1,...,t_n`
     """
 
     def substitute(self, allow_collision: bool = False, **kwargs) -> BaseRATerm:
@@ -175,10 +206,13 @@ class BaseRATerm(RelationalAlgebraTerm):
 
     def to_fo(self) -> Tuple[str, Dict[str, ElementaryTerm]]:
         """
-        Creates the a translation of the atomic formula R(t1, ..., tn) into a relational first-order formula with new
-        predicates for T1,..., Tn for the graphs of t1,...,tn. The result will be of shape "exists y1,...,yn.(T1(y1)
-        and ... and Tn(yn) and R(y1,...yn))". The method guarantees that the newly created relation symbols T1,...,Tn
+        Creates the a translation of the atomic formula :math:`R(t_1(\\bar{x}), ..., t_n(\\bar{x}))` into a relational first-order formula
+        with new
+        predicates for :math:`T_1,..., T_n` for the graphs of :math:`t_1,...,t_n`. The result will be of shape
+        :math:`\\exists y_1,...,y_n.(T_1(\\bar{x}, y_1) \\wedge ... \\wedge T_n(\\bar{x}, y_n) \\wedge R(y_1,...y_n))`.
+        The method guarantees that the newly created relation symbols :math:`T_1,...,T_n`
         do not collide with already defined relation symbols.
+
         :return: The relational formula and the mapping of new relation symbols to terms
         """
         phi = self.R + '({})'
@@ -231,11 +265,12 @@ class BinaryRATerm(RelationalAlgebraTerm, ABC):
 
     def update_presentation(self, recursive=True) -> None:
         """
-            Builds presentation from the two sub-relations and combines then through a logical formula
-            :param template: a first order formula with as str with 2 placeholders that will be replaced by the relations
-                for the two sub-formulae.
-            :return:
-            """
+        Builds presentation from the two sub-relations and combines then through a logical formula
+
+        :param template: a first order formula with as str with 2 placeholders that will be replaced by the relations
+            for the two sub-formulae.
+        :return:
+        """
         if recursive:
             self.left.update_presentation(recursive=recursive)
             self.right.update_presentation(recursive=recursive)
@@ -301,7 +336,8 @@ class ComplementRATerm(RelationalAlgebraTerm):
 
 class DropRARelation(RelationalAlgebraTerm):
     """
-    Relation of the shape {(x1,...,xn) | (x1,...,xn,y1,...,yn) in R}
+    Relation of the shape :math:`\\{(x_1,...,x_n) | (x_1,...,x_n,y_1,...,y_m) \\in R\\}` where :math:`y_1,\\ldots,y_m`
+    are the dropped variables.
     """
 
     def substitute(self, allow_collision: bool = False, **kwargs) -> None:
@@ -349,10 +385,14 @@ class DropRARelation(RelationalAlgebraTerm):
 
 
 class ElementaryTerm(Term, ABC):
+    """
+    Elementary term. These terms are evaluated in the base structure, i.e. the yield integers.
+    """
     @classmethod
     def to_term(self, x: Union[str, int, ElementaryTerm]) -> ElementaryTerm:
         """
-        Classmethod for converting str and int into variables and constants, respectively
+        Classmethod for converting str and int into variables and constants, respectively.
+
         :param x: The input parameter
         :return: the term tht presents x
         """
@@ -364,15 +404,17 @@ class ElementaryTerm(Term, ABC):
 
     def eq(self, other: ElementaryTerm) -> BaseRATerm:
         """
-        Creates the relation self = other
+        Creates the relation :math:`\\textrm{self} == \\textrm{other}`.
+
         :param other: the rhs of the equality
-        :return: Equ
+        :return:
         """
         return BaseRATerm('Eq', [self, other])
 
     def lt(self, other) -> BaseRATerm:
         """
-        Creates the relation self < other
+        Creates the relation :math`\\textrm{self} < \\textrm{other}`.
+
         :param other: The term on the rhs
         :return:
         """
@@ -380,7 +422,8 @@ class ElementaryTerm(Term, ABC):
 
     def gt(self, other) -> BaseRATerm:
         """
-        Creates the relation other < self
+        Creates the relation :math:`\\textrm{other} < \\textrm{self}`.
+
         :param other: The term on the lhs
         :return:
         """
@@ -392,9 +435,10 @@ class ElementaryTerm(Term, ABC):
 
         return self.presentation
 
-    def __add__(self, other: ElementaryTerm) -> AdditionETerm:
+    def __add__(self, other) -> AdditionETerm:
         """
-        Creates the term self + other
+        Creates the term :math:`\textrm{self} + \\textrm{other}`.
+
         :param other:
         :return:
         """
@@ -403,16 +447,55 @@ class ElementaryTerm(Term, ABC):
 
         return AdditionETerm(self, other)
 
+    def __radd__(self, other):
+        """
+        Creates a term that is equivalent to :math:`\\textrm{other} + \textrm{self}`. Uses commutativity.
+
+        :param other:
+        :return:
+        """
+        return self.__add__(other)
+
+    def __neg__(self):
+        """
+        Creates the term :math:`-\\textrm{self}`.
+
+        :return:
+        """
+        return NegatedETerm(self)
+
+    def __sub__(self, other):
+        """
+        Creates the term :math:`\\textrm{self} + (-\\textrm{other})`.
+
+        :param other:
+        :return:
+        """
+        return self + (-other)
+
+    def __rsub__(self, other):
+        """
+        creates the term :math:`\\textrm{other} + (-\\textrm{self})`.
+
+        :param other:
+        :return:
+        """
+        return other + (-self)
+
     def __mul__(self, other) -> AdditionETerm:
         """
-        Creates a term that is equivalent to self*other in linear arithmetic. Note that other needs to be a constant.
-        The method creates a nested addition and guarantees to create only O(log2(other)) many distinct terms on object
-        level.
+        Creates a term that is equivalent to :math:`\\textrm{self}\\cdot \\textrm{other}` in linear arithmetic.
+        Note that other needs to be a constant.
+        The method creates a nested addition and guarantees to create only :math:`O(\\log_2(\\textrm{other}))`
+        many distinct terms on object level.
+
         :param other: The constant to multiply with
         :return: term that expresses the other-fold summation of self
         """
         if isinstance(other, int):
             # Reduce number of unique terms by base 2 decomposition
+            positive = (other >= 0)
+            other = abs(other)
             if other == 0:
                 n_bits = 1
             else:
@@ -433,13 +516,17 @@ class ElementaryTerm(Term, ABC):
                 else:
                     other = int(other / 2)
 
-            return term
+            if positive:
+                return term
+            else:
+                return -term
         else:
             raise ValueError('Can multiply only with natural numbers')
 
     def __rmul__(self, other):
         """
-        Creates a term equivalent to other*self. Uses commutativity.
+        Creates a term equivalent to :math:`other \\cdot self`. Uses commutativity.
+
         :param other: The Constant to multiply
         :return:
         """
@@ -447,8 +534,9 @@ class ElementaryTerm(Term, ABC):
 
     def __or__(self, other):
         """
-        creates a relational algebra term that represents self | other. The semantics of | is given as x | y iff
-        y = 2^n for some n and y divides x.
+        creates a relational algebra term that represents self | other. The semantics of | is given as :math:`x | y` iff
+        :math:`y = 2^n` for some :math:`n` and :math:`y` divides :math:`x`.
+
         :param other:
         :return:
         """
@@ -469,7 +557,7 @@ class ConstantETerm(ElementaryTerm):
         return []
 
     def update_presentation(self, recursive=True, **kwargs) -> None:
-        self.presentation = lsbf_automaton(self.n)
+        self.presentation = lsbf_Z_automaton(self.n)
 
     def __init__(self, n: int):
         super().__init__()
@@ -485,7 +573,7 @@ class VariableETerm(ElementaryTerm):
 
     def update_presentation(self, recursive=True, **kwargs) -> None:
         arithmetic = deepcopy(self.arithmetic)
-        self.presentation = arithmetic.automata['U']
+        self.presentation = arithmetic.automata['Eq']
 
     def get_variables(self) -> List[str]:
         return [self.get_name()]
@@ -495,7 +583,8 @@ class VariableETerm(ElementaryTerm):
 
     def __eq__(self, other) -> bool:
         """
-        equality is based on the name of the variable
+        equality is based on the name of the variable.
+
         :param other: The other Variable
         :return:
         """
@@ -509,6 +598,7 @@ class VariableETerm(ElementaryTerm):
     def __init__(self, name: str):
         """
         Initialization.
+
         :param name: The name of the variable
         """
         super().__init__()
@@ -519,6 +609,36 @@ class VariableETerm(ElementaryTerm):
 
     def __str__(self):
         return self.name
+
+class NegatedETerm(ElementaryTerm):
+    def __init__(self, term: ElementaryTerm):
+        super().__init__()
+        self.subterm = term
+
+    def update_presentation(self, recursive: bool = True, **kwargs) -> None:
+        if recursive:
+            self.subterm.update_presentation(recursive)
+
+        arithmetic = deepcopy(self.arithmetic)
+        T = get_unique_id(arithmetic.get_relation_symbols())
+        input_args = self.subterm.get_variables()
+        y, t = get_unique_id(input_args, 2)
+
+        if not isinstance(self.subterm, VariableETerm):
+            tau = T + '(' + ','.join(input_args + [t]) + ')'
+            phi = f'exists {t}.({tau} and Neg({t}, {y}))'
+        else:
+            phi = 'Neg(x, y)'
+
+        arithmetic.update(**{T: self.subterm.evaluate()})
+
+        self.presentation = arithmetic.evaluate(phi)
+
+    def get_variables(self) -> List[str]:
+        return self.subterm.get_variables()
+
+    def substitute(self, allow_collision: bool = False, **kwargs) -> Term:
+        self.subterm.substitute(self, allow_collision, **kwargs)
 
 
 class AdditionETerm(ElementaryTerm):
@@ -586,7 +706,8 @@ class AdditionETerm(ElementaryTerm):
 
     def get_variables(self) -> List[str]:
         """
-        get ordered list of all free variables in the term
+        Get ordered list of all free variables in the term.
+
         :return:
         """
         result = list(set(self.left.get_variables() + self.right.get_variables()))
