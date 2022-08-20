@@ -4,7 +4,7 @@ import itertools as it
 from typing import List, Tuple, Callable, Union
 
 from autstr.buildin.automata import one
-from autstr.utils.misc import generate_new_elements
+from autstr.utils.misc import get_unique_id
 from autstr.utils.misc import heapify_llex as heapify
 from autstr.utils.misc import heappop_llex as heappop
 from autstr.utils.misc import heappush_llex as heappush
@@ -149,7 +149,7 @@ def pad(dfa: DFA, padding_symbol: Tuple[str] = ('*',)) -> DFA:
     base_symbols = {a[0] for a in dfa.input_symbols}.union({padding_symbol[0]})
     arity = len(list(dfa.input_symbols)[0])
     input_symbols = set(it.product(base_symbols, repeat=arity))
-    good, bad = generate_new_elements(dfa.states, 2)
+    good, bad = get_unique_id(dfa.states, 2)
     states = dfa.states.union({good, bad})
     padding_transitions = {
         q: {padding_symbol * arity: good if q in dfa.final_states else bad} for q in dfa.states
@@ -182,7 +182,7 @@ def unpad(dfa: DFA, padding_symbol: Tuple[str] = ('*',), remove_blank: bool = Fa
     arity = len(list(dfa.input_symbols)[0])
     if not remove_blank:
         input_symbols = dfa.input_symbols
-        sink = generate_new_elements(dfa.states, 1)
+        sink = get_unique_id(dfa.states, 1)
         states = dfa.states.union({sink})
         transitions = {
             q: {
@@ -324,6 +324,36 @@ def lsbf_automaton(n: int) -> DFA:
     input_symbols = {('0',), ('1',), ('*',)}
 
     transitions = {i: {a: i + 1 if a == (bits[i],) else n_bits + 1 for a in input_symbols} for i in range(n_bits)}
+    transitions[n_bits] = {a: n_bits + 1 for a in input_symbols}
+    transitions[n_bits + 1] = {a: n_bits + 1 for a in input_symbols}
+
+    result = DFA(
+        states=states,
+        input_symbols=input_symbols,
+        initial_state=initial_state,
+        transitions=transitions,
+        final_states=final_states
+    )
+
+    return stringlify_states(result)
+
+def lsbf_Z_automaton(n: int) -> DFA:
+    """
+    generates an automation that recognizes exactly the least-significant-bit-first binary encoding of n over Z
+    """
+    bits = format(abs(n), 'b')[::-1]
+    n_bits = len(bits)
+
+    states = set(range(n_bits + 2))
+    states.add(-1)
+    initial_state = -1
+    final_states = {n_bits}
+    input_symbols = {('0',), ('1',), ('*',)}
+
+    transitions = {i: {a: i + 1 if a == (bits[i],) else n_bits + 1 for a in input_symbols} for i in range(n_bits)}
+    transitions[-1] = {
+        a: 0 if (n >= 0 and a == ('0',)) or (n < 0 and a == ('1',)) else n_bits + 1 for a in input_symbols
+    }
     transitions[n_bits] = {a: n_bits + 1 for a in input_symbols}
     transitions[n_bits + 1] = {a: n_bits + 1 for a in input_symbols}
 

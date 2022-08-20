@@ -7,16 +7,16 @@ import math
 
 from automata.fa.dfa import DFA
 
-from autstr.utils.automata_tools import lsbf_automaton, iterate_language
-from autstr.buildin.presentations import buechi_arithmetic
+from autstr.utils.automata_tools import lsbf_automaton, iterate_language, lsbf_Z_automaton
+from autstr.buildin.presentations import buechi_arithmetic_Z
 from autstr.utils.misc import get_unique_id
 
 
 class Term(ABC):
     """
-    Abstract class representing a term over the (base 2) Büchi arithmetic
+    Abstract class representing a term over the (base 2) Büchi arithmetic over the intergers Z
     """
-    arithmetic = buechi_arithmetic()
+    arithmetic = buechi_arithmetic_Z()
 
     def __init__(self):
         self.presentation = None
@@ -87,6 +87,13 @@ class RelationalAlgebraTerm(Term, ABC):
         """
         return ComplementRATerm(self)
 
+    def __contains__(self, item):
+        """
+        Check if a tuple is in the relation
+        :param item:
+        :return:
+        """
+
     def drop(self, variables: List[Union[str, VariableETerm]]) -> DropRARelation:
         """
         Drop variables
@@ -126,7 +133,13 @@ class RelationalAlgebraTerm(Term, ABC):
             self.update_presentation()
 
         for t in iterate_language(self.presentation, backward=True):
-            yield tuple(int(n.replace('*', ''), base=2) for n in t)
+            yield tuple(
+                int(
+                    n.replace('*', '')[:-1], base=2
+                ) if n.replace('*', '')[-1] == '0' else -int(
+                    n.replace('*', '')[:-1], base=2
+                ) for n in t
+            )
 
 
 class BaseRATerm(RelationalAlgebraTerm):
@@ -349,6 +362,9 @@ class DropRARelation(RelationalAlgebraTerm):
 
 
 class ElementaryTerm(Term, ABC):
+    """
+    Elementary term. These terms are evaluated in the base structure, i.e. the yield integers.
+    """
     @classmethod
     def to_term(self, x: Union[str, int, ElementaryTerm]) -> ElementaryTerm:
         """
@@ -364,9 +380,9 @@ class ElementaryTerm(Term, ABC):
 
     def eq(self, other: ElementaryTerm) -> BaseRATerm:
         """
-        Creates the relation self = other
+        Creates the relation self == other
         :param other: the rhs of the equality
-        :return: Equ
+        :return:
         """
         return BaseRATerm('Eq', [self, other])
 
@@ -392,7 +408,7 @@ class ElementaryTerm(Term, ABC):
 
         return self.presentation
 
-    def __add__(self, other: ElementaryTerm) -> AdditionETerm:
+    def __add__(self, other) -> AdditionETerm:
         """
         Creates the term self + other
         :param other:
@@ -402,6 +418,37 @@ class ElementaryTerm(Term, ABC):
             other = ConstantETerm(other)
 
         return AdditionETerm(self, other)
+
+    def __radd__(self, other):
+        """
+        Creates a term that is equivalent to other + self. Uses commutativity.
+        :param other:
+        :return:
+        """
+        return self.__add__(other)
+
+    def __neg__(self):
+        """
+        Creates the term -self
+        :return:
+        """
+        return NegatedETerm(self)
+
+    def __sub__(self, other):
+        """
+        Creates the term self + (-other)
+        :param other:
+        :return:
+        """
+        return self + (-other)
+
+    def __rsub__(self, other):
+        """
+        creates the term other + (-self)
+        :param other:
+        :return:
+        """
+        return other + (-self)
 
     def __mul__(self, other) -> AdditionETerm:
         """
@@ -413,6 +460,8 @@ class ElementaryTerm(Term, ABC):
         """
         if isinstance(other, int):
             # Reduce number of unique terms by base 2 decomposition
+            positive = (other >= 0)
+            other = abs(other)
             if other == 0:
                 n_bits = 1
             else:
@@ -433,7 +482,10 @@ class ElementaryTerm(Term, ABC):
                 else:
                     other = int(other / 2)
 
-            return term
+            if positive:
+                return term
+            else:
+                return -term
         else:
             raise ValueError('Can multiply only with natural numbers')
 
@@ -469,7 +521,7 @@ class ConstantETerm(ElementaryTerm):
         return []
 
     def update_presentation(self, recursive=True, **kwargs) -> None:
-        self.presentation = lsbf_automaton(self.n)
+        self.presentation = lsbf_Z_automaton(self.n)
 
     def __init__(self, n: int):
         super().__init__()
@@ -485,7 +537,7 @@ class VariableETerm(ElementaryTerm):
 
     def update_presentation(self, recursive=True, **kwargs) -> None:
         arithmetic = deepcopy(self.arithmetic)
-        self.presentation = arithmetic.automata['U']
+        self.presentation = arithmetic.automata['Eq']
 
     def get_variables(self) -> List[str]:
         return [self.get_name()]
@@ -519,6 +571,36 @@ class VariableETerm(ElementaryTerm):
 
     def __str__(self):
         return self.name
+
+class NegatedETerm(ElementaryTerm):
+    def __init__(self, term: ElementaryTerm):
+        super().__init__()
+        self.subterm = term
+
+    def update_presentation(self, recursive: bool = True, **kwargs) -> None:
+        if recursive:
+            self.subterm.update_presentation(recursive)
+
+        arithmetic = deepcopy(self.arithmetic)
+        T = get_unique_id(arithmetic.get_relation_symbols())
+        input_args = self.subterm.get_variables()
+        y, t = get_unique_id(input_args, 2)
+
+        if not isinstance(self.subterm, VariableETerm):
+            tau = T + '(' + ','.join(input_args + [t]) + ')'
+            phi = f'exists {t}.({tau} and Neg({t}, {y}))'
+        else:
+            phi = 'Neg(x, y)'
+
+        arithmetic.update(**{T: self.subterm.evaluate()})
+
+        self.presentation = arithmetic.evaluate(phi)
+
+    def get_variables(self) -> List[str]:
+        return self.subterm.get_variables()
+
+    def substitute(self, allow_collision: bool = False, **kwargs) -> Term:
+        self.subterm.substitute(self, allow_collision, **kwargs)
 
 
 class AdditionETerm(ElementaryTerm):
@@ -586,7 +668,7 @@ class AdditionETerm(ElementaryTerm):
 
     def get_variables(self) -> List[str]:
         """
-        get ordered list of all free variables in the term
+        Get ordered list of all free variables in the term
         :return:
         """
         result = list(set(self.left.get_variables() + self.right.get_variables()))
