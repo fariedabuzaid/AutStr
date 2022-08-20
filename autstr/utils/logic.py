@@ -5,7 +5,8 @@ from typing import List
 
 def get_free_elementary_vars(phi: Expression) -> List[str]:
     """
-    Get an ordered list of all free elementary variables of phi
+    Get an ordered list of all free elementary variables of phi.
+
     :param phi: The formula
     :return: Ordered list with all elementary variable names
     """

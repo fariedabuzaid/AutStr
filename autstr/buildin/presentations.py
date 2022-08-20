@@ -88,6 +88,7 @@ def buechi_arithmetic() -> AutomaticPresentation:
 def buechi_arithmetic_Z() -> AutomaticPresentation:
     """
     Creates a presentation of Büchi arithmetic over Z.
+
     :rtype: object
     """
 

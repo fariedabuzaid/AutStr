@@ -29,7 +29,8 @@ class AutomaticPresentation:
 
     def get_relation_symbols(self) -> List[str]:
         """
-        Returns list of all defined relation symbols. The symbol 'U' must always be defined and denotes the Universe
+        Returns list of all defined relation symbols. The symbol 'U' must always be defined and denotes the Universe.
+
         :return: list of all defined relation symbols.
         """
         return list(self.automata.keys())
@@ -50,6 +51,7 @@ class AutomaticPresentation:
     def check(self, phi: logic.Expression) -> bool:
         """Checks if a given first-order formula holds on the presented structure. Free variables are assumed be
         implicitly existentially quantified.
+
         :param phi: the first order formula
         :returns: the truth value of the formula, if the formula where all free variables are existentially quantified.
         """
@@ -58,6 +60,7 @@ class AutomaticPresentation:
     def evaluate(self, phi: Union[str, logic.Expression], updates: Optional[Dict[str, Union[DFA, str]]] = None) -> DFA:
         """Evaluates a given first-order query on the presented structure. Returns a presentation of the set of all
         satisfying assignments.
+
         :param phi: the first order formula.
         :param updates: Temporarily update the relations for the evaluation
         :returns: The truth value of the formula, if the formula where all free variables are existentially quantified.
@@ -85,6 +88,7 @@ class AutomaticPresentation:
     def _build_automaton(self, phi: logic.Expression, verbose=False) -> DFA:
         """
         Creates a padded presentation of the satisfying assignments of phi.
+
         :param phi: The formula
         :param free_vars: Variable dictionary. All variables that scope the current formula. The result will be
             len(free_vars)-ary. The dictionary maps each variable to it's position in the tuple.

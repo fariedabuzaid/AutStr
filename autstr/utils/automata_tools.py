@@ -13,6 +13,7 @@ from autstr.utils.misc import heappush_llex as heappush
 def stringlify_states(dfa: Union[DFA, NFA], convert_orgnames: bool = True) -> DFA:
     """
     Auxiliary function to turn the states of a finite automation into strings
+
     :param dfa: the automaton A
     :param convert_orgnames: If True, converts the original state names into strings. Otherwise, an arbitrary numbering
         is chosen.
@@ -51,6 +52,7 @@ def stringlify_states(dfa: Union[DFA, NFA], convert_orgnames: bool = True) -> DF
 def stringlify_input_symbols(dfa: DFA, convert_orgnames=True) -> DFA:
     """
         Auxiliary function to turn the input_symbols of a finite automation into strings. Note that the function
+
         :param dfa: the automaton A
         :param convert_orgnames: If True, converts the original input symbol names into strings. Otherwise,
             an arbitrary numbering is chosen.
@@ -73,6 +75,7 @@ def stringlify_input_symbols(dfa: DFA, convert_orgnames=True) -> DFA:
 def projection(dfa: DFA, i: int) -> DFA:
     """Takes an automaton that recognizes a k-ary relation R and a position i<k and returns and automaton that
     recognizes the relation R_{-i} = {(x_1,..., x_{i-1}, x_{i+1},..., x_k) | exists x_i: (x_1,..., x_n) in R}
+
     :param dfa: The automaton
     :param i: the position
     :return: Automaton presentation of R_{-i}
@@ -114,6 +117,7 @@ def expand(dfa: DFA, n: int, pos: List) -> DFA:
     """
     Takes an automaton that recognizes a k-ary presentation R and expands it to a n-ary presentation S, n>=k, with
     S = {(x_1,..., x_n) | (x_{pos[0]},..., x_{pos[k-1]}) in R}
+
     :param dfa: The automaton
     :param n: The arity of the result
     :param pos: where to encode the original relation
@@ -142,9 +146,10 @@ def pad(dfa: DFA, padding_symbol: Tuple[str] = ('*',)) -> DFA:
     """
     Create an automaton that recognises L(dfa){padding_symbol}^*. Note that pad does currently only support plain
     languages and not relations
+
     :param dfa: The automaton
-    :param padding_symbol: (*,)
-    :return: Automaton that recognizes L(dfa){paddingsymbol}^*
+    :param padding_symbol:
+    :return: Automaton that recognizes L(dfa){paddingsymbol}^\*
     """
     base_symbols = {a[0] for a in dfa.input_symbols}.union({padding_symbol[0]})
     arity = len(list(dfa.input_symbols)[0])
@@ -174,6 +179,7 @@ def unpad(dfa: DFA, padding_symbol: Tuple[str] = ('*',), remove_blank: bool = Fa
     """
     Creates an automaton that recognizes {w | exists x in (padding_symbol^k)^*: wx in L(dfa)} where k is the arity of
     the relation that is recognized by dfa.
+
     :param remove_blank: If True, removes the blank symbol from the input symbols
     :param dfa: The automaton
     :param padding_symbol: The padding symbol. Needs to be a length one tuple
@@ -221,6 +227,7 @@ def unpad(dfa: DFA, padding_symbol: Tuple[str] = ('*',), remove_blank: bool = Fa
 def product(dfa: DFA, n: int) -> DFA:
     """
     Create an automaton that recognizes the n-fold cartesian product of L(dfa)
+
     :param dfa: The automaton
     :param n: number of convolutions
     :return: Automaton that recognizes the n-fold cartesian product of L(dfa)
@@ -240,6 +247,7 @@ def iterate_language(dfa: DFA, decoder: Callable = None, backward: bool = False,
     """
     Generator over the language that is represented by a DFA. Provides functionality for decoding of words by user
     defined decoder functions. Iterates through the words in length-lexicographic order.
+
     :param dfa: The automaton
     :param decoder: Decoder function that maps (tuples of) words to python object
     :param backward: If True, iterate over the elements of the reversed language

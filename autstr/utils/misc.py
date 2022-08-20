@@ -4,7 +4,8 @@ from typing import Set, List, Union
 
 def cmp_llex(v: str, w: str) -> int:
     """
-    Length-lexicographic ordering of a tuple of strings ignoring the padding symbol
+    Length-lexicographic ordering of a tuple of strings ignoring the padding symbol.
+
     :param v:
     :param w:
     :return:
@@ -28,7 +29,8 @@ def cmp_llex(v: str, w: str) -> int:
 
 def heapify_llex(arr: List[object]) -> List[object]:
     """
-    heaplyfy a list under the llex order
+    heaplyfy a list under the llex order.
+
     :param arr:
     :return:
     """
@@ -39,7 +41,8 @@ def heapify_llex(arr: List[object]) -> List[object]:
 
 def heappop_llex(heap: List[object]) -> object:
     """
-    heapop wrapper for llex order
+    heapop wrapper for llex order.
+
     :param heap: The heap list
     :return:
     """
@@ -48,7 +51,8 @@ def heappop_llex(heap: List[object]) -> object:
 
 def heappush_llex(heap: List[object], x: object) -> None:
     """
-    Heappop wrapper for lllex order
+    Heappop wrapper for lllex order.
+
     :param heap: The heap list
     :param x: The element to push
     :return:
