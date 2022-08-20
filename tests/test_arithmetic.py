@@ -1,6 +1,6 @@
 from copy import deepcopy
 
-from austr.arithmetic import VariableTerm as Var
+from austr.arithmetic import VariableETerm as Var
 
 from datetime import datetime
 
