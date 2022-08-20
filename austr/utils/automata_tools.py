@@ -1,6 +1,3 @@
-import math
-
-import numpy as np
 from automata.fa.dfa import DFA
 from automata.fa.nfa import NFA
 import itertools as it
@@ -13,7 +10,7 @@ from austr.utils.misc import heappop_llex as heappop
 from austr.utils.misc import heappush_llex as heappush
 
 
-def stringlify_states(dfa: Union[DFA, NFA], convert_orgnames: bool = True):
+def stringlify_states(dfa: Union[DFA, NFA], convert_orgnames: bool = True) -> DFA:
     """
     Auxiliary function to turn the states of a finite automation into strings
     :param dfa: the automaton A
@@ -51,7 +48,7 @@ def stringlify_states(dfa: Union[DFA, NFA], convert_orgnames: bool = True):
     return dfa_str
 
 
-def stringlify_input_symbols(dfa: DFA, convert_orgnames=True):
+def stringlify_input_symbols(dfa: DFA, convert_orgnames=True) -> DFA:
     """
         Auxiliary function to turn the input_symbols of a finite automation into strings. Note that the function
         :param dfa: the automaton A
@@ -73,11 +70,12 @@ def stringlify_input_symbols(dfa: DFA, convert_orgnames=True):
     return dfa_str
 
 
-def projection(dfa: DFA, i: int):
+def projection(dfa: DFA, i: int) -> DFA:
     """Takes an automaton that recognizes a k-ary relation R and a position i<k and returns and automaton that
     recognizes the relation R_{-i} = {(x_1,..., x_{i-1}, x_{i+1},..., x_k) | exists x_i: (x_1,..., x_n) in R}
     :param dfa: The automaton
     :param i: the position
+    :return: Automaton presentation of R_{-i}
     """
     assert all([isinstance(s, tuple) for s in dfa.input_symbols])
     assert all([len(s) > i for s in dfa.input_symbols])
@@ -112,7 +110,7 @@ def projection(dfa: DFA, i: int):
     return stringlify_states(result)
 
 
-def expand(dfa: DFA, n: int, pos: List):
+def expand(dfa: DFA, n: int, pos: List) -> DFA:
     """
     Takes an automaton that recognizes a k-ary presentation R and expands it to a n-ary presentation S, n>=k, with
     S = {(x_1,..., x_n) | (x_{pos[0]},..., x_{pos[k-1]}) in R}
@@ -140,7 +138,7 @@ def expand(dfa: DFA, n: int, pos: List):
     ).minify()
 
 
-def pad(dfa: DFA, padding_symbol=('*',)):
+def pad(dfa: DFA, padding_symbol: Tuple[str] = ('*',)) -> DFA:
     """
     Create an automaton that recognises L(dfa){padding_symbol}^*. Note that pad does currently only support plain
     languages and not relations
@@ -172,7 +170,7 @@ def pad(dfa: DFA, padding_symbol=('*',)):
     return padded_dfa
 
 
-def unpad(dfa: DFA, padding_symbol: Tuple = ('*',), remove_blank=False):
+def unpad(dfa: DFA, padding_symbol: Tuple[str] = ('*',), remove_blank: bool = False) -> DFA:
     """
     Creates an automaton that recognizes {w | exists x in (padding_symbol^k)^*: wx in L(dfa)} where k is the arity of
     the relation that is recognized by dfa.
@@ -220,7 +218,7 @@ def unpad(dfa: DFA, padding_symbol: Tuple = ('*',), remove_blank=False):
     return unpadded_dfa
 
 
-def product(dfa, n):
+def product(dfa: DFA, n: int) -> DFA:
     """
     Create an automaton that recognizes the n-fold cartesian product of L(dfa)
     :param dfa: The automaton
@@ -238,7 +236,7 @@ def product(dfa, n):
     return result
 
 
-def iterate_language(dfa: DFA, decoder: Callable = None, backward=False, padding_symbol='*'):
+def iterate_language(dfa: DFA, decoder: Callable = None, backward: bool = False, padding_symbol: str = '*'):
     """
     Generator over the language that is represented by a DFA. Provides functionality for decoding of words by user
     defined decoder functions. Iterates through the words in length-lexicographic order.
@@ -252,64 +250,57 @@ def iterate_language(dfa: DFA, decoder: Callable = None, backward=False, padding
     nfa = dfa
 
     nfa = stringlify_states(nfa)
-    nonempty = set()
-    for q in nfa.states:
-        nfa_q = DFA(
-            states=nfa.states,
-            input_symbols=nfa.input_symbols,
-            initial_state=nfa.initial_state,
-            final_states={q},
-            transitions=nfa.transitions
-        )
-        if not nfa_q.isempty():
-            nonempty.add(q)
 
-    reverse_transitions = {q: {a: set() for a in nfa.input_symbols} for q in nfa.states}
-    for p in nfa.states:
+    if backward:
+        nonempty = set()
         for q in nfa.states:
-            for a in nfa.transitions[q]:
-                reverse_transitions[nfa.transitions[q][a]][a].add(q)
+            nfa_q = DFA(
+                states=nfa.states,
+                input_symbols=nfa.input_symbols,
+                initial_state=nfa.initial_state,
+                final_states={q},
+                transitions=nfa.transitions
+            )
+            if not nfa_q.isempty():
+                nonempty.add(q)
 
-    """
-    for q in nfa.states:
-        nfa_q = DFA(
-            states=nfa.states,
-            input_symbols=nfa.input_symbols,
-            initial_state=q,
-            final_states=nfa.final_states,
-            transitions=nfa.transitions
-        )
-        if not nfa_q.isempty():
-            non_empty = non_empty.union({q})
+        transitions = {q: {a: set() for a in nfa.input_symbols} for q in nfa.states}
+        for p in nfa.states:
+            for q in nfa.states:
+                for a in nfa.transitions[q]:
+                    transitions[nfa.transitions[q][a]][a].add(q)
 
+        final = {nfa.initial_state}
+    else:
+        nonempty = set()
+        for q in nfa.states:
+            nfa_q = DFA(
+                states=nfa.states,
+                input_symbols=nfa.input_symbols,
+                initial_state=q,
+                final_states=nfa.final_states,
+                transitions=nfa.transitions
+            )
+            if not nfa_q.isempty():
+                nonempty.add(q)
 
+        transitions = dfa.transitions
+        final = nfa.final_states
 
-        reachable = {q}
-        last_reachable = None
-        while reachable != last_reachable:
-            last_reachable = reachable
-            for p in reachable:
-                for a in nfa.transitions[p]:
-                    reachable = reachable.union(nfa.transitions[p][a])
-        if len(reachable.intersection(nfa.final_states)) > 0:
-            non_empty = non_empty.union({q})
-        """
-
-    arity = len(list(dfa.input_symbols)[0])
     queue = [(('',) * arity, q) for q in nfa.final_states]
     queue = heapify(queue)
     while len(queue) > 0:
         word, state = heappop(queue)
 
-        if state == nfa.initial_state:
+        if state in final:
             if decoder is None:
                 yield word
             else:
                 yield decoder(word)
 
-        for a in reverse_transitions[state]:
+        for a in transitions[state]:
             if a != (padding_symbol,) * arity:
-                for q in reverse_transitions[state][a]:
+                for q in transitions[state][a]:
                     if q in nonempty:
                         heappush(
                             queue,
@@ -319,21 +310,22 @@ def iterate_language(dfa: DFA, decoder: Callable = None, backward=False, padding
                             ), q)
                         )
 
-def lsbf_automaton(n: int):
+
+def lsbf_automaton(n: int) -> DFA:
     """
     generates an automation that recognizes exactly the least-significant-bit-first binary encoding of n
     """
     bits = format(n, 'b')[::-1]
     n_bits = len(bits)
 
-    states = set(range(n_bits+2))
+    states = set(range(n_bits + 2))
     initial_state = 0
     final_states = {n_bits}
     input_symbols = {('0',), ('1',), ('*',)}
 
-    transitions = {i: {a: i+1 if a == (bits[i],) else n_bits+1 for a in input_symbols} for i in range(n_bits)}
-    transitions[n_bits] = {a: n_bits+1 for a in input_symbols}
-    transitions[n_bits+1] = {a: n_bits+1 for a in input_symbols}
+    transitions = {i: {a: i + 1 if a == (bits[i],) else n_bits + 1 for a in input_symbols} for i in range(n_bits)}
+    transitions[n_bits] = {a: n_bits + 1 for a in input_symbols}
+    transitions[n_bits + 1] = {a: n_bits + 1 for a in input_symbols}
 
     result = DFA(
         states=states,
