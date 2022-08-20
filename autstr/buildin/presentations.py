@@ -1,6 +1,6 @@
 from automata.fa.dfa import DFA
 import itertools as it
-from austr.presentations import AutomaticPresentation
+from autstr.presentations import AutomaticPresentation
 
 
 def buechi_arithmetic() -> AutomaticPresentation:

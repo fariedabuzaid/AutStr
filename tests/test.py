@@ -1,5 +1,5 @@
-from austr.buildin.presentations import buechi_arithmetic
-from austr.utils.automata_tools import iterate_language
+from autstr.buildin.presentations import buechi_arithmetic
+from autstr.utils.automata_tools import iterate_language
 
 if __name__ == '__main__':
     ba = buechi_arithmetic()

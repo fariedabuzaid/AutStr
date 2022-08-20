@@ -3,9 +3,9 @@ from nltk.sem import logic
 from automata.fa.dfa import DFA
 from typing import Dict, Optional, Union, List
 
-from austr.buildin.automata import zero, one
-from austr.utils.automata_tools import stringlify_states, product, projection, expand, unpad, pad
-from austr.utils.logic import get_free_elementary_vars
+from autstr.buildin.automata import zero, one
+from autstr.utils.automata_tools import stringlify_states, product, projection, expand, unpad, pad
+from autstr.utils.logic import get_free_elementary_vars
 
 
 class AutomaticPresentation:

@@ -3,11 +3,11 @@ from automata.fa.nfa import NFA
 import itertools as it
 from typing import List, Tuple, Callable, Union
 
-from austr.buildin.automata import one
-from austr.utils.misc import generate_new_elements
-from austr.utils.misc import heapify_llex as heapify
-from austr.utils.misc import heappop_llex as heappop
-from austr.utils.misc import heappush_llex as heappush
+from autstr.buildin.automata import one
+from autstr.utils.misc import generate_new_elements
+from autstr.utils.misc import heapify_llex as heapify
+from autstr.utils.misc import heappop_llex as heappop
+from autstr.utils.misc import heappush_llex as heappush
 
 
 def stringlify_states(dfa: Union[DFA, NFA], convert_orgnames: bool = True) -> DFA:

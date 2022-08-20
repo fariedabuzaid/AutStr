@@ -7,9 +7,9 @@ import math
 
 from automata.fa.dfa import DFA
 
-from austr.utils.automata_tools import lsbf_automaton, iterate_language
-from austr.buildin.presentations import buechi_arithmetic
-from austr.utils.misc import get_unique_id
+from autstr.utils.automata_tools import lsbf_automaton, iterate_language
+from autstr.buildin.presentations import buechi_arithmetic
+from autstr.utils.misc import get_unique_id
 
 
 class Term(ABC):
