@@ -114,7 +114,7 @@ class RelationalAlgebraTerm(Term, ABC):
 
         :param variables: The variables to drop
         :return: presentation of the projection of the current relation onto the variables self.get_variables without
-            @variables
+            variables
         """
         return DropRARelation(self, variables)
 
@@ -413,7 +413,7 @@ class ElementaryTerm(Term, ABC):
 
     def lt(self, other) -> BaseRATerm:
         """
-        Creates the relation :math`\\textrm{self} < \\textrm{other}`.
+        Creates the relation :math:`\\textrm{self} < \\textrm{other}`.
 
         :param other: The term on the rhs
         :return:
