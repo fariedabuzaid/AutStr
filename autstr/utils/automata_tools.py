@@ -144,13 +144,13 @@ def expand(dfa: DFA, n: int, pos: List) -> DFA:
 
 def pad(dfa: DFA, padding_symbol: Tuple[str] = ('*',)) -> DFA:
     """
-    Create an automaton that recognises L(dfa){padding_symbol}^*. Note that pad does currently only support plain
-    languages and not relations
+    Create an automaton that recognises :math:`L(\\textrm{dfa}){\\textrm{padding_symbol}}^\\ast`.
 
     :param dfa: The automaton
     :param padding_symbol:
-    :return: Automaton that recognizes L(dfa){paddingsymbol}^\*
+    :return: Automaton that recognizes :math:`L(\\textrm{dfa}){\\textrm{paddingsymbol}}^\ast`
     """
+    # TODO: padding symbol should be of type string
     base_symbols = {a[0] for a in dfa.input_symbols}.union({padding_symbol[0]})
     arity = len(list(dfa.input_symbols)[0])
     input_symbols = set(it.product(base_symbols, repeat=arity))
