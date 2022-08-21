@@ -1,0 +1,38 @@
+autstr package
+==============
+
+Subpackages
+-----------
+
+.. toctree::
+   :maxdepth: 4
+
+   autstr.buildin
+   autstr.utils
+
+Submodules
+----------
+
+autstr.arithmetic module
+------------------------
+
+.. automodule:: autstr.arithmetic
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+autstr.presentations module
+---------------------------
+
+.. automodule:: autstr.presentations
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Module contents
+---------------
+
+.. automodule:: autstr
+   :members:
+   :undoc-members:
+   :show-inheritance:

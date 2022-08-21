@@ -1,0 +1,8 @@
+AutStr
+======
+
+.. toctree::
+   :maxdepth: 4
+
+   autstr
+   setup

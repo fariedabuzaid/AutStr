@@ -1,0 +1,29 @@
+autstr.buildin package
+======================
+
+Submodules
+----------
+
+autstr.buildin.automata module
+------------------------------
+
+.. automodule:: autstr.buildin.automata
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+autstr.buildin.presentations module
+-----------------------------------
+
+.. automodule:: autstr.buildin.presentations
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Module contents
+---------------
+
+.. automodule:: autstr.buildin
+   :members:
+   :undoc-members:
+   :show-inheritance:

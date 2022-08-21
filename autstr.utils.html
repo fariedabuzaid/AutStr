@@ -1,0 +1,474 @@
+
+
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+    <title>autstr.utils package &#8212; AutStr 1.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="_static/cloud.css" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Noticia+Text:400,i,b,bi|Open+Sans:400,i,b,bi|Roboto+Mono:400,i,b,bi&amp;display=swap" type="text/css" />
+    
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    
+    
+     
+        <script src="_static/jquery.cookie.js"></script>
+    
+
+    
+     
+        <script src="_static/cloud.base.js"></script>
+    
+
+    
+     
+        <script src="_static/cloud.js"></script>
+    
+
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="autstr.buildin package" href="autstr.buildin.html" /> 
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+  </head><body>
+    <div class="relbar-top">
+        
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> &nbsp; &nbsp;</li>
+        <li class="right" >
+          <a href="autstr.buildin.html" title="autstr.buildin package"
+             accesskey="P">previous</a> &nbsp; &nbsp;</li>
+    <li><a href="index.html">AutStr 1.0 documentation</a> &#187;</li>
+
+          <li class="nav-item nav-item-1"><a href="modules.html" >AutStr</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="autstr.html" accesskey="U">autstr package</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">autstr.utils package</a></li> 
+      </ul>
+    </div>
+    </div>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="autstr-utils-package">
+<h1>autstr.utils package<a class="headerlink" href="#autstr-utils-package" title="Permalink to this heading">¶</a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this heading">¶</a></h2>
+</section>
+<section id="module-autstr.utils.automata_tools">
+<span id="autstr-utils-automata-tools-module"></span><h2>autstr.utils.automata_tools module<a class="headerlink" href="#module-autstr.utils.automata_tools" title="Permalink to this heading">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="autstr.utils.automata_tools.expand">
+<span class="sig-prename descclassname"><span class="pre">autstr.utils.automata_tools.</span></span><span class="sig-name descname"><span class="pre">expand</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dfa</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pos</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autstr.utils.automata_tools.expand" title="Permalink to this definition">¶</a></dt>
+<dd><p>Takes an automaton that recognizes a k-ary presentation R and expands it to a n-ary presentation S, n&gt;=k, with
+S = {(x_1,…, x_n) | (x_{pos[0]},…, x_{pos[k-1]}) in R}</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dfa</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">DFA</span></code>) – The automaton</p></li>
+<li><p><strong>n</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>) – The arity of the result</p></li>
+<li><p><strong>pos</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>) – where to encode the original relation</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">DFA</span></code></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Automaton recognizing {(x_1,…, x_n) | (x_{pos[0]},…, x_{pos[k-1]}) in L(dfa)}</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="autstr.utils.automata_tools.iterate_language">
+<span class="sig-prename descclassname"><span class="pre">autstr.utils.automata_tools.</span></span><span class="sig-name descname"><span class="pre">iterate_language</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dfa</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">decoder</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">backward</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">padding_symbol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'*'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autstr.utils.automata_tools.iterate_language" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generator over the language that is represented by a DFA. Provides functionality for decoding of words by user
+defined decoder functions. Iterates through the words in length-lexicographic order.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dfa</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">DFA</span></code>) – The automaton</p></li>
+<li><p><strong>decoder</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code>[<code class="xref py py-data docutils literal notranslate"><span class="pre">Callable</span></code>]) – Decoder function that maps (tuples of) words to python object</p></li>
+<li><p><strong>backward</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – If True, iterate over the elements of the reversed language</p></li>
+<li><p><strong>padding_symbol</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – The padding symbol</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="autstr.utils.automata_tools.lsbf_Z_automaton">
+<span class="sig-prename descclassname"><span class="pre">autstr.utils.automata_tools.</span></span><span class="sig-name descname"><span class="pre">lsbf_Z_automaton</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autstr.utils.automata_tools.lsbf_Z_automaton" title="Permalink to this definition">¶</a></dt>
+<dd><p>generates an automation that recognizes exactly the least-significant-bit-first binary encoding of n over Z</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">DFA</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="autstr.utils.automata_tools.lsbf_automaton">
+<span class="sig-prename descclassname"><span class="pre">autstr.utils.automata_tools.</span></span><span class="sig-name descname"><span class="pre">lsbf_automaton</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autstr.utils.automata_tools.lsbf_automaton" title="Permalink to this definition">¶</a></dt>
+<dd><p>generates an automation that recognizes exactly the least-significant-bit-first binary encoding of n</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">DFA</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="autstr.utils.automata_tools.pad">
+<span class="sig-prename descclassname"><span class="pre">autstr.utils.automata_tools.</span></span><span class="sig-name descname"><span class="pre">pad</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dfa</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">padding_symbol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">('*',)</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autstr.utils.automata_tools.pad" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create an automaton that recognises <span class="math notranslate nohighlight">\(L(\textrm{dfa}){\textrm{padding_symbol}}^\ast\)</span>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dfa</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">DFA</span></code>) – The automaton</p></li>
+<li><p><strong>padding_symbol</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Tuple</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">DFA</span></code></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Automaton that recognizes <span class="math notranslate nohighlight">\(L(\textrm{dfa}){\textrm{paddingsymbol}}^st\)</span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="autstr.utils.automata_tools.product">
+<span class="sig-prename descclassname"><span class="pre">autstr.utils.automata_tools.</span></span><span class="sig-name descname"><span class="pre">product</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dfa</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autstr.utils.automata_tools.product" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create an automaton that recognizes the n-fold cartesian product of L(dfa)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dfa</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">DFA</span></code>) – The automaton</p></li>
+<li><p><strong>n</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>) – number of convolutions</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">DFA</span></code></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Automaton that recognizes the n-fold cartesian product of L(dfa)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="autstr.utils.automata_tools.projection">
+<span class="sig-prename descclassname"><span class="pre">autstr.utils.automata_tools.</span></span><span class="sig-name descname"><span class="pre">projection</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dfa</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">i</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autstr.utils.automata_tools.projection" title="Permalink to this definition">¶</a></dt>
+<dd><p>Takes an automaton that recognizes a k-ary relation R and a position i&lt;k and returns and automaton that
+recognizes the relation R_{-i} = {(x_1,…, x_{i-1}, x_{i+1},…, x_k) | exists x_i: (x_1,…, x_n) in R}</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dfa</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">DFA</span></code>) – The automaton</p></li>
+<li><p><strong>i</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>) – the position</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">DFA</span></code></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Automaton presentation of R_{-i}</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="autstr.utils.automata_tools.stringlify_input_symbols">
+<span class="sig-prename descclassname"><span class="pre">autstr.utils.automata_tools.</span></span><span class="sig-name descname"><span class="pre">stringlify_input_symbols</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dfa</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convert_orgnames</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autstr.utils.automata_tools.stringlify_input_symbols" title="Permalink to this definition">¶</a></dt>
+<dd><p>Auxiliary function to turn the input_symbols of a finite automation into strings. Note that the function</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dfa</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">DFA</span></code>) – the automaton A</p></li>
+<li><p><strong>convert_orgnames</strong> – If True, converts the original input symbol names into strings. Otherwise,
+an arbitrary numbering is chosen.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">DFA</span></code></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dfa B such that B is identical to A but type(B.input_symbols) = Set[str]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="autstr.utils.automata_tools.stringlify_states">
+<span class="sig-prename descclassname"><span class="pre">autstr.utils.automata_tools.</span></span><span class="sig-name descname"><span class="pre">stringlify_states</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dfa</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">convert_orgnames</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autstr.utils.automata_tools.stringlify_states" title="Permalink to this definition">¶</a></dt>
+<dd><p>Auxiliary function to turn the states of a finite automation into strings</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dfa</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">DFA</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">NFA</span></code>]) – the automaton A</p></li>
+<li><p><strong>convert_orgnames</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – If True, converts the original state names into strings. Otherwise, an arbitrary numbering
+is chosen.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">DFA</span></code></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dfa B such that B is identical to A but type(B.states) = Set[str]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="autstr.utils.automata_tools.unpad">
+<span class="sig-prename descclassname"><span class="pre">autstr.utils.automata_tools.</span></span><span class="sig-name descname"><span class="pre">unpad</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dfa</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">padding_symbol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">('*',)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">remove_blank</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autstr.utils.automata_tools.unpad" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates an automaton that recognizes {w | exists x in (padding_symbol^k)^*: wx in L(dfa)} where k is the arity of
+the relation that is recognized by dfa.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>remove_blank</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">bool</span></code>) – If True, removes the blank symbol from the input symbols</p></li>
+<li><p><strong>dfa</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">DFA</span></code>) – The automaton</p></li>
+<li><p><strong>padding_symbol</strong> (<code class="xref py py-data docutils literal notranslate"><span class="pre">Tuple</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]) – The padding symbol. Needs to be a length one tuple</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">DFA</span></code></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Automaton that recognizes {w | exists x in padding_symbol^*: wx in L(dfa)}</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-autstr.utils.logic">
+<span id="autstr-utils-logic-module"></span><h2>autstr.utils.logic module<a class="headerlink" href="#module-autstr.utils.logic" title="Permalink to this heading">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="autstr.utils.logic.get_free_elementary_vars">
+<span class="sig-prename descclassname"><span class="pre">autstr.utils.logic.</span></span><span class="sig-name descname"><span class="pre">get_free_elementary_vars</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">phi</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autstr.utils.logic.get_free_elementary_vars" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get an ordered list of all free elementary variables of phi.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>phi</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">Expression</span></code>) – The formula</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]</p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Ordered list with all elementary variable names</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-autstr.utils.misc">
+<span id="autstr-utils-misc-module"></span><h2>autstr.utils.misc module<a class="headerlink" href="#module-autstr.utils.misc" title="Permalink to this heading">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="autstr.utils.misc.cmp_llex">
+<span class="sig-prename descclassname"><span class="pre">autstr.utils.misc.</span></span><span class="sig-name descname"><span class="pre">cmp_llex</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">v</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autstr.utils.misc.cmp_llex" title="Permalink to this definition">¶</a></dt>
+<dd><p>Length-lexicographic ordering of a tuple of strings ignoring the padding symbol.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>v</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – </p></li>
+<li><p><strong>w</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>) – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="autstr.utils.misc.get_unique_id">
+<span class="sig-prename descclassname"><span class="pre">autstr.utils.misc.</span></span><span class="sig-name descname"><span class="pre">get_unique_id</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">current_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autstr.utils.misc.get_unique_id" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code>]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="autstr.utils.misc.heapify_llex">
+<span class="sig-prename descclassname"><span class="pre">autstr.utils.misc.</span></span><span class="sig-name descname"><span class="pre">heapify_llex</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">arr</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autstr.utils.misc.heapify_llex" title="Permalink to this definition">¶</a></dt>
+<dd><p>heaplyfy a list under the llex order.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>arr</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code>]) – </p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code>]</p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="autstr.utils.misc.heappop_llex">
+<span class="sig-prename descclassname"><span class="pre">autstr.utils.misc.</span></span><span class="sig-name descname"><span class="pre">heappop_llex</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">heap</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autstr.utils.misc.heappop_llex" title="Permalink to this definition">¶</a></dt>
+<dd><p>heapop wrapper for llex order.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>heap</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code>]) – The heap list</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="autstr.utils.misc.heappush_llex">
+<span class="sig-prename descclassname"><span class="pre">autstr.utils.misc.</span></span><span class="sig-name descname"><span class="pre">heappush_llex</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">heap</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#autstr.utils.misc.heappush_llex" title="Permalink to this definition">¶</a></dt>
+<dd><p>Heappop wrapper for lllex order.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>heap</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code>]) – The heap list</p></li>
+<li><p><strong>x</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code>) – The element to push</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p></p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-autstr.utils">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-autstr.utils" title="Permalink to this heading">¶</a></h2>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="sphinx-toc sphinxlocaltoc">
+    <h3><a href="index.html">Page contents</a></h3>
+    <ul>
+<li><a class="reference internal" href="#">autstr.utils package</a><ul>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-autstr.utils.automata_tools">autstr.utils.automata_tools module</a></li>
+<li><a class="reference internal" href="#module-autstr.utils.logic">autstr.utils.logic module</a></li>
+<li><a class="reference internal" href="#module-autstr.utils.misc">autstr.utils.misc module</a></li>
+<li><a class="reference internal" href="#module-autstr.utils">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  </div>
+  <div class="sphinxprev">
+    <h4>Previous page</h4>
+    <p class="topless"><a href="autstr.buildin.html"
+                          title="Previous page">&larr; autstr.buildin package</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/autstr.utils.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+    
+    
+        <div class="sidebar-toggle-group no-js">
+            
+            <button class="sidebar-toggle" id="sidebar-hide" title="Hide the sidebar menu">
+                 «
+                <span class="show-for-small">hide menu</span>
+                
+            </button>
+            <button class="sidebar-toggle" id="sidebar-show" title="Show the sidebar menu">
+                
+                <span class="show-for-small">menu</span>
+                <span class="hide-for-small">sidebar</span>
+                 »
+            </button>
+        </div>
+    
+      <div class="clearer"></div>
+    </div>
+    <div class="relbar-bottom">
+        
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> &nbsp; &nbsp;</li>
+        <li class="right" >
+          <a href="autstr.buildin.html" title="autstr.buildin package"
+             >previous</a> &nbsp; &nbsp;</li>
+    <li><a href="index.html">AutStr 1.0 documentation</a> &#187;</li>
+
+          <li class="nav-item nav-item-1"><a href="modules.html" >AutStr</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="autstr.html" >autstr package</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">autstr.utils package</a></li> 
+      </ul>
+    </div>
+    </div>
+
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2022, Faried Abu Zaid.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 5.1.1.
+    </div>
+    <!-- cloud_sptheme 1.4 -->
+  </body>
+</html>
