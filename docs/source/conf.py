@@ -9,12 +9,12 @@
 project = 'AutStr'
 copyright = '2022, Faried Abu Zaid'
 author = 'Faried Abu Zaid'
-release = '0.1'
+release = '1.0'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.mathjax']
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.mathjax', "sphinx_autodoc_typehints"]
 
 templates_path = ['_templates']
 exclude_patterns = ['setup']
@@ -24,5 +24,5 @@ exclude_patterns = ['setup']
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = "classic"
+html_theme = "cloud"
 html_static_path = ['_static']
