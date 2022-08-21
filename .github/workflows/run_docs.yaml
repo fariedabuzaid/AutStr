@@ -1,2 +1,26 @@
-  on:
-  jobs:
+name: Build and Deploy
+on:
+  pull_request:
+    types: [ opened, reopened ]
+  push:
+    branches:
+      - 'main'
+      - 'dev'
+permissions:
+  contents: write
+jobs:
+  build-and-deploy:
+    concurrency: ci-${{ github.ref }} # Recommended if you intend to make multiple deployments in quick succession.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v3
+
+      - name: Install and Build 🔧 # This example project is built using npm and outputs the result to the 'build' folder. Replace with the commands required to build your project, or remove this step entirely if your site is pre-built.
+        run: |
+          sphinx-apidoc -o docs/source . tests/*
+          sphinx-build -b html docs/source/ docs/build/html
+      - name: Deploy 🚀
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: docs/build/html # The folder the action should deploy.
