@@ -19,7 +19,6 @@ class TestArithmetic(unittest.TestCase):
             b0 = -a
             self.assertEqual(b0, b)
 
-
     def test_add(self):
         x = Var('x')
         y = Var('y')
@@ -130,6 +129,25 @@ class TestArithmetic(unittest.TestCase):
             if abs(max([a, b])) > 3:
                 break
 
+    def test_exinf(self):
+        x = Var('x')
+        y = Var('y')
+
+        expr = x.eq(y).exinf('y')
+        self.assertTrue(expr.isempty())
+
+        expr = x.lt(y).exinf('y')
+        self.assertFalse(expr.isempty())
+        self.assertFalse(expr.isfinite())
+
+    def test_contains(self):
+        x = Var('x')
+        y = Var('y')
+        z = Var('z')
+
+        expr = (x + y).eq(z)
+        self.assertTrue((1, 1, 2) in expr)
+        self.assertFalse((10, 2, 13) in expr)
 
 
 if __name__ == '__main__':

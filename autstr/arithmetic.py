@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from copy import deepcopy, copy
-from typing import List, Union, Tuple, Dict
+from typing import List, Union, Tuple, Dict, Set
 import math
 
 from automata.fa.dfa import DFA
 
+from autstr.buildin.automata import k_longer_automaton
 from autstr.utils.automata_tools import iterate_language, lsbf_Z_automaton
 from autstr.buildin.presentations import buechi_arithmetic_Z
 from autstr.utils.misc import get_unique_id
@@ -51,13 +52,24 @@ class Term(ABC):
         """
         raise NotImplementedError
 
+    def substitute(self, allow_collision: bool = False, inplace=False, **kwargs) -> Term:
+        if not inplace:
+            result = deepcopy(self)
+            result._substitute(allow_collision, inplace=True)
+            return result
+        else:
+            self._substitute_inplace(allow_collision)
+            return self
+
     @abstractmethod
-    def substitute(self, allow_collision: bool = False, **kwargs) -> Term:
+    def _substitute_inplace(self, allow_collision: bool = False, **kwargs) -> Term:
         """
         Substitute variable names in the relation.
 
         :param allow_collision: if True, does not check collision with quantified
-        :param kwargs:
+        :param inplace: if True, performs the substitution inplace. Note that this will have side effects on all terms
+            in which self appears.
+        :param kwargs: dictionary of variable names and their substitution terms.
         :return:
         """
         raise NotImplementedError
@@ -97,26 +109,44 @@ class RelationalAlgebraTerm(Term, ABC):
         :param item:
         :return:
         """
-        words = tuple(format(n, 'b')[::-1] for n in item)
+        signs = [str(int(x < 0)) for x in item]
+        words = list(format(abs(n), 'b')[::-1] for n in item)
+        words = [sign + b for sign, b in zip(signs, words)]
         l_max = max([len(w) for w in words])
         for i, w in enumerate(words):
             if len(w) < l_max:
                 difference = l_max - len(w)
                 words[i] = w + ('*' * difference)
 
-        input = [(w[i] for w in words) for i in range(l_max)]
-        return self.presentation.accepts_input(input)
+        input_word = [tuple(w[i] for w in words) for i in range(l_max)]
+        return self.evaluate().accepts_input(input_word)
 
-
-    def drop(self, variables: List[Union[str, VariableETerm]]) -> DropRARelation:
+    def drop(self, variables: List[Union[str, VariableETerm]]) -> DropRATerm:
         """
         Drop variables.
 
         :param variables: The variables to drop
-        :return: presentation of the projection of the current relation onto the variables self.get_variables without
-            variables
+        :return: projection of the current relation onto the variables self.get_variables without variables
         """
-        return DropRARelation(self, variables)
+        return DropRATerm(self, variables)
+
+    def ex(self, variables: List[Union[str, VariableETerm]]):
+        """
+        Create Existential quantification term
+        :param variables: The variables that should be quantified
+        :return: projection of the current relation onto the variables self.get_variables without variables
+        """
+        return DropRATerm(self, variables)
+
+    def exinf(self, variable: Union[str, VariableETerm]):
+        """
+        Represents the relation of the form :math:`\\{\\bar{x} | \\exists \\infty\\text{-many } y: R(\\bar{x}, y)\\}`
+        for some base relation :math:`R`.
+
+        :param variable: Variable that should be :math:`\\exists^\\infty`-quantified
+        :return:
+        """
+        return ExInfRATerm(self, variable)
 
     def isempty(self) -> bool:
         """
@@ -160,12 +190,60 @@ class RelationalAlgebraTerm(Term, ABC):
             )
 
 
+class ExInfRATerm(RelationalAlgebraTerm):
+    def __init__(self, term: RelationalAlgebraTerm, variable: Union[str, VariableETerm]):
+        super().__init__()
+        self.subterm = term
+        self.variable = str(variable)
+
+    def update_presentation(self, recursive=True) -> None:
+        if recursive:
+            self.subterm.update_presentation(recursive)
+
+        sub_presentation = self.subterm.evaluate()
+        k_distance = len(sub_presentation.states) + 1
+        inf_witness = k_longer_automaton(k_distance, len(self.subterm.get_variables()) - 1, self.arithmetic.sigma)
+        arithmetic = deepcopy(self.arithmetic)
+        T, L = get_unique_id(arithmetic.get_relation_symbols(), 2)
+        arithmetic.update(**{T: self.subterm.evaluate(), L: inf_witness})
+
+        psi_T = T + '(' + ','.join(self.subterm.get_variables()) + ')'
+        args_psi_L = ','.join([v for v in self.subterm.get_variables() if v != self.variable]) + ',' + self.variable
+        psi_L = L + '(' + args_psi_L + ')'
+
+        phi = f'exists {self.variable}.({psi_L} and {psi_T})'
+
+        self.presentation = arithmetic.evaluate(phi)
+
+    def get_variables(self) -> List[str]:
+        variables = [v for v in self.subterm.get_variables() if v != self.variable]
+        variables.sort()
+        return variables
+
+    def _substitute_inplace(self, allow_collision: bool = False, **kwargs) -> None:
+        kw_rec = copy(kwargs)
+
+        if self.variable in kwargs:
+            del kw_rec[self.variable]
+
+        if not allow_collision:
+            if self.variable in kwargs.values():
+                v_new = get_unique_id(self.subterm.get_variables(), 1)
+                self.variable = v_new
+                self.subterm._substitute_inplace(**{str(self.variable): v_new})
+
+        self.subterm._substitute_inplace(**kw_rec)
+        self.presentation = None
+
+        return self
+
 class BaseRATerm(RelationalAlgebraTerm):
     """
     Represents a term of the form :math:`R(t_1,...,t_n)` for elementary terms :math:`t_1,...,t_n`
     """
 
-    def substitute(self, allow_collision: bool = False, **kwargs) -> BaseRATerm:
+    def _substitute_inplace(self, allow_collision: bool = False, **kwargs) -> BaseRATerm:
+
         kwargs = {
             str(x): ElementaryTerm.to_term(kwargs[x]) for x in kwargs
         }
@@ -173,7 +251,7 @@ class BaseRATerm(RelationalAlgebraTerm):
             if str(t) in kwargs.keys():
                 self.terms[i] = kwargs[str(t)]
             else:
-                t.substitute(allow_collision, **kwargs)
+                t._substitute_inplace(allow_collision, **kwargs)
 
         self.presentation = None
 
@@ -245,9 +323,9 @@ class BinaryRATerm(RelationalAlgebraTerm, ABC):
     Abstract class that represents binary relational algebra terms.
     """
 
-    def substitute(self, allow_collision: bool = False, **kwargs) -> BinaryRATerm:
-        self.left.substitute(allow_collision, **kwargs)
-        self.right.substitute(allow_collision, **kwargs)
+    def _substitute_inplace(self, allow_collision: bool = False, **kwargs) -> BinaryRATerm:
+        self.left._substitute_inplace(allow_collision, **kwargs)
+        self.right._substitute_inplace(allow_collision, **kwargs)
         self.presentation = None
 
         return self
@@ -267,8 +345,7 @@ class BinaryRATerm(RelationalAlgebraTerm, ABC):
         """
         Builds presentation from the two sub-relations and combines then through a logical formula
 
-        :param template: a first order formula with as str with 2 placeholders that will be replaced by the relations
-            for the two sub-formulae.
+        :param recursive: If True, call update_presentation for all sub-terms
         :return:
         """
         if recursive:
@@ -309,8 +386,8 @@ class ComplementRATerm(RelationalAlgebraTerm):
     The complement of a relation
     """
 
-    def substitute(self, allow_collision: bool = False, **kwargs) -> ComplementRATerm:
-        self.relation.substitute(allow_collision, **kwargs)
+    def _substitute_inplace(self, allow_collision: bool = False, **kwargs) -> ComplementRATerm:
+        self.relation._substitute_inplace(allow_collision, **kwargs)
         self.presentation = None
 
         return self
@@ -334,13 +411,13 @@ class ComplementRATerm(RelationalAlgebraTerm):
         return self.relation.get_variables()
 
 
-class DropRARelation(RelationalAlgebraTerm):
+class DropRATerm(RelationalAlgebraTerm):
     """
     Relation of the shape :math:`\\{(x_1,...,x_n) | (x_1,...,x_n,y_1,...,y_m) \\in R\\}` where :math:`y_1,\\ldots,y_m`
     are the dropped variables.
     """
 
-    def substitute(self, allow_collision: bool = False, **kwargs) -> None:
+    def _substitute_inplace(self, allow_collision: bool = False, **kwargs) -> None:
         kwrec = copy(kwargs)
         for x in self.variables:
             if x in kwargs:
@@ -351,9 +428,9 @@ class DropRARelation(RelationalAlgebraTerm):
                 if str(v) in kwargs.values():
                     v_new = get_unique_id(self.relation.get_variables(), 1)
                     self.variables[i] = v_new
-                    self.relation.substitute(**{str(v): v_new})
+                    self.relation._substitute_inplace(**{str(v): v_new})
 
-        self.relation.substitute(**kwrec)
+        self.relation._substitute_inplace(**kwrec)
         self.presentation = None
 
         return self
@@ -550,7 +627,7 @@ class ElementaryTerm(Term, ABC):
 
 
 class ConstantETerm(ElementaryTerm):
-    def substitute(self, allow_collision: bool = False, **kwargs):
+    def _substitute_inplace(self, allow_collision: bool = False, **kwargs):
         return self
 
     def get_variables(self) -> List[str]:
@@ -568,7 +645,7 @@ class ConstantETerm(ElementaryTerm):
 
 
 class VariableETerm(ElementaryTerm):
-    def substitute(self, allow_collision: bool = False, **kwargs) -> VariableETerm:
+    def _substitute_inplace(self, allow_collision: bool = False, **kwargs) -> VariableETerm:
         return self
 
     def update_presentation(self, recursive=True, **kwargs) -> None:
@@ -637,24 +714,24 @@ class NegatedETerm(ElementaryTerm):
     def get_variables(self) -> List[str]:
         return self.subterm.get_variables()
 
-    def substitute(self, allow_collision: bool = False, **kwargs) -> Term:
-        self.subterm.substitute(self, allow_collision, **kwargs)
+    def _substitute_inplace(self, allow_collision: bool = False, **kwargs) -> Term:
+        return self.subterm._substitute_inplace(self, allow_collision, **kwargs)
 
 
 class AdditionETerm(ElementaryTerm):
-    def substitute(self, allow_collision: bool = False, **kwargs) -> AdditionETerm:
+    def _substitute_inplace(self, allow_collision: bool = False, **kwargs) -> AdditionETerm:
         kwargs = {
             str(x): ElementaryTerm.to_term(kwargs[x]) for x in kwargs
         }
         if str(self.left) in kwargs:
             self.left = kwargs[str(self.left)]
         else:
-            self.left.substitute(allow_collision, **kwargs)
+            self.left._substitute_inplace(allow_collision, **kwargs)
 
         if str(self.right) in kwargs:
             self.right = kwargs[str(self.right)]
         else:
-            self.right.substitute(allow_collision, **kwargs)
+            self.right._substitute_inplace(allow_collision, **kwargs)
 
         self.presentation = None
 

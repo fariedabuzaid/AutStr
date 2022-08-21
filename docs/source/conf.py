@@ -17,7 +17,7 @@ release = '1.0'
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.mathjax', "sphinx_autodoc_typehints"]
 
 templates_path = ['_templates']
-exclude_patterns = ['setup']
+exclude_patterns = ['setup.rst']
 
 
 
