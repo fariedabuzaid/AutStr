@@ -27,6 +27,8 @@ class AutomaticPresentation:
                 domain = product(universe, arity)
                 self.automata[R] = pad(stringlify_states(automata[R])).intersection(domain).minify()
 
+        self.sigma = {t[0] for t in self.automata['U'].input_symbols}
+
     def get_relation_symbols(self) -> List[str]:
         """
         Returns list of all defined relation symbols. The symbol 'U' must always be defined and denotes the Universe.

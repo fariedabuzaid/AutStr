@@ -5,7 +5,7 @@ from autstr.presentations import AutomaticPresentation
 
 def buechi_arithmetic() -> AutomaticPresentation:
     """
-    create a presentation of Büchi arithmetic over the natural numbers N.
+    create a presentation of Büchi arithmetic over the natural numbers :math:`\\mathbb{N}`.
     """
     universe = DFA(
         states={'i', '0', '0+', '1', '*'},
@@ -85,11 +85,10 @@ def buechi_arithmetic() -> AutomaticPresentation:
 
     return presentation
 
+
 def buechi_arithmetic_Z() -> AutomaticPresentation:
     """
-    Creates a presentation of Büchi arithmetic over Z.
-
-    :rtype: object
+    Creates a presentation of Büchi arithmetic over :math:`\\mathbb{Z}`.
     """
 
     base_input_symbols = {'0', '1', '*'}
