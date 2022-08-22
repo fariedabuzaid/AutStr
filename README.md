@@ -70,7 +70,7 @@ E1 = Pt & R
 ```
 E2 = ~R
 ```
-* Drop (= existential quantification): $y\in E_3 \Leftrightarrow exists x.R(x, y)$
+* Drop (= existential quantification): $y\in E_3 \Leftrightarrow \exists x.R(x, y)$
 ```
 E3 = R.drop(['x']) # R.ex('x')
 ```
