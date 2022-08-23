@@ -41,7 +41,7 @@ R.isfinite()
 ```
 (0, 4) in cmp
 ```
-* Enumerate all solutions. AutStr guarantees that every solution is enumerated exactly once (although this of course might take infinitely long).
+* Enumerate all solutions. AutStr guarantees that every solution is enumerated exactly once (although this might of course take infinitely long).
 ```
 for tuple, _ in zip(cmp, range(10)): # Iterate through first 10 pairs
   print(tuple)
