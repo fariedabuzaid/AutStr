@@ -27,7 +27,7 @@ In order to define a relation we need to relate the terms somehow. AutStr has bu
 ```python
 R = t0.lt(t1)  
 ```
-This defines a binary relation $R$ between $x$ and $y$ with $(x, y)\in R \Leftrightarrow x + y + 3 < 2x$.
+This defines a binary relation $ R $ between $x$ and $y$ with $(x, y)\in R \Leftrightarrow x + y + 3 < 2x$.
 We can use cmp as a representation of it's integer solution space in almost the same way as if we would have gotten it explicitly. In particular we can
 * Test for emptyness
 ```python
@@ -84,9 +84,8 @@ E4 = E0.exinf('x')
 
 ### First-order interpretations
 
-Variables and operators are evaluated over the structure $(\mathbb{Z}, +, |_2, <, 0, 1)$. 
-
 
 ### Automatic presentations
+$\mathbb{Z}$. 
 
 
