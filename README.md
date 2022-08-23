@@ -23,11 +23,11 @@ They can be added with integer constants or other variables. A variable can also
 t0 = x + y + 3
 t1 = 2 * x
 ```
-In order to define a relation we need to relate the terms somehow. AutStr has buildin support for $<$ and $=$ comparissons
+In order to define a relation we need to relate the terms somehow. AutStr has buildin support for $<$ and $=$ comparissons.
 ```python
-R = t0.lt(t1)  # t0 < t1 
+R = t0.lt(t1)  
 ```
-cmp defines a binary relation $R$ between $x$ and $y$ with $(x, y)\in R \Leftrightarrow x + y + 3 < 2x$.
+This defines a binary relation $R$ between $x$ and $y$ with $(x, y)\in R \Leftrightarrow x + y + 3 < 2x$.
 We can use cmp as a representation of it's integer solution space in almost the same way as if we would have gotten it explicitly. In particular we can
 * Test for emptyness
 ```python
