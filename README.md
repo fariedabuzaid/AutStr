@@ -10,39 +10,39 @@ Currently, AutStr comes with buildin support for a strong extension of linear in
 ## Getting started
 The most convenient way to get started is through the arithmetic packages, which supports integers.
 ### Defining a relation
-```{.py}
+```python
 from autstr.arithmetic import VariableETerm as Var
 ```
 The most basic building blocks are variables. 
-```
+```python
 x = Var('x')
 y = Var('y')
 ```
 They can be added with integer constants or other variables. A variable can also be multiplied with a constant but not with another variable (linear arithmetic).
-```
+```python
 t0 = x + y + 3
 t1 = 2 * x
 ```
 In order to define a relation we need to relate the terms somehow. AutStr has buildin support for $<$ and $=$ comparissons
-```
+```python
 R = t0.lt(t1)  # t0 < t1 
 ```
 cmp defines a binary relation $R$ between $x$ and $y$ with $(x, y)\in R \Leftrightarrow x + y + 3 < 2x$.
 We can use cmp as a representation of it's integer solution space in almost the same way as if we would have gotten it explicitly. In particular we can
 * Test for emptyness
-```
+```python
 R.isempty()
 ```
 * Test for finiteness
-```
+```python
 R.isfinite()
 ```
 * Test if a tuple is contained
-```
-(0, 4) in cmp
+```python
+(0, 4) in R
 ```
 * Enumerate all solutions. AutStr guarantees that every solution is enumerated exactly once (although this might of course take infinitely long).
-```
+```python
 for tuple, _ in zip(cmp, range(10)): # Iterate through first 10 pairs
   print(tuple)
 ```
@@ -50,9 +50,9 @@ for tuple, _ in zip(cmp, range(10)): # Iterate through first 10 pairs
 ### Weak divisibility
 
 In addition to ordinal comparisons AutStr also defines the weak divisibility predicate (with base 2) where 
-*$x|y \Leftrightarrow$ $$\exists n > 0: y = 2^n \wedge y \text{ divides } x$$. 
+* $x|y \Leftrightarrow$ $\exists n > 0: y = 2^n \wedge y \text{ divides } x$. 
 This is a very powerfull predicate. For instance, the following code defines the powers of $2$
-```
+```python
 Pt = x|x
 
 assert 2**10 in Pt
@@ -62,23 +62,23 @@ assert 3 not in Pt
 ### Relational Algebra
 AutStr allows to combine more complex relations from base relations using relational algebra. Implemented operators:
 * Union: $(x, y)\in E_0 \Leftrightarrow \mathop{Pt}(x) \vee R(x, y)$
-```
+```python
 E0 = Pt | R 
 ```
 * Join: $(x, y)\in E_1 \Leftrightarrow \mathop{Pt}(x) \wedge R(x, y)$
-```
+```python
 E1 = Pt & R
 ```
 * Complement: $(x, y)\in E_2 \Leftrightarrow \neg R(x, y)$
-```
+```python
 E2 = ~R
 ```
 * Drop (= existential quantification): $y\in E_3 \Leftrightarrow \exists x.R(x, y)$
-```
+```python
 E3 = R.drop(['x']) # R.ex('x')
 ```
 * Infinite quantification: $y\in E_4 \Leftrightarrow \exists \text{ infinitely many } x(E_0(x, y))$
-```
+```python
 E4 = E0.exinf('x') 
 ```
 
