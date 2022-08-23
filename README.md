@@ -48,7 +48,7 @@ for tuple, _ in zip(cmp, range(10)): # Iterate through first 10 pairs
 ```
 
 ### Weak divisibility
-In addition to ordinal comparisons AutStr also defines the weak divisibility predicate (with base 2) where $x| y\Leftrightarrow\exists n > 0: y = 2^n \wedge y \text{ divides } x$. This is a very powerfull predicate. For instance, the following code defines the powers of $2$
+In addition to ordinal comparisons AutStr also defines the weak divisibility predicate (with base 2) where $x| y \Leftrightarrow \exists n > 0: y = 2^n \wedge y \text{ divides } x$. This is a very powerfull predicate. For instance, the following code defines the powers of $2$
 ```
 Pt = x|x
 
@@ -84,6 +84,6 @@ E4 = E0.exinf('x')
 Variables and operators are evaluated in the structure $(\mathbb{Z}, +, |_2, <, 0, 1)$. 
 
 
-## What's behind it?
+### Automatic presentations
 
 
