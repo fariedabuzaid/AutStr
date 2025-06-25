@@ -250,11 +250,11 @@ print(f"Remaining infinite set: {remaining.automaton}")
 #### Practical Guidelines:
 1. **Prefer Deep/Narrow Formulas**
    ```python
-   # Width=3 (hard): 
-   wide = "∃x.∃y.∃z.Prime(x)∧Prime(y)∧Twin(x,y,z)"
+   # Width=3 : 
+   wide = "∃x.∃y.∃z.E(x,y) ∧ E(y, z)"
    
-   # Depth=3 (easier):
-   narrow = "∃x.Prime(x) ∧ (∃y.Prime(y) ∧ (∃z.Twin(x,y,z))"
+   # width=2 (easier):
+   narrow = "∃x.∃y.E(x,y) ∧ (∃z.E(y,z))"
    ```
    - Depth scales often better due to incremental minimization
    - Width causes exponential alphabet growth: $|\Sigma|^k$
