@@ -9,29 +9,29 @@ autstr.utils.automata\_tools module
 
 .. automodule:: autstr.utils.automata_tools
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:
 
 autstr.utils.logic module
 -------------------------
 
 .. automodule:: autstr.utils.logic
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:
 
 autstr.utils.misc module
 ------------------------
 
 .. automodule:: autstr.utils.misc
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:
 
 Module contents
 ---------------
 
 .. automodule:: autstr.utils
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:

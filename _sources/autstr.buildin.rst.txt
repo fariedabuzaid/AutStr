@@ -9,21 +9,21 @@ autstr.buildin.automata module
 
 .. automodule:: autstr.buildin.automata
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:
 
 autstr.buildin.presentations module
 -----------------------------------
 
 .. automodule:: autstr.buildin.presentations
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:
 
 Module contents
 ---------------
 
 .. automodule:: autstr.buildin
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:

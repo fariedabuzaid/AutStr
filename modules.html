@@ -1,23 +1,20 @@
 
 
-
 <!DOCTYPE html>
 
-<html lang="en">
+<html lang="en" data-content_root="./">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>AutStr &#8212; AutStr 1.0 documentation</title>
-    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="_static/cloud.css" />
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="_static/cloud.css?v=f9ae72be" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Noticia+Text:400,i,b,bi|Open+Sans:400,i,b,bi|Roboto+Mono:400,i,b,bi&amp;display=swap" type="text/css" />
     
-    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-    <script src="_static/jquery.js"></script>
-    <script src="_static/underscore.js"></script>
-    <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
-    <script src="_static/doctools.js"></script>
+    <script src="_static/documentation_options.js?v=f2a433a1"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
 
     
     
@@ -43,7 +40,7 @@
   </head><body>
     <div class="relbar-top">
         
-    <div class="related" role="navigation" aria-label="related navigation">
+    <div class="related" role="navigation" aria-label="Related">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -72,7 +69,7 @@
           <div class="body" role="main">
             
   <section id="autstr">
-<h1>AutStr<a class="headerlink" href="#autstr" title="Permalink to this heading">¶</a></h1>
+<h1>AutStr<a class="headerlink" href="#autstr" title="Link to this heading">¶</a></h1>
 <div class="toctree-wrapper compound">
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="autstr.html">autstr package</a><ul>
@@ -95,8 +92,93 @@
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="autstr.html#submodules">Submodules</a></li>
-<li class="toctree-l2"><a class="reference internal" href="autstr.html#autstr-arithmetic-module">autstr.arithmetic module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="autstr.html#module-autstr.presentations">autstr.presentations module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="autstr.html#module-autstr.arithmetic">autstr.arithmetic module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.arithmetic.AdditionETerm"><code class="docutils literal notranslate"><span class="pre">AdditionETerm</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.AdditionETerm.get_variables"><code class="docutils literal notranslate"><span class="pre">AdditionETerm.get_variables()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.AdditionETerm.update_presentation"><code class="docutils literal notranslate"><span class="pre">AdditionETerm.update_presentation()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.arithmetic.BaseRATerm"><code class="docutils literal notranslate"><span class="pre">BaseRATerm</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.BaseRATerm.get_variables"><code class="docutils literal notranslate"><span class="pre">BaseRATerm.get_variables()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.BaseRATerm.to_fo"><code class="docutils literal notranslate"><span class="pre">BaseRATerm.to_fo()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.BaseRATerm.update_presentation"><code class="docutils literal notranslate"><span class="pre">BaseRATerm.update_presentation()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.arithmetic.BinaryRATerm"><code class="docutils literal notranslate"><span class="pre">BinaryRATerm</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.BinaryRATerm.get_variables"><code class="docutils literal notranslate"><span class="pre">BinaryRATerm.get_variables()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.BinaryRATerm.update_presentation"><code class="docutils literal notranslate"><span class="pre">BinaryRATerm.update_presentation()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.arithmetic.ComplementRATerm"><code class="docutils literal notranslate"><span class="pre">ComplementRATerm</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.ComplementRATerm.get_variables"><code class="docutils literal notranslate"><span class="pre">ComplementRATerm.get_variables()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.ComplementRATerm.update_presentation"><code class="docutils literal notranslate"><span class="pre">ComplementRATerm.update_presentation()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.arithmetic.ConstantETerm"><code class="docutils literal notranslate"><span class="pre">ConstantETerm</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.ConstantETerm.get_variables"><code class="docutils literal notranslate"><span class="pre">ConstantETerm.get_variables()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.ConstantETerm.update_presentation"><code class="docutils literal notranslate"><span class="pre">ConstantETerm.update_presentation()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.arithmetic.DropRATerm"><code class="docutils literal notranslate"><span class="pre">DropRATerm</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.DropRATerm.get_variables"><code class="docutils literal notranslate"><span class="pre">DropRATerm.get_variables()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.DropRATerm.update_presentation"><code class="docutils literal notranslate"><span class="pre">DropRATerm.update_presentation()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.arithmetic.ElementaryTerm"><code class="docutils literal notranslate"><span class="pre">ElementaryTerm</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.ElementaryTerm.eq"><code class="docutils literal notranslate"><span class="pre">ElementaryTerm.eq()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.ElementaryTerm.evaluate"><code class="docutils literal notranslate"><span class="pre">ElementaryTerm.evaluate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.ElementaryTerm.gt"><code class="docutils literal notranslate"><span class="pre">ElementaryTerm.gt()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.ElementaryTerm.lt"><code class="docutils literal notranslate"><span class="pre">ElementaryTerm.lt()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.ElementaryTerm.to_term"><code class="docutils literal notranslate"><span class="pre">ElementaryTerm.to_term()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.ElementaryTerm.update_presentation"><code class="docutils literal notranslate"><span class="pre">ElementaryTerm.update_presentation()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.arithmetic.ExInfRATerm"><code class="docutils literal notranslate"><span class="pre">ExInfRATerm</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.ExInfRATerm.get_variables"><code class="docutils literal notranslate"><span class="pre">ExInfRATerm.get_variables()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.ExInfRATerm.update_presentation"><code class="docutils literal notranslate"><span class="pre">ExInfRATerm.update_presentation()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.arithmetic.IntersectionRATerm"><code class="docutils literal notranslate"><span class="pre">IntersectionRATerm</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.arithmetic.NegatedETerm"><code class="docutils literal notranslate"><span class="pre">NegatedETerm</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.NegatedETerm.get_variables"><code class="docutils literal notranslate"><span class="pre">NegatedETerm.get_variables()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.NegatedETerm.update_presentation"><code class="docutils literal notranslate"><span class="pre">NegatedETerm.update_presentation()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.arithmetic.RelationalAlgebraTerm"><code class="docutils literal notranslate"><span class="pre">RelationalAlgebraTerm</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.RelationalAlgebraTerm.drop"><code class="docutils literal notranslate"><span class="pre">RelationalAlgebraTerm.drop()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.RelationalAlgebraTerm.ex"><code class="docutils literal notranslate"><span class="pre">RelationalAlgebraTerm.ex()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.RelationalAlgebraTerm.exinf"><code class="docutils literal notranslate"><span class="pre">RelationalAlgebraTerm.exinf()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.RelationalAlgebraTerm.isempty"><code class="docutils literal notranslate"><span class="pre">RelationalAlgebraTerm.isempty()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.RelationalAlgebraTerm.isfinite"><code class="docutils literal notranslate"><span class="pre">RelationalAlgebraTerm.isfinite()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.arithmetic.Term"><code class="docutils literal notranslate"><span class="pre">Term</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.Term.arithmetic"><code class="docutils literal notranslate"><span class="pre">Term.arithmetic</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.Term.evaluate"><code class="docutils literal notranslate"><span class="pre">Term.evaluate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.Term.get_variables"><code class="docutils literal notranslate"><span class="pre">Term.get_variables()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.Term.substitute"><code class="docutils literal notranslate"><span class="pre">Term.substitute()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.Term.update_presentation"><code class="docutils literal notranslate"><span class="pre">Term.update_presentation()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.arithmetic.UnionRATerm"><code class="docutils literal notranslate"><span class="pre">UnionRATerm</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.arithmetic.VariableETerm"><code class="docutils literal notranslate"><span class="pre">VariableETerm</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.VariableETerm.get_name"><code class="docutils literal notranslate"><span class="pre">VariableETerm.get_name()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.VariableETerm.get_variables"><code class="docutils literal notranslate"><span class="pre">VariableETerm.get_variables()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.VariableETerm.update_presentation"><code class="docutils literal notranslate"><span class="pre">VariableETerm.update_presentation()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="autstr.html#module-autstr.presentations">autstr.presentations module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.presentations.AutomaticPresentation"><code class="docutils literal notranslate"><span class="pre">AutomaticPresentation</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.presentations.AutomaticPresentation.check"><code class="docutils literal notranslate"><span class="pre">AutomaticPresentation.check()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.presentations.AutomaticPresentation.evaluate"><code class="docutils literal notranslate"><span class="pre">AutomaticPresentation.evaluate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.presentations.AutomaticPresentation.get_relation_symbols"><code class="docutils literal notranslate"><span class="pre">AutomaticPresentation.get_relation_symbols()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.presentations.AutomaticPresentation.update"><code class="docutils literal notranslate"><span class="pre">AutomaticPresentation.update()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="autstr.html#module-autstr">Module contents</a></li>
 </ul>
 </li>
@@ -109,7 +191,7 @@
           </div>
         </div>
       </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
         <div class="sphinxsidebarwrapper">
   <div class="sphinxprev">
     <h4>Previous page</h4>
@@ -128,7 +210,7 @@
             rel="nofollow">Show Source</a></li>
     </ul>
    </div>
-<div id="searchbox" style="display: none" role="search">
+<search id="searchbox" style="display: none" role="search">
   <h3 id="searchlabel">Quick search</h3>
     <div class="searchformwrapper">
     <form class="search" action="search.html" method="get">
@@ -136,7 +218,7 @@
       <input type="submit" value="Go" />
     </form>
     </div>
-</div>
+</search>
 <script>document.getElementById('searchbox').style.display = "block"</script>
         </div>
       </div>
@@ -161,7 +243,7 @@
     </div>
     <div class="relbar-bottom">
         
-    <div class="related" role="navigation" aria-label="related navigation">
+    <div class="related" role="navigation" aria-label="Related">
       <h3>Navigation</h3>
       <ul>
         <li class="right" style="margin-right: 10px">
@@ -184,8 +266,8 @@
     </div>
 
     <div class="footer" role="contentinfo">
-        &#169; Copyright 2022, Faried Abu Zaid.
-      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 5.1.1.
+    &#169; Copyright 2022, Faried Abu Zaid.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.2.3.
     </div>
     <!-- cloud_sptheme 1.4 -->
   </body>
