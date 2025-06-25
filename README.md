@@ -78,7 +78,7 @@ t1 = 2 * x
 ```
 To define a relation, compare terms using built-in operations. AutStr supports $<$ and $=$ comparisons:
 ```python
-R = t0 < t1  # Defines binary relation R: (x, y) ∈ R ⇔ x + y + 3 < 2x
+R = t0.lt(t1)  # < (less than) Defines binary relation R: (x, y) ∈ R ⇔ x + y + 3 < 2x
 ```
 You can work with this representation of integer solutions similarly to an explicit set:
 * Test for emptiness:
@@ -218,11 +218,13 @@ def infinite_sieve(steps):
     
     for _ in range(steps):
         # Find smallest candidate (symbolic operation)
-        p = candidates.min_element()
-        primes.append(p)
+        for p in candidates: # Elements are listed in ascending order (absolute values) 
+            primes.append(p)
+            break
         
         # Remove multiples: candidates = candidates \ {k·p | k>1}
-        multiples = (x > p) & (x % p == 0)
+        y = Var("y")
+        multiples = (x == p * y).drop("y")
         candidates = candidates - multiples  # Set difference
         
     return primes, candidates
