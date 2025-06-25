@@ -134,14 +134,6 @@ E3 = R.drop(['x'])  # Or R.ex('x')
 E4 = E0.exinf('x') 
 ```
 
-### First-order interpretations
-A first-order interpretation allows defining a new structure within an existing one using logical formulas. Specifically:
-1. The domain of the new structure is defined by a formula over the original domain
-2. Each relation in the new structure is defined by a formula using the original relations
-3. This enables the transfer of decidability properties between structures
-
-In AutStr, you can build complex structures by interpreting them over base structures like $(\mathbb{Z}, +, <)$ using first-order definable components.
-
 ### Automatic Presentations
 AutStr enables finite automata to represent infinite mathematical structures through **automatic presentations**. This powerful technique encodes:
 - The domain as a regular language of strings (`automata['U']`)
