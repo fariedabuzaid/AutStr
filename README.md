@@ -7,57 +7,22 @@ Have you ever wondered what would happen if you could input an infinite structur
 ### Installation with `uv` 
 Here's how to install AutStr using `uv`, the high-performance Python package installer:
 
-#### Install with `uv`
-```bash
-# Install uv globally (if not already installed)
-pip install uv
+#### Install with `uv` from local clone
 
-# Create and activate virtual environment
-uv venv .venv
-source .venv/bin/activate  # Linux/macOS
-.\.venv\Scripts\activate  # Windows
-
-# Install from GitHub
-uv pip install "git+https://github.com/fariedabuzaid/AutStr.git"
-
-# For development (editable mode)
-uv pip install -e "git+https://github.com/fariedabuzaid/AutStr.git#egg=autstr"
-
-# Install documentation extras
-uv pip install "autstr[docs] @ git+https://github.com/fariedabuzaid/AutStr.git"
-```
-
-#### Alternative: Install from Local Clone
 ```bash
 git clone https://github.com/fariedabuzaid/AutStr.git
 cd AutStr
 
 # Install core package
-uv pip install .
-
-# Install with docs dependencies
-uv pip install ".[docs]"
+uv lock
+uv sync
 ```
 
 #### Verify Installation
 ```bash
-python -c "from autstr import __version__; print(f'AutStr v{__version__} installed')"
+uv run python -c "from autstr import __version__; print(f'AutStr v{__version__} installed')"
 # Should output: AutStr v0.1 installed
 ```
-
-### Troubleshooting
-If you encounter issues:
-```bash
-# Clean installation
-uv pip install --reinstall --no-cache autstr
-
-# Force rebuild from source
-uv pip install --force-reinstall --no-binary :all: autstr
-
-# Check environment consistency
-uv pip check
-```
-
 
 ## Getting started
 The most convenient way to get started is through the arithmetic package, which supports integers.
@@ -213,7 +178,7 @@ x = Var('x')
 
 def infinite_sieve(steps):
     """Sieve of Eratosthenes over infinite integers"""
-    candidates = (x >= 2)  # Initial infinite set: {2,3,4,...}
+    candidates = (x.gt(1))  # Initial infinite set: {2,3,4,...}
     primes = []
     
     for _ in range(steps):
@@ -224,7 +189,7 @@ def infinite_sieve(steps):
         
         # Remove multiples: candidates = candidates \ {k·p | k>1}
         y = Var("y")
-        multiples = (x == p * y).drop("y")
+        multiples = (x.eq(p * y)).drop("y")
         candidates = candidates - multiples  # Set difference
         
     return primes, candidates
