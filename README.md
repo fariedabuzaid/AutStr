@@ -173,9 +173,6 @@ for sol in solutions:
 AutStr enables novel algorithm design using infinite sets as first-class citizens. This implementation of the Sieve of Eratosthenes maintains the infinite candidate prime set symbolically:
 
 ```python
-from autstr.arithmetic import VariableETerm as Var
-x = Var('x')
-
 def infinite_sieve(steps):
     """Sieve of Eratosthenes over infinite integers"""
     candidates = (x.gt(1))  # Initial infinite set: {2,3,4,...}
@@ -184,31 +181,33 @@ def infinite_sieve(steps):
     for _ in range(steps):
         # Find smallest candidate (symbolic operation)
         for p in candidates: # Elements are listed in ascending order (absolute values) 
-            primes.append(p)
+            primes.append(p[0])
             break
         
         # Remove multiples: candidates = candidates \ {k·p | k>1}
+        p = primes[-1]
         y = Var("y")
         multiples = (x.eq(p * y)).drop("y")
-        candidates = candidates - multiples  # Set difference
+        candidates = candidates & ~multiples 
         
     return primes, candidates
 
-# Execute first 5 sieving steps
-primes, remaining = infinite_sieve(steps=5)
+# Execute first 3 sieving steps
+primes, remainig = infinite_sieve(steps=3)
 print(f"Primes found: {primes}")  # [2,3,5,7,11]
-print(f"Remaining infinite set: {remaining.automaton}")
+print(f"Remaining infinite set:") 
+VisualDFA(remaining.evaluate()).show_diagram()
 ```
 
 #### Key Algorithmic Features:
-1. **Symbolic Minimum Extraction**
+1. **Ordered Iteration**
    ```python
-   p = candidates.min_element()  # Computes smallest element without enumeration
+   for p in candidates:  # enumberates candidates in ascending order
    ```
 2. **Infinite Set Operations**
    ```python
-   multiples = (x > p) & (x % p == 0)  # Defines infinite composite set
-   candidates = candidates - multiples  # Exact set difference
+   multiples = (x.eq(p * y)).drop("y")
+   candidates = candidates & ~multiples   
    ```
 3. **Lazy Evaluation**
    - Relations remain symbolic until materialization
