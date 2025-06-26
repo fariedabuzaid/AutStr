@@ -228,7 +228,7 @@ VisualDFA(remaining.evaluate()).show_diagram()
 2. **Complexity Boundaries**
    | Parameter        | Best Case       | Worst Case          |
    |------------------|-----------------|---------------------|
-   | **Quantifier Depth** | Constant    | Non-elementary      |
+   | **Quantifier Depth** | Constant state space   | Non-elementary state space |
    | **Free Variables**  | Exponential alphabet size  | Exponential alphabet size |
    
 4. **Optimization Strategies**
