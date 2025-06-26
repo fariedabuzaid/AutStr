@@ -202,7 +202,7 @@ VisualDFA(remaining.evaluate()).show_diagram()
 #### Key Algorithmic Features:
 1. **Ordered Iteration**
    ```python
-   for p in candidates:  # enumberates candidates in ascending order
+   for p in candidates:  # enumerates candidates in ascending order
    ```
 2. **Infinite Set Operations**
    ```python
