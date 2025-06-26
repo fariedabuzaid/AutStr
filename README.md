@@ -249,10 +249,7 @@ VisualDFA(remaining.evaluate()).show_diagram()
      ```
 
 #### Theoretical Insight
-While this infinite sieve beautifully demonstrates symbolic algorithm design:
-1. State complexity grows as $\prod p_i$ for sieved primes
-2. Sieving primes up to $p_k$ requires $O(e^{\theta(k)})$ states
-3. First 10 primes would need > 6.5 billion states
+While this infinite sieve beautifully demonstrates symbolic algorithm design, state complexity grows rapidly for sieved primes
 
 > **Practical Recommendation**: Use infinite representations for conceptual modeling and verification, but switch to finite approximations with bounds for computational work. AutStr excels at proving properties about infinite structures, not processing them exhaustively.
 
