@@ -1,0 +1,31 @@
+[project]
+name = "autstr"
+version = "0.1"
+description = "Library for working with finitely presentable infinite structures"
+authors = [
+    { name = "Faried Abu Zaid", email = "fariedaz@gmail.com" }
+]
+license = { text = "GPL v3.0" }
+dependencies = [
+    "nltk~=3.7",
+    "automata-lib~=5.0.0",
+    "sphinx-autodoc-typehints~=1.19.2",
+    "ipykernel>=6.29.5",
+    "jupyter (>=1.1.1,<2.0.0)",
+    "visual-automata (>=1.1.1,<2.0.0)",
+]
+requires-python = ">=3.8,<=3.12"
+
+[project.optional-dependencies]
+docs = [
+    "sphinxcontrib-applehelp~=1.0.2",
+    "sphinxcontrib-devhelp~=1.0.2",
+    "sphinxcontrib-htmlhelp~=2.0.0",
+    "sphinxcontrib-jsmath~=1.0.1",
+    "sphinxcontrib-qthelp~=1.0.3",
+    "sphinxcontrib-serializinghtml~=1.1.5"
+]
+
+[tool.uv]
+build-system = "setuptools"
+packages = ["autstr", "autstr.utils"]
