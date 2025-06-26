@@ -107,7 +107,7 @@ AutStr enables finite automata to represent infinite mathematical structures thr
 
 #### Key Features
 ```python
-from autstr.buildin.automata import AutomaticPresentation
+from autstr.presentations import AutomaticPresentation
 
 # Initialize with automata for domain and relations
 ap = AutomaticPresentation(automata={
