@@ -265,7 +265,6 @@ This paradigm shift enables:
 Automatic presentations leverage:
 - **Regularity Preservation**: First-order operations maintain automata recognizability
 - **Decidability**: First-order theories remain decidable for automatic structures
-- **Efficient Model Checking**: Automata operations run in polynomial time relative to automaton size
 
 This implementation provides a complete toolkit for working with automatic structures over countable domains like ℤ, ℚ, and tree-like structures.
 
