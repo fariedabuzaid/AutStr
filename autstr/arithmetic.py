@@ -2,12 +2,11 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from copy import deepcopy, copy
-from typing import List, Union, Tuple, Dict, Set
+from typing import List, Union, Tuple, Dict
 import math
 
-from automata.fa.dfa import DFA
-
 from autstr.buildin.automata import k_longer_automaton
+from autstr.sparse_automata import SparseDFA
 from autstr.utils.automata_tools import iterate_language, lsbf_Z_automaton
 from autstr.buildin.presentations import buechi_arithmetic_Z
 from autstr.utils.misc import get_unique_id
@@ -32,7 +31,7 @@ class Term(ABC):
         """
         raise NotImplementedError
 
-    def evaluate(self) -> DFA:
+    def evaluate(self) -> SparseDFA:
         """
         Returns automatic presentation of the relation.
 
@@ -506,7 +505,7 @@ class ElementaryTerm(Term, ABC):
         """
         return BaseRATerm('Lt', [other, self])
 
-    def evaluate(self) -> DFA:
+    def evaluate(self) -> SparseDFA:
         if self.presentation is None:
             self.update_presentation()
 

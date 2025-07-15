@@ -1,376 +1,800 @@
-from automata.fa.dfa import DFA
-from automata.fa.nfa import NFA
+import heapq
+import jax
+import jax.numpy as jnp
+import numpy as np
+from collections import deque, defaultdict
+from functools import partial
+from typing import Generator, Optional, Callable, Dict, List, Set, Union
 import itertools as it
-from typing import List, Tuple, Callable, Union
-
+from autstr.utils.logic import get_free_elementary_vars
+from autstr.sparse_automata import SparseDFA, SparseNFA
 from autstr.buildin.automata import one
-from autstr.utils.misc import get_unique_id
-from autstr.utils.misc import heapify_llex as heapify
-from autstr.utils.misc import heappop_llex as heappop
-from autstr.utils.misc import heappush_llex as heappush
+from autstr.utils.misc import decode_symbol, encode_symbol
 
 
-def stringlify_states(dfa: Union[DFA, NFA], convert_orgnames: bool = True) -> DFA:
+
+# ====== Helper Functions ======
+def pad(dfa: SparseDFA, padding_symbol: int = -1) -> SparseDFA:
+    """Pad the automaton to accept trailing padding symbols by:
+    1. Creating a new sub-automaton for (pad_tuple)*
+    2. Connecting original accepting states to the new sub-automaton
+    3. Determinizing and minimizing the result
     """
-    Auxiliary function to turn the states of a finite automation into strings
+    arity = dfa.symbol_arity
+    base_alphabet = dfa.base_alphabet
+    if padding_symbol == -1:
+        padding_symbol = sorted(base_alphabet)[0]  # Default to first symbol
+    pad_tuple = (padding_symbol,) * arity
+    pad_enc = encode_symbol(pad_tuple, base_alphabet)
+    
+    # If automaton is empty, return it immediately
+    if dfa.is_empty():
+        return dfa
 
-    :param dfa: the automaton A
-    :param convert_orgnames: If True, converts the original state names into strings. Otherwise, an arbitrary numbering
-        is chosen.
-    :return: dfa B such that B is identical to A but type(B.states) = Set[str]
-    """
-    mapping = {s: str(s) if convert_orgnames else str(i) for i, s in enumerate(dfa.states)}
-    states = {mapping[q] for q in dfa.states}
-    if isinstance(dfa, DFA):
-        transitions = {mapping[q]: {a: mapping[dfa.transitions[q][a]] for a in dfa.input_symbols} for q in dfa.states}
-    else:
-        transitions = {
-            mapping[q]: {a: {mapping[p] for p in dfa.transitions[q][a]} for a in dfa.transitions[q]} for q in dfa.states
-        }
-    initial_state = mapping[dfa.initial_state]
-    final_states = {mapping[q] for q in dfa.final_states}
+    # Convert JAX arrays to native Python types
+    default_states_np = np.array(dfa.default_states)
+    exception_symbols_np = np.array(dfa.exception_symbols)
+    exception_states_np = np.array(dfa.exception_states)
+    is_accepting_np = np.array(dfa.is_accepting)
+    
+    # Step 1: Build NFA components
+    n_orig = dfa.num_states
+    n_pad = n_orig  # State for padding loop
+    n_dead = n_orig + 1  # Dead state
+    num_states = n_orig + 2
 
-    if isinstance(dfa, DFA):
-        dfa_str = DFA(
-            initial_state=initial_state,
-            states=states,
-            transitions=transitions,
-            input_symbols=dfa.input_symbols,
-            final_states=final_states
-        )
-    else:
-        dfa_str = NFA(
-            initial_state=initial_state,
-            states=states,
-            transitions=transitions,
-            input_symbols=dfa.input_symbols,
-            final_states=final_states
-        )
-    return dfa_str
+    # Base state array (using native Python types)
+    base_state_arr = default_states_np.tolist() + [n_dead, n_dead]
 
+    # Acceptance array (original acceptors + pad state)
+    is_accepting_arr = is_accepting_np.tolist() + [True, False]
 
-def stringlify_input_symbols(dfa: DFA, convert_orgnames=True) -> DFA:
-    """
-        Auxiliary function to turn the input_symbols of a finite automation into strings. Note that the function
+    # Calculate needed exception slots
+    extra_slots = 1  # For new pad transitions
+    new_max_exceptions = dfa.max_exceptions + extra_slots
 
-        :param dfa: the automaton A
-        :param convert_orgnames: If True, converts the original input symbol names into strings. Otherwise,
-            an arbitrary numbering is chosen.
-        :return: dfa B such that B is identical to A but type(B.input_symbols) = Set[str]
-    """
-    mapping = {s: str(s) if convert_orgnames else str(i) for i, s in enumerate(dfa.input_symbols)}
-    input_symbols = {mapping[s] for s in dfa.input_symbols}
-    transitions = {q: {mapping[a]: dfa.transitions[q][a] for a in dfa.input_symbols} for q in dfa.states}
+    # Initialize exception arrays
+    exception_symbols_arr = np.full((num_states, new_max_exceptions), -1, dtype=np.int32)
+    exception_states_arr = np.full((num_states, new_max_exceptions), -1, dtype=np.int32)
 
-    dfa_str = DFA(
-        initial_state=dfa.initial_state,
-        states=dfa.states,
-        transitions=transitions,
-        input_symbols=input_symbols,
-        final_states=dfa.final_states
+    # Copy original exceptions
+    for i in range(n_orig):
+        for j in range(dfa.max_exceptions):
+            sym = exception_symbols_np[i, j]
+            if sym != -1:
+                exception_symbols_arr[i, j] = sym
+                exception_states_arr[i, j] = exception_states_np[i, j]
+
+    # Add new transitions:
+    # 1. From original accepting states to pad state on padding symbol
+    for i in range(n_orig):
+        if is_accepting_np[i]:
+            # Find first available slot
+            slot = np.where(exception_symbols_arr[i] == -1)[0]
+            if slot.size > 0:
+                slot_idx = slot[0]
+                exception_symbols_arr[i, slot_idx] = pad_enc
+                exception_states_arr[i, slot_idx] = n_pad
+
+    # 2. From pad state to itself on padding symbol
+    exception_symbols_arr[n_pad, 0] = pad_enc
+    exception_states_arr[n_pad, 0] = n_pad
+
+    # Build NFA using native Python types
+    nfa = SparseNFA(
+        num_states=num_states,
+        base_state=base_state_arr,
+        exception_symbols=exception_symbols_arr,
+        exception_states=exception_states_arr,
+        is_accepting=is_accepting_arr,
+        start_state=dfa.start_state,
+        symbol_arity=arity,
+        base_alphabet=base_alphabet
     )
-    return dfa_str
 
+    # Convert to DFA and minimize
+    return nfa.determinize()#.minimize()
 
-def projection(dfa: DFA, i: int) -> DFA:
-    """Takes an automaton that recognizes a k-ary relation R and a position i<k and returns and automaton that
-    recognizes the relation R_{-i} = {(x_1,..., x_{i-1}, x_{i+1},..., x_k) | exists x_i: (x_1,..., x_n) in R}
-
-    :param dfa: The automaton
-    :param i: the position
-    :return: Automaton presentation of R_{-i}
-    """
-    assert all([isinstance(s, tuple) for s in dfa.input_symbols])
-    assert all([len(s) > i for s in dfa.input_symbols])
-    done = set()
-    input_symbols = {s[:i] + s[i + 1:] for s in dfa.input_symbols}
-    input_symbols_i = {s[i] for s in dfa.input_symbols}
-    todo = [frozenset({dfa.initial_state})]
-    transitions = {}
-    while len(todo) > 0:
-        state = todo.pop(0)
-        done.add(state)
-        state_trans = {s: frozenset() for s in input_symbols}
-        for q in state:
-            for s in input_symbols:
-                state_trans[s] = frozenset(
-                    state_trans[s].union({dfa.transitions[q][s[:i] + (a,) + s[i:]] for a in input_symbols_i})
+def unpad(dfa: SparseDFA, padding_symbol: int = -1, remove_blank: bool = False) -> SparseDFA:
+    """Remove trailing padding symbols from accepted words."""
+    arity = dfa.symbol_arity
+    base_alphabet = dfa.base_alphabet
+    if padding_symbol == -1:
+        padding_symbol = sorted(base_alphabet)[0]  # Default to first symbol
+    pad_tuple = (padding_symbol,) * arity
+    pad_tuple_enc = encode_symbol(pad_tuple, base_alphabet)
+    
+    # Compute closure under padding symbols
+    closure = {}
+    for q in range(dfa.num_states):
+        closure[q] = set()
+        stack = [q]
+        while stack:
+            state = stack.pop()
+            # Convert state to native int for set operations
+            state_int = int(state) if hasattr(state, '__int__') else state
+            
+            if state_int not in closure[q]:
+                closure[q].add(state_int)
+                # Follow padding transitions
+                if pad_tuple_enc in dfa.exception_symbols[state]:
+                    idx = jnp.where(dfa.exception_symbols[state] == pad_tuple_enc)[0]
+                    if idx.size > 0:
+                        next_state = dfa.exception_states[state, idx[0]]
+                        # Convert to native int before adding to stack
+                        stack.append(int(next_state))  
+                # Default transition for padding
+                else:
+                    next_state = dfa.default_states[state]
+                    # Avoid infinite loops from self-transitions
+                    if int(next_state) != state_int:  
+                        # Convert to native int before adding to stack
+                        stack.append(int(next_state))  
+    
+    # New acceptance: states that can reach a final state via padding
+    new_accepting = jnp.array([
+        any(dfa.is_accepting[p] for p in closure[q]) for q in range(dfa.num_states)
+    ])
+    
+    # Create new automaton
+    if remove_blank:
+        # Remove padding symbol from input symbols
+        new_base_alphabet = base_alphabet - {padding_symbol}
+        # Filter out padding transitions
+        new_exception_symbols = jnp.full_like(dfa.exception_symbols, -1)
+        new_exception_states = jnp.full_like(dfa.exception_states, -1)
+        
+        for q in range(dfa.num_states):
+            valid_mask = (dfa.exception_symbols[q] != pad_tuple_enc) & (dfa.exception_symbols[q] != -1)
+            valid_indices = jnp.where(valid_mask)[0]
+            num_valid = len(valid_indices)
+            
+            if num_valid > 0:
+                new_exception_symbols = new_exception_symbols.at[q, :num_valid].set(
+                    dfa.exception_symbols[q, valid_indices]
                 )
-        transitions[state] = state_trans
-        for s in state_trans.values():
-            if s not in done:
-                todo.append(s)
-
-    final = {s for s in done if any([q in dfa.final_states for q in s])}
-    result = DFA(
-        states=frozenset(done),
-        input_symbols=input_symbols,
-        initial_state=frozenset({dfa.initial_state}),
-        transitions=transitions,
-        final_states=final
-    ).minify(retain_names=False)
-
-    return stringlify_states(result)
-
-
-def expand(dfa: DFA, n: int, pos: List) -> DFA:
-    """
-    Takes an automaton that recognizes a k-ary presentation R and expands it to a n-ary presentation S, n>=k, with
-    S = {(x_1,..., x_n) | (x_{pos[0]},..., x_{pos[k-1]}) in R}
-
-    :param dfa: The automaton
-    :param n: The arity of the result
-    :param pos: where to encode the original relation
-    :return: Automaton recognizing {(x_1,..., x_n) | (x_{pos[0]},..., x_{pos[k-1]}) in L(dfa)}
-    """
-    assert max(pos) < n
-    assert len(list(dfa.input_symbols)[0]) == len(pos)
-
-    base_symbols = {symbol[0] for symbol in dfa.input_symbols}
-
-    return DFA(
-        initial_state=dfa.initial_state,
-        input_symbols=set(it.product(base_symbols, repeat=n)),
-        states=dfa.states,
-        transitions={
-            x: {
-                symbol: dfa.transitions[x][tuple(symbol[i] for i in pos)] for symbol in
-                it.product(base_symbols, repeat=n)
-            } for x in dfa.states
-        },
-        final_states=dfa.final_states
-    ).minify()
-
-
-def pad(dfa: DFA, padding_symbol: Tuple[str] = ('*',)) -> DFA:
-    """
-    Create an automaton that recognises :math:`L(\\textrm{dfa}){\\textrm{padding_symbol}}^\\ast`.
-
-    :param dfa: The automaton
-    :param padding_symbol:
-    :return: Automaton that recognizes :math:`L(\\textrm{dfa}){\\textrm{paddingsymbol}}^\ast`
-    """
-    # TODO: padding symbol should be of type string
-    base_symbols = {a[0] for a in dfa.input_symbols}.union({padding_symbol[0]})
-    arity = len(list(dfa.input_symbols)[0])
-    input_symbols = set(it.product(base_symbols, repeat=arity))
-    good, bad = get_unique_id(dfa.states, 2)
-    states = dfa.states.union({good, bad})
-    padding_transitions = {
-        q: {padding_symbol * arity: good if q in dfa.final_states else bad} for q in dfa.states
-    }
-    transitions = {q: dfa.transitions[q] | padding_transitions[q] for q in dfa.states}
-    transitions[good] = {a: good if a == padding_symbol * arity else bad for a in input_symbols}
-    transitions[bad] = {a: bad for a in input_symbols}
-    final_states = dfa.final_states.union({good})
-
-    padded_dfa = DFA(
-        states=states,
-        input_symbols=input_symbols,
-        initial_state=dfa.initial_state,
-        transitions=transitions,
-        final_states=final_states
-    ).minify()
-
-    return padded_dfa
-
-
-def unpad(dfa: DFA, padding_symbol: Tuple[str] = ('*',), remove_blank: bool = False) -> DFA:
-    """
-    Creates an automaton that recognizes {w | exists x in (padding_symbol^k)^*: wx in L(dfa)} where k is the arity of
-    the relation that is recognized by dfa.
-
-    :param remove_blank: If True, removes the blank symbol from the input symbols
-    :param dfa: The automaton
-    :param padding_symbol: The padding symbol. Needs to be a length one tuple
-    :return: Automaton that recognizes {w | exists x in padding_symbol^*: wx in L(dfa)}
-    """
-    arity = len(list(dfa.input_symbols)[0])
-    if not remove_blank:
-        input_symbols = dfa.input_symbols
-        sink = get_unique_id(dfa.states, 1)
-        states = dfa.states.union({sink})
-        transitions = {
-            q: {
-                a: dfa.transitions[q][a] if padding_symbol * arity != a else sink for a in dfa.input_symbols
-            } for q in dfa.states
-        }
-        transitions[sink] = {a: sink for a in input_symbols}
+                new_exception_states = new_exception_states.at[q, :num_valid].set(
+                    dfa.exception_states[q, valid_indices]
+                )
+        
+        return SparseDFA(
+            num_states=dfa.num_states,
+            default_states=dfa.default_states,
+            exception_symbols=new_exception_symbols,
+            exception_states=new_exception_states,
+            is_accepting=new_accepting,
+            start_state=dfa.start_state,
+            symbol_arity=arity,
+            base_alphabet=new_base_alphabet
+        ).minimize()
     else:
-        input_symbols = {a for a in dfa.input_symbols if padding_symbol * arity != a}
-        states = dfa.states
-        transitions = {
-            q: {
-                a: dfa.transitions[q][a] for a in dfa.input_symbols if padding_symbol * arity != a
-            } for q in dfa.states
-        }
+        return SparseDFA(
+            num_states=dfa.num_states,
+            default_states=dfa.default_states,
+            exception_symbols=dfa.exception_symbols,
+            exception_states=dfa.exception_states,
+            is_accepting=new_accepting,
+            start_state=dfa.start_state,
+            symbol_arity=arity,
+            base_alphabet=base_alphabet
+        ).minimize()
 
-    final_states = dfa.final_states
-    last_fstates = None
-    while final_states != last_fstates:
-        last_fstates = final_states
-        final_states = final_states.union(
-            {q for q in dfa.transitions if dfa.transitions[q][padding_symbol * arity] in final_states}
-        )
-
-    unpadded_dfa = DFA(
-        states=states,
-        input_symbols=input_symbols,
-        initial_state=dfa.initial_state,
-        transitions=transitions,
-        final_states=final_states
-    ).minify()
-
-    return unpadded_dfa
-
-
-def product(dfa: DFA, n: int) -> DFA:
-    """
-    Create an automaton that recognizes the n-fold cartesian product of L(dfa)
-
-    :param dfa: The automaton
-    :param n: number of convolutions
-    :return: Automaton that recognizes the n-fold cartesian product of L(dfa)
-    """
+def product(dfa: SparseDFA, n: int) -> SparseDFA:
+    """Create the n-fold Cartesian product of the automaton's language."""
     if n == 0:
-        result = one()
-        return result
-    base_automata = [stringlify_states(expand(dfa, n, [i])) for i in range(n)]
-    result = base_automata[0]
-    for base in base_automata[1:]:
-        result = result.intersection(base).minify()
-
-    return result
-
-
-def iterate_language(dfa: DFA, decoder: Callable = None, backward: bool = False, padding_symbol: str = '*'):
-    """
-    Generator over the language that is represented by a DFA. Provides functionality for decoding of words by user
-    defined decoder functions. Iterates through the words in length-lexicographic order.
-
-    :param dfa: The automaton
-    :param decoder: Decoder function that maps (tuples of) words to python object
-    :param backward: If True, iterate over the elements of the reversed language
-    :param padding_symbol: The padding symbol
-    :return:
-    """
-    arity = len(list(dfa.input_symbols)[0])
-    nfa = dfa
-
-    nfa = stringlify_states(nfa)
-
-    if backward:
-        nonempty = set()
-        for q in nfa.states:
-            nfa_q = DFA(
-                states=nfa.states,
-                input_symbols=nfa.input_symbols,
-                initial_state=nfa.initial_state,
-                final_states={q},
-                transitions=nfa.transitions
-            )
-            if not nfa_q.isempty():
-                nonempty.add(q)
-
-        transitions = {q: {a: set() for a in nfa.input_symbols} for q in nfa.states}
-        for p in nfa.states:
-            for q in nfa.states:
-                for a in nfa.transitions[q]:
-                    transitions[nfa.transitions[q][a]][a].add(q)
-
-        final = {nfa.initial_state}
+        return one()
+    if n == 1:
+        return dfa
     else:
-        nonempty = set()
-        for q in nfa.states:
-            nfa_q = DFA(
-                states=nfa.states,
-                input_symbols=nfa.input_symbols,
-                initial_state=q,
-                final_states=nfa.final_states,
-                transitions=nfa.transitions
-            )
-            if not nfa_q.isempty():
-                nonempty.add(q)
+        result = dfa
+        for _ in range(n-1):
+            result = stack(result, dfa)
+        return result
 
-        transitions = dfa.transitions
-        final = nfa.final_states
+def stack(dfa1: SparseDFA, dfa2: SparseDFA) -> SparseDFA:
+    """
+    Creates a stacked automaton that recognizes the concatenation of two relations
+    without explicitly generating all possible symbols.
+    
+    The new automaton accepts tuples (x1,...,xk,y1,...,yl) where:
+        (x1,...,xk) is accepted by dfa1 and 
+        (y1,...,yl) is accepted by dfa2
+        
+    Args:
+        dfa1: First automaton of arity k
+        dfa2: Second automaton of arity l
+        
+    Returns:
+        SparseDFA of arity k+l recognizing the stacked relation
+    """
+    # Validate common base alphabet
+    if dfa1.base_alphabet != dfa2.base_alphabet:
+        raise ValueError("Automata must have the same base alphabet")
+    
+    dfa1 = pad(dfa1)
+    dfa2 = pad(dfa2)
+    
+    # Get arities
+    k = dfa1.symbol_arity
+    l = dfa2.symbol_arity
+    arity = k + l
+    base_alphabet = dfa1.base_alphabet
+    
+    # Create product states
+    n1 = dfa1.num_states
+    n2 = dfa2.num_states
+    num_states = n1 * n2
+    
+    # On-the-fly construction: only generate reachable states
+    start_pair = (dfa1.start_state, dfa2.start_state)
+    queue = deque([start_pair])
+    state_map = {start_pair: 0}
+    
+    new_default_states_list = []
+    new_exception_symbols_list = []
+    new_exception_states_list = []
+    new_is_accepting_list = []
+    
+    # Helper function to split symbol
+    def split_symbol(full_symbol_enc):
+        """Split encoded symbol into two components"""
+        full_tuple = decode_symbol(full_symbol_enc, arity, base_alphabet)
+        s1_tuple = full_tuple[:k]
+        s2_tuple = full_tuple[k:]
+        s1_enc = encode_symbol(s1_tuple, base_alphabet)
+        s2_enc = encode_symbol(s2_tuple, base_alphabet)
+        return s1_enc, s2_enc
+    
+    # Build product automaton
+    idx_counter = 0
+    while queue:
+        current_pair = queue.popleft()
+        i, j = current_pair
+        current_idx = state_map[current_pair]
+        
+        # Add acceptance status
+        new_is_accepting_list.append(bool(dfa1.is_accepting[i]) and bool(dfa2.is_accepting[j]))
+        
+        # Collect all unique symbols that cause an exception in either DFA
+        # or are part of the full alphabet
+        all_relevant_symbols = set()
+        
+        # Add symbols that are exceptions in dfa1
+        for pos1 in range(dfa1.max_exceptions):
+            s1_enc = int(dfa1.exception_symbols[i, pos1])
+            if s1_enc == -1:
+                continue
+            # Generate corresponding symbols for the full arity
+            for symbol_char in base_alphabet:
+                base_tuple = decode_symbol(s1_enc, k, base_alphabet)
+                full_tuple = base_tuple + (symbol_char,) * l
+                full_enc = encode_symbol(full_tuple, base_alphabet)
+                all_relevant_symbols.add(full_enc)
+        
+        # Add symbols that are exceptions in dfa2
+        for pos2 in range(dfa2.max_exceptions):
+            s2_enc = int(dfa2.exception_symbols[j, pos2])
+            if s2_enc == -1:
+                continue
+            # Generate corresponding symbols for the full arity
+            for symbol_char in base_alphabet:
+                base_tuple = decode_symbol(s2_enc, l, base_alphabet)
+                full_tuple = (symbol_char,) * k + base_tuple
+                full_enc = encode_symbol(full_tuple, base_alphabet)
+                all_relevant_symbols.add(full_enc)
+        
+        # Add all symbols from the combined alphabet to ensure all transitions are considered
+        for symbol_tuple_chars in it.product(sorted(base_alphabet), repeat=arity):
+            all_relevant_symbols.add(encode_symbol(symbol_tuple_chars, base_alphabet))
 
-    queue = [(('',) * arity, q) for q in nfa.final_states]
-    queue = heapify(queue)
-    while len(queue) > 0:
-        word, state = heappop(queue)
+        # Determine default transition for the product state
+        # The default transition for the product automaton is formed by the default transitions
+        # of the individual automata.
+        def_i = int(dfa1.default_states[i])
+        def_j = int(dfa2.default_states[j])
+        default_target_pair = (def_i, def_j)
+        
+        if default_target_pair not in state_map:
+            state_map[default_target_pair] = len(state_map)
+            queue.append(default_target_pair)
+        new_default_states_list.append(state_map[default_target_pair])
+        
+        # Process exceptions for the current product state
+        current_exceptions_symbols = []
+        current_exceptions_states = []
+        
+        for full_enc in sorted(list(all_relevant_symbols)): # Sort for deterministic output
+            s1_enc, s2_enc = split_symbol(full_enc)
+            
+            next_i = dfa1.transition(i, s1_enc)
+            next_j = dfa2.transition(j, s2_enc)
+            next_pair = (next_i, next_j)
+            
+            # Only add as an exception if it deviates from the default transition
+            if next_pair != default_target_pair:
+                if next_pair not in state_map:
+                    state_map[next_pair] = len(state_map)
+                    queue.append(next_pair)
+                current_exceptions_symbols.append(full_enc)
+                current_exceptions_states.append(state_map[next_pair])
+        
+        new_exception_symbols_list.append(current_exceptions_symbols)
+        new_exception_states_list.append(current_exceptions_states)
+        
+        idx_counter += 1
 
-        if state in final:
-            if decoder is None:
-                yield word
+    # Pad exceptions to uniform length
+    num_new_states = len(state_map)
+    max_exceptions = max(len(ex) for ex in new_exception_symbols_list) if new_exception_symbols_list else 0
+    padded_ex_syms = jnp.full((num_new_states, max_exceptions), -1, dtype=jnp.int32)
+    padded_ex_states = jnp.full((num_new_states, max_exceptions), -1, dtype=jnp.int32)
+    
+    for i in range(num_new_states):
+        syms = new_exception_symbols_list[i]
+        states = new_exception_states_list[i]
+        if syms:
+            padded_ex_syms = padded_ex_syms.at[i, :len(syms)].set(jnp.array(syms, dtype=jnp.int32))
+            padded_ex_states = padded_ex_states.at[i, :len(states)].set(jnp.array(states, dtype=jnp.int32))
+    
+    # Create and return the stacked automaton
+    return SparseDFA(
+        num_states=num_new_states,
+        default_states=jnp.array(new_default_states_list),
+        exception_symbols=jnp.array(padded_ex_syms),
+        exception_states=jnp.array(padded_ex_states),
+        is_accepting=jnp.array(new_is_accepting_list),
+        start_state=0, # Start state is always 0 in the new mapping
+        symbol_arity=arity,
+        base_alphabet=base_alphabet
+    )
+
+def projection(dfa: SparseDFA, i: int) -> SparseDFA:
+    """Project the automaton by existentially quantifying the i-th position."""
+    arity = dfa.symbol_arity
+    base_alphabet = dfa.base_alphabet
+    new_arity = arity - 1
+    
+    # Create new automaton via subset construction
+    start_state = frozenset([int(dfa.start_state)])
+    state_queue = deque([start_state])
+    state_to_id = {start_state: 0}
+    id_to_state = [start_state]
+    
+    # New DFA components
+    new_default_states = []
+    new_exception_symbols = []
+    new_exception_states = []
+    new_accepting = []
+    
+    # Generate all possible symbols for the new alphabet
+    new_alphabet = set(it.product(sorted(base_alphabet), repeat=new_arity))
+    
+    while state_queue:
+        state_set = state_queue.popleft()
+        state_id = state_to_id[state_set]
+        
+        # For each possible symbol in new alphabet
+        trans_map = {}
+        for symbol_tuple in new_alphabet:
+            next_set = set()
+            for q in state_set:
+                # Try all possible values at position i
+                for a in base_alphabet:
+                    full_symbol = symbol_tuple[:i] + (a,) + symbol_tuple[i:]
+                    full_symbol_enc = encode_symbol(full_symbol, base_alphabet)
+                    next_state = dfa.transition(q, full_symbol_enc)
+                    next_set.add(int(next_state))  # Convert to native int
+            trans_map[symbol_tuple] = frozenset(next_set)
+        
+        # Handle case with no transitions
+        if not trans_map:
+            # Create a dead state if no transitions exist
+            dead_state = frozenset()
+            if dead_state not in state_to_id:
+                new_id = len(id_to_state)
+                state_to_id[dead_state] = new_id
+                id_to_state.append(dead_state)
+                # Dead state never accepts and transitions to itself
+                new_accepting.append(False)
+                new_default_states.append(new_id)
+                new_exception_symbols.append([])
+                new_exception_states.append([])
+            default_target = state_to_id[dead_state]
+            state_id_for_default = default_target
+        else:
+            # Find the most common transition
+            targets = list(trans_map.values())
+            default_target_set = max(set(targets), key=targets.count)
+            
+            # Get or create state ID for default target
+            if default_target_set not in state_to_id:
+                new_id = len(id_to_state)
+                state_to_id[default_target_set] = new_id
+                id_to_state.append(default_target_set)
+                state_queue.append(default_target_set)
+                state_id_for_default = new_id
             else:
-                yield decoder(word)
-
-        for a in transitions[state]:
-            if a != (padding_symbol,) * arity:
-                for q in transitions[state][a]:
-                    if q in nonempty:
-                        heappush(
-                            queue,
-                            (tuple(
-                                [f'{wordcomp}{b}' if b != padding_symbol else wordcomp for wordcomp, b in
-                                 zip(word, a)]
-                            ), q)
-                        )
-
-
-def lsbf_automaton(n: int) -> DFA:
-    """
-    generates an automation that recognizes exactly the least-significant-bit-first binary encoding of n
-    """
-    bits = format(n, 'b')[::-1]
-    n_bits = len(bits)
-
-    states = set(range(n_bits + 2))
-    initial_state = 0
-    final_states = {n_bits}
-    input_symbols = {('0',), ('1',), ('*',)}
-
-    transitions = {i: {a: i + 1 if a == (bits[i],) else n_bits + 1 for a in input_symbols} for i in range(n_bits)}
-    transitions[n_bits] = {a: n_bits + 1 for a in input_symbols}
-    transitions[n_bits + 1] = {a: n_bits + 1 for a in input_symbols}
-
-    result = DFA(
-        states=states,
-        input_symbols=input_symbols,
-        initial_state=initial_state,
-        transitions=transitions,
-        final_states=final_states
+                state_id_for_default = state_to_id[default_target_set]
+            
+            # Create exceptions for deviations
+            exceptions = []
+            for symbol_tuple, target_set in trans_map.items():
+                if target_set != default_target_set:
+                    # Get or create state ID for this target
+                    if target_set not in state_to_id:
+                        new_id = len(id_to_state)
+                        state_to_id[target_set] = new_id
+                        id_to_state.append(target_set)
+                        state_queue.append(target_set)
+                        target_id = new_id
+                    else:
+                        target_id = state_to_id[target_set]
+                    
+                    symbol_enc = encode_symbol(symbol_tuple, base_alphabet)
+                    exceptions.append((symbol_enc, target_id))
+            
+            new_exception_symbols.append([e[0] for e in exceptions])
+            new_exception_states.append([e[1] for e in exceptions])
+        
+        new_default_states.append(state_id_for_default)
+        new_accepting.append(any(dfa.is_accepting[q] for q in state_set))
+    
+    # Pad exceptions
+    max_ex = max(len(ex) for ex in new_exception_symbols) if new_exception_symbols else 0
+    padded_ex_syms = jnp.full((len(id_to_state), max_ex), -1)
+    padded_ex_states = jnp.full((len(id_to_state), max_ex), -1)
+    
+    for idx, (syms, states) in enumerate(zip(new_exception_symbols, new_exception_states)):
+        if syms:
+            padded_ex_syms = padded_ex_syms.at[idx, :len(syms)].set(jnp.array(syms, dtype=jnp.int32))
+            padded_ex_states = padded_ex_states.at[idx, :len(states)].set(jnp.array(states, dtype=jnp.int32))
+    
+    return SparseDFA(
+        num_states=len(id_to_state),
+        default_states=jnp.array(new_default_states, dtype=jnp.int32),
+        exception_symbols=padded_ex_syms,
+        exception_states=padded_ex_states,
+        is_accepting=jnp.array(new_accepting),
+        start_state=0,
+        symbol_arity=new_arity,
+        base_alphabet=base_alphabet
     )
 
-    return stringlify_states(result)
+def expand(dfa, new_arity: int, pos: List[int]):
+    # Input validation (unchanged)
+    original_arity = dfa.symbol_arity
+    base_alphabet = dfa.base_alphabet
+    sorted_alphabet = sorted(base_alphabet)
+    m = len(base_alphabet)
+    new_num_states = dfa.num_states
+    K = m ** (new_arity - len(set(pos)))  # Account for duplicate positions
+    new_max_exceptions = dfa.max_exceptions * K
+    
+    # Precompute fixed positions and free indices
+    fixed_mask = jnp.zeros(new_arity, dtype=bool)
+    for idx in pos:
+        fixed_mask = fixed_mask.at[idx].set(True)
+    free_indices = jnp.where(~fixed_mask, size=new_arity, fill_value=-1)[0]
+    free_count = jnp.sum(~fixed_mask).item()
+    
+    # Precompute encoding powers
+    powers = m ** jnp.arange(new_arity-1, -1, -1, dtype=jnp.int64)
+    sorted_alphabet_arr = jnp.arange(len(sorted_alphabet))
+    
+    # Prepare new DFA arrays
+    new_default_states = jnp.zeros(new_num_states, dtype=jnp.int32)
+    new_exception_symbols = jnp.full((new_num_states, new_max_exceptions), -1, dtype=jnp.int32)
+    new_exception_states = jnp.full((new_num_states, new_max_exceptions), -1, dtype=jnp.int32)
+    
+    # Process each state
+    for state in range(dfa.num_states):
+        # Calculate new default state via frequency counts
+        # The default state for the expanded DFA is simply the default state of the original DFA
+        # as the 'default' transition applies when no exception matches, regardless of arity.
+        new_default_states = new_default_states.at[state].set(int(dfa.default_states[state]))
 
-def lsbf_Z_automaton(n: int) -> DFA:
-    """
-    generates an automation that recognizes exactly the least-significant-bit-first binary encoding of n over Z
-    """
-    bits = format(abs(n), 'b')[::-1]
-    n_bits = len(bits)
+        # Collect original exceptions
+        orig_exceptions = dfa.exception_symbols[state][dfa.exception_symbols[state] != -1]
+        orig_targets = dfa.exception_states[state][dfa.exception_symbols[state] != -1]     
+        
+        # Process exception blocks
+        all_exception_symbols = []
+        all_exception_states = []
+        for sym_enc, target in zip(orig_exceptions, orig_targets):
+            # Decode and convert to indices
+            orig_tuple = decode_symbol(int(sym_enc), original_arity, base_alphabet)
 
-    states = set(range(n_bits + 2))
-    states.add(-1)
-    initial_state = -1
-    final_states = {n_bits}
-    input_symbols = {('0',), ('1',), ('*',)}
+            # Check consistency for duplicate positions
+            expected = {}
+            consistent = True
+            for orig_idx, new_idx in enumerate(pos):
+                val = orig_tuple[orig_idx]
+                if new_idx in expected and expected[new_idx] != val:
+                    consistent = False
+                    break
+                expected[new_idx] = val
+            if not consistent:
+                continue  # Skip inconsistent symbol
 
-    transitions = {i: {a: i + 1 if a == (bits[i],) else n_bits + 1 for a in input_symbols} for i in range(n_bits)}
-    transitions[-1] = {
-        a: 0 if (n >= 0 and a == ('0',)) or (n < 0 and a == ('1',)) else n_bits + 1 for a in input_symbols
-    }
-    transitions[n_bits] = {a: n_bits + 1 for a in input_symbols}
-    transitions[n_bits + 1] = {a: n_bits + 1 for a in input_symbols}
-
-    result = DFA(
-        states=states,
-        input_symbols=input_symbols,
-        initial_state=initial_state,
-        transitions=transitions,
-        final_states=final_states
+            # Generate expanded symbols as a block
+            expanded_symbols = generate_expanded_block(
+                sym_enc, 
+                sorted_alphabet_arr,
+                fixed_mask,
+                free_indices,
+                free_count,
+                powers,
+                original_arity,
+                m,
+                pos
+            )
+            all_exception_symbols.append(expanded_symbols)
+            all_exception_states.append(jnp.full_like(expanded_symbols, target))
+        
+        if all_exception_symbols:
+            # Flatten the lists and pad to max_exceptions
+            all_exception_symbols = jnp.concatenate(all_exception_symbols)
+            all_exception_states = jnp.concatenate(all_exception_states)
+            new_exception_symbols = new_exception_symbols.at[state, :len(all_exception_symbols)].set(all_exception_symbols)
+            new_exception_states = new_exception_states.at[state, :len(all_exception_states)].set(all_exception_states)
+        
+    return SparseDFA(
+        num_states=new_num_states,
+        default_states=new_default_states,
+        exception_symbols=new_exception_symbols,
+        exception_states=new_exception_states,
+        is_accepting=dfa.is_accepting,
+        start_state=dfa.start_state,
+        symbol_arity=new_arity,
+        base_alphabet=base_alphabet
     )
 
-    return stringlify_states(result)
+
+def generate_expanded_block(sym_enc, sorted_alphabet_arr, fixed_mask, free_indices, 
+                           free_count, powers, original_arity, m, pos):
+    # Decode original symbol
+    powers_orig = m ** jnp.arange(original_arity-1, -1, -1, dtype=jnp.int64)
+    digits = (sym_enc // powers_orig) % m
+    orig_tuple = sorted_alphabet_arr[digits]
+    
+    # Create fixed values template
+    fixed_values = jnp.full(len(fixed_mask), -1, dtype=sorted_alphabet_arr.dtype)
+    for orig_idx, new_idx in enumerate(pos):
+        fixed_values = fixed_values.at[new_idx].set(orig_tuple[orig_idx])
+    
+    # Generate free combinations
+    if free_count > 0:
+        n_comb = m ** free_count
+        grid = jnp.indices((m,)*free_count).reshape(free_count, -1).T
+        free_vals = sorted_alphabet_arr[grid]
+        symbol_tensors = jnp.tile(fixed_values, (n_comb, 1))
+        symbol_tensors = symbol_tensors.at[:, free_indices[:free_count]].set(free_vals)
+    else:
+        symbol_tensors = fixed_values[None, :]
+    
+    # Encode symbols
+    indices = jnp.searchsorted(sorted_alphabet_arr, symbol_tensors)
+    return jnp.sum(indices * powers, axis=1, dtype=jnp.int32)
+
+# We'll define a custom heap structure for length-lexicographic ordering
+class LengthLexHeap:
+    def __init__(self):
+        self.heap = []
+        
+    def push(self, item):
+        # item: (word_tuple, state)
+        # word_tuple is tuple of strings
+        # Priority: 1. Total length (sum of lengths), 2. Lex order
+        total_length = sum(len(comp) for comp in item[0])
+        heapq.heappush(self.heap, (total_length, item[0], item[1]))
+        
+    def pop(self):
+        _, word, state = heapq.heappop(self.heap)
+        return (word, state)
+        
+    def __len__(self):
+        return len(self.heap)
+
+def iterate_language(dfa: SparseDFA, decoder: Callable = None, 
+                    backward: bool = False, padding_symbol: int = -1) -> Generator:
+    """
+    Generator over the language of a SparseDFA. Yields words in length-lexicographic order.
+    
+    :param dfa: Sparse automaton
+    :param decoder: Function to decode words to Python objects
+    :param backward: If True, generate words in reverse order
+    :param padding_symbol: Integer representing padding symbol
+    :return: Generator of words (or decoded objects)
+    """
+    arity = dfa.symbol_arity
+    base_alphabet = sorted(dfa.base_alphabet)
+    
+    # Build reversed transitions: state -> symbol -> set of previous states
+    rev_transitions = {}
+    for state in range(dfa.num_states):
+        rev_transitions[state] = {}
+    
+    # Process all transitions
+    for state in range(dfa.num_states):
+        # Default transition
+        default_target = int(dfa.default_states[state])
+        symbol_enc = -1  # Special marker for default transition
+        rev_transitions.setdefault(default_target, {}).setdefault(symbol_enc, set()).add(state)
+        
+        # Exception transitions
+        for i in range(dfa.max_exceptions):
+            sym_enc = int(dfa.exception_symbols[state, i])
+            if sym_enc == -1:
+                continue
+            target = int(dfa.exception_states[state, i])
+            rev_transitions.setdefault(target, {}).setdefault(sym_enc, set()).add(state)
+    
+    # Compute non-empty states (states that can reach acceptance)
+    nonempty = set()
+    queue = deque()
+    
+    if backward:
+        # Backward iteration: non-empty if can reach initial state
+        visited = set()
+        for q in range(dfa.num_states):
+            if q == dfa.start_state:
+                queue.append(q)
+                visited.add(q)
+                nonempty.add(q)
+                
+        while queue:
+            state = queue.popleft()
+            for sym_enc, prev_states in rev_transitions.get(state, {}).items():
+                for prev in prev_states:
+                    if prev not in visited:
+                        visited.add(prev)
+                        nonempty.add(prev)
+                        queue.append(prev)
+
+        final_set = set([int(n) for n in jnp.arange(dfa.num_states)[dfa.is_accepting]])
+        start_set = final_set
+    else:
+        # Forward iteration: non-empty if can reach final state
+        visited = set()
+        final_states = set(np.where(dfa.is_accepting)[0])
+        for q in final_states:
+            queue.append(q)
+            visited.add(q)
+            nonempty.add(q)
+            
+        while queue:
+            state = queue.popleft()
+            for sym_enc, prev_states in rev_transitions.get(state, {}).items():
+                for prev in prev_states:
+                    if prev not in visited:
+                        visited.add(prev)
+                        nonempty.add(prev)
+                        queue.append(prev)
+                        
+        start_set = final_states
+        final_set = {dfa.start_state}
+
+    # Initialize heap with starting states
+    heap = LengthLexHeap()
+    for state in start_set:
+        if state in nonempty:
+            # Represent words as tuple of empty strings
+            heap.push((tuple(["" for _ in range(arity)]), state))
+
+    # Main loop
+    visited_words = set()
+    while heap:
+        word_tuple, state = heap.pop()
+        
+        # Skip duplicates
+        word_key = (state, word_tuple)
+        if word_key in visited_words:
+            continue
+        visited_words.add(word_key)
+        
+        # Check if we've reached a final state
+        if state in final_set:
+            if decoder:
+                yield decoder(word_tuple)
+            else:
+                yield word_tuple
+                
+        # Process incoming transitions
+        for sym_enc, prev_states in rev_transitions.get(state, {}).items():
+            for prev_state in prev_states:
+                if prev_state not in nonempty:
+                    continue
+                    
+                # Skip padding-only transitions
+                if sym_enc == -1:  # Default transition
+                    # Use the most common symbol? Instead, we'll skip
+                    continue
+                    
+                # Decode symbol
+                symbol_tuple = decode_symbol(sym_enc, arity, dfa.base_alphabet)
+                
+                # Create new word components
+                new_components = []
+                for comp, sym in zip(word_tuple, symbol_tuple):
+                    if sym == padding_symbol:
+                        # Keep component unchanged
+                        new_components.append(comp)
+                    else:
+                        # Prepend symbol to component
+                        new_components.append(str(sym) + comp)
+                
+                new_word_tuple = tuple(new_components)
+                
+                # Add to heap
+                heap.push((new_word_tuple, prev_state))
+
+import jax.numpy as jnp
+
+def lsbf_Z_automaton(z: int) -> SparseDFA:
+    """
+    Creates a SparseDFA for LSB-first representation of integer z with sign bit and padding.
+    Alphabet encoding:
+        "*" = 0
+        "0" = 1
+        "1" = 2
+    """
+    # Handle special case for zero
+    if z == 0:
+        return SparseDFA(
+            num_states=3,
+            default_states=jnp.array([2, 2, 2], dtype=jnp.int32),
+            exception_symbols=jnp.array([[1], [0], [-1]], dtype=jnp.int32),  # "0"=1, "*"=0
+            exception_states=jnp.array([[1], [1], [-1]], dtype=jnp.int32),
+            is_accepting=jnp.array([False, True, False]),
+            start_state=0,
+            symbol_arity=1,
+            base_alphabet={0, 1, 2}  # "*"=0, "0"=1, "1"=2
+        )
+    
+    # Determine sign and magnitude
+    sign_symbol = 1 if z >= 0 else 2  # "0"=1 for positive, "1"=2 for negative
+    magnitude = abs(z)
+    
+    # Convert to LSB-first bits (without trailing zeros)
+    bits = []
+    while magnitude:
+        bits.append(2 if magnitude & 1 else 1)  # 1→"0"=1, 2→"1"=2
+        magnitude >>= 1
+    
+    # Create representation: [sign_symbol] + bits (LSB first)
+    rep = [sign_symbol] + bits
+    n = len(rep)
+    
+    # States: 
+    # 0 to n-1: processing representation
+    # n: accepting state (after full representation)
+    # n+1: dead state
+    num_states = n + 2
+    
+    # Create arrays with vectorized operations
+    default_states = jnp.full(num_states, n+1, dtype=jnp.int32)  # Default to dead state
+    
+    # Exception symbols: rep for states 0..n-1, 0 ('*') for state n
+    exception_symbols = jnp.full((num_states, 1), -1, dtype=jnp.int32)
+    exception_symbols = exception_symbols.at[:n, 0].set(jnp.array(rep, dtype=jnp.int32))
+    exception_symbols = exception_symbols.at[n, 0].set(0)  # '*' for accepting state
+    
+    # Exception states: next state for representation, self for padding
+    exception_states = jnp.full((num_states, 1), -1, dtype=jnp.int32)
+    exception_states = exception_states.at[:n, 0].set(jnp.arange(1, n+1))
+    exception_states = exception_states.at[n, 0].set(n)  # loop in accepting state
+    
+    # Accepting state is state n
+    is_accepting = jnp.zeros(num_states, dtype=bool)
+    is_accepting = is_accepting.at[n].set(True)
+    
+    return SparseDFA(
+        num_states=num_states,
+        default_states=default_states,
+        exception_symbols=exception_symbols,
+        exception_states=exception_states,
+        is_accepting=is_accepting,
+        start_state=0,
+        symbol_arity=1,
+        base_alphabet={"*", "0", "1"}  # "*"=0, "0"=1, "1"=2
+    )

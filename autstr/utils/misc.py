@@ -1,6 +1,8 @@
 from functools import cmp_to_key
 from heapq import heapify, heappop, heappush
-from typing import Set, List, Union
+from typing import FrozenSet, Set, List, Tuple, Union
+
+from jax import numpy as jnp
 
 def cmp_llex(v: str, w: str) -> int:
     """
@@ -68,3 +70,58 @@ def get_unique_id(current_id: List[str], n: int = 1) -> Union[str, List[str]]:
     else:
         n_symbols = len(str(n))
         return [f'{max_element}{i:{n_symbols}d}' for i in range(n)]
+
+
+# ====== Symbol Encoding/Decoding ======
+def encode_symbol(tuple_symbol: Tuple[int], base_alphabet: FrozenSet[int]) -> int:
+    """Encode a symbol tuple into a single integer."""
+    if not tuple_symbol:
+        return 0
+    m = len(base_alphabet)
+    alphabet_sorted = sorted(base_alphabet)
+    mapping = {sym: idx for idx, sym in enumerate(alphabet_sorted)}
+    enc = 0
+    for sym in tuple_symbol:
+        enc = enc * m + mapping[sym]
+    return enc
+
+
+def decode_symbol(enc: int, arity: int, base_alphabet: FrozenSet[int]) -> Tuple[int]:
+    """Decode an integer into a symbol tuple."""
+    if arity == 0:
+        return ()
+    m = len(base_alphabet)
+    alphabet_sorted = sorted(base_alphabet)
+    symbols = []
+    num = enc
+    for _ in range(arity):
+        num, r = divmod(num, m)
+        symbols.append(alphabet_sorted[r])
+    return tuple(reversed(symbols))
+
+def complement(values, min_val: int, max_val: int) -> jnp.ndarray:
+    """Find the complement of a set of values within a specified range.
+    
+    Args:
+        values (jnp.ndarray): The input array of values.
+        min (int): The minimum value of the range.
+        max (int): The maximum value of the range.
+    
+    Returns:
+        jnp.ndarray: The complement of the input array.
+    """
+
+    unique_idxs = jnp.unique(values)
+    if unique_idxs.size == 0:
+        result = jnp.array([], dtype=values.dtype)
+    else:
+        
+        # Create full range and mask for present values
+        full_range = jnp.arange(min_val, max_val + 1)
+        mask = jnp.zeros_like(full_range, dtype=bool)
+        indices_in_full = unique_idxs - min_val
+        mask = mask.at[indices_in_full].set(True)
+        
+        # Extract missing values
+        result = full_range[~mask]
+    return result
