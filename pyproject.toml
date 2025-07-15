@@ -13,8 +13,10 @@ dependencies = [
     "ipykernel>=6.29.5",
     "jupyter (>=1.1.1,<2.0.0)",
     "visual-automata (>=1.1.1,<2.0.0)",
+    "jax>=0.4.13",
+    "graphviz (>=0.21,<0.22)",
 ]
-requires-python = ">=3.8,<=3.12"
+requires-python = ">=3.9,<3.13"
 
 [project.optional-dependencies]
 docs = [
