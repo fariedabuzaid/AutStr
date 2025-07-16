@@ -268,7 +268,15 @@ This implementation provides a complete toolkit for working with automatic struc
 ### Final Note
 AutStr began as a summer passion project in 2022—a practical exploration of the automatic structures I'd studied theoretically during my PhD. This library represents the intersection of academic curiosity and hands-on implementation, born from a desire to make abstract model theory concepts tangible.
 
-Released in June 2025 as-is, the library remains fundamentally unchanged from its original vision except for:
+Released in July 2025 following a major update, the library now includes significant new features beyond its original vision. This update was developed through a vibe coding session using DeepSeek, with extensive human testing and supervision throughout the process.
+
+Highlights of the update:
+- Newly implemented `sparse_dfa` backend for efficient automata operations, featuring:
+   - Space-efficient representation via implicit default transitions
+   - Improved scalability to large alphabets and multi-ary relations
+   - Enhanced visualization capabilities
+- Serialization support for automata and structures
+- Indexset structures, including $(P_{\mathrm{fin}}(\mathbb{N}), \subseteq, \textrm{Singleton}, \min, \max)$
 - Modernized packaging (`pyproject.toml`)
 - Dependency version updates
 - Expanded documentation
