@@ -1,8 +1,10 @@
-from autstr.sparse_automata import SparseDFA
+from pathlib import Path
 import itertools as it
-from autstr.presentations import AutomaticPresentation
 from typing import Dict, List, Set, Tuple
 import jax.numpy as jnp 
+
+from autstr.sparse_automata import SparseDFA
+from autstr.presentations import AutomaticPresentation
 
 # Helper function to convert a symbol tuple to an integer encoding
 def encode_symbol(tup: Tuple[str], base_alphabet: Set[str]) -> int:
@@ -82,8 +84,14 @@ def create_sparse_dfa(states: List[str], input_symbols: Set[Tuple[str]],
         base_alphabet=base_alphabet
     ).minimize()
 
+def BuechiArithmetic() -> AutomaticPresentation:
+    """Load the serialized Büchi arithmetic presentation."""
+    current_dir = Path(__file__).parent
+    bin_path = current_dir / 'bin' / 'buechi.autstr'
+    return AutomaticPresentation.automatic_presentation_from_file(str(bin_path))
+
 def buechi_arithmetic() -> AutomaticPresentation:
-    """Sparse version of Büchi arithmetic over natural numbers."""
+    """Sparse version of Büchi arithmetic over natural numbers. Compiles definable relation from scratch."""
     # Universe automaton - only accepts valid binary numbers (no '*')
     universe = create_sparse_dfa(
         states={'i', '0', '0+', '1', '*'},
@@ -166,6 +174,12 @@ def buechi_arithmetic() -> AutomaticPresentation:
     presentation.update(Lt='exists z.(not Z(z) and A(x, z, y))')
     
     return presentation
+
+def BuechiArithmeticZ() -> AutomaticPresentation:
+    """Load the serialized Büchi arithmetic presentation."""
+    current_dir = Path(__file__).parent
+    bin_path = current_dir / 'bin' / 'buechiZ.autstr'
+    return AutomaticPresentation.automatic_presentation_from_file(str(bin_path))
 
 def buechi_arithmetic_Z() -> AutomaticPresentation:
     """Sparse version of Büchi arithmetic over integers."""
