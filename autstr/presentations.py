@@ -1,10 +1,117 @@
 from nltk.sem import logic
 from typing import Dict, Optional, Union, List
 
-from autstr.sparse_automata import SparseDFA
+from autstr.sparse_automata import SparseDFA, SparseDFASerializer
 from autstr.utils.automata_tools import pad, unpad, product, projection, expand, stack
 from autstr.buildin.automata import zero, one  
 from autstr.utils.logic import get_free_elementary_vars, optimize_query
+
+import json
+import struct
+import zlib
+from typing import Dict
+
+class AutomaticPresentationSerializer:
+    MAGIC = b'APRS'
+    VERSION = 1
+    HEADER_FORMAT = "4sB3sII"  # Magic, version, reserved, checksum, payload_size
+    HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
+    
+    @classmethod
+    def serialize(cls, presentation, filename: str) -> None:
+        """Serialize AutomaticPresentation to binary file"""
+        # Prepare payload components
+        payload = cls._create_payload(presentation)
+        
+        # Create header
+        checksum = zlib.crc32(payload)
+        header = struct.pack(
+            cls.HEADER_FORMAT,
+            cls.MAGIC,
+            cls.VERSION,
+            b'\0\0\0',  # Reserved
+            checksum,
+            len(payload)
+        )
+        
+        # Write to file
+        with open(filename, 'wb') as f:
+            f.write(header)
+            f.write(payload)
+    
+    @classmethod
+    def deserialize(cls, filename: str):
+        """Deserialize AutomaticPresentation from binary file"""
+        with open(filename, 'rb') as f:
+            # Read and validate header
+            header = f.read(cls.HEADER_SIZE)
+            magic, version, _, checksum, payload_size = struct.unpack(cls.HEADER_FORMAT, header)
+            
+            if magic != cls.MAGIC:
+                raise ValueError("Invalid file format (bad magic number)")
+            if version != cls.VERSION:
+                raise ValueError(f"Unsupported version: {version}")
+            
+            # Read and validate payload
+            payload = f.read(payload_size)
+            if zlib.crc32(payload) != checksum:
+                raise ValueError("Data corruption detected (checksum mismatch)")
+            
+            return cls._parse_payload(payload)
+    
+    @classmethod
+    def _create_payload(cls, presentation) -> bytes:
+        """Create binary payload from AutomaticPresentation"""
+        # Serialize metadata
+        metadata = {
+            "padding_symbol": presentation.padding_symbol,
+            "enforce_consistency": True  # Not used in deserialization
+        }
+        metadata_json = json.dumps(metadata).encode('utf-8')
+        metadata_len = len(metadata_json)
+        
+        # Serialize automata dictionary
+        automata_data = {}
+        for name, dfa in presentation.automata.items():
+            # Use SparseDFA serialization to bytes
+            dfa_bytes = SparseDFASerializer.to_bytes(dfa)
+            automata_data[name] = list(dfa_bytes)  # Convert to list for JSON
+        
+        automata_json = json.dumps(automata_data).encode('utf-8')
+        automata_len = len(automata_json)
+        
+        # Pack components
+        return struct.pack("II", metadata_len, automata_len) + metadata_json + automata_json
+    
+    @classmethod
+    def _parse_payload(cls, payload: bytes):
+        """Parse binary payload into AutomaticPresentation"""
+        # Read lengths
+        metadata_len, automata_len = struct.unpack("II", payload[:8])
+        offset = 8
+        
+        # Decode metadata
+        metadata_json = payload[offset:offset+metadata_len]
+        metadata = json.loads(metadata_json.decode('utf-8'))
+        offset += metadata_len
+        
+        # Decode automata
+        automata_json = payload[offset:offset+automata_len]
+        automata_data = json.loads(automata_json.decode('utf-8'))
+        
+        # Convert back to SparseDFA instances
+        automata = {}
+        for name, dfa_bytes_list in automata_data.items():
+            dfa_bytes = bytes(dfa_bytes_list)
+            automata[name] = SparseDFASerializer.from_bytes(dfa_bytes)
+        
+        # Reconstruct presentation
+        return AutomaticPresentation(
+            automata,
+            padding_symbol=metadata["padding_symbol"],
+            enforce_consistency=False
+        )
+
 class AutomaticPresentation:
     """
     A presentation of a possibly infinite structure by finite state machines.
@@ -28,6 +135,13 @@ class AutomaticPresentation:
                     self.automata[R] = pad(automata[R]).minimize()
 
         self.sigma = automata['U'].base_alphabet  # Use base_alphabet for sigma
+
+    def automatic_presentation_to_file(self, filename: str) -> None:
+        AutomaticPresentationSerializer.serialize(self, filename)
+
+    @classmethod
+    def automatic_presentation_from_file(cls, filename: str):
+        return AutomaticPresentationSerializer.deserialize(filename)
 
     def get_relation_symbols(self) -> List[str]:
         """
@@ -97,7 +211,7 @@ class AutomaticPresentation:
 
         return dfa_phi
 
-    def _build_automaton(self, phi: logic.Expression, verbose=True, init=True) -> SparseDFA:
+    def _build_automaton(self, phi: logic.Expression, verbose=False, init=True) -> SparseDFA:
         """
         Creates a padded presentation of the satisfying assignments of phi.
 

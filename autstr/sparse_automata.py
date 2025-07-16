@@ -1,3 +1,4 @@
+import json
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -6,8 +7,205 @@ from functools import partial
 from typing import Tuple, Optional, Callable, Dict, List, Set, Union
 import graphviz
 
+import struct
+import zlib
+
+
 from autstr.utils.misc import decode_symbol
 from autstr.utils.misc import encode_symbol, complement
+
+
+
+# File format structure:
+# [Header (16 bytes)]
+#   - Magic number: 4 bytes ('SDFA')
+#   - Version: 1 byte
+#   - Reserved: 3 bytes (0)
+#   - Checksum: 4 bytes (CRC32 of payload)
+#   - Payload size: 4 bytes
+# [Payload]
+#   - Metadata (20 bytes)
+#   - Base alphabet
+#   - Default states
+#   - Exception symbols
+#   - Exception states
+#   - Acceptance array
+
+class SparseDFASerializer:
+    VERSION = 2  # Bump version for new format
+    HEADER_FORMAT = "4sB3sII"
+    HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
+    METADATA_FORMAT = "IIIII"
+    METADATA_SIZE = struct.calcsize(METADATA_FORMAT)
+    
+    @classmethod
+    def serialize(cls, dfa: 'SparseDFA', filename: str) -> None:
+        """Serialize SparseDFA to binary file"""
+        # Prepare payload components
+        payload = cls._create_payload(dfa)
+        
+        # Create header
+        checksum = zlib.crc32(payload)
+        header = struct.pack(
+            cls.HEADER_FORMAT,
+            b'SDFA',           # Magic number
+            cls.VERSION,       # Format version
+            b'\0\0\0',         # Reserved bytes
+            checksum,          # CRC32 checksum
+            len(payload)       # Payload size
+        )
+        
+        # Write to file
+        with open(filename, 'wb') as f:
+            f.write(header)
+            f.write(payload)
+    
+    @classmethod
+    def deserialize(cls, filename: str) -> 'SparseDFA':
+        """Deserialize SparseDFA from binary file"""
+        with open(filename, 'rb') as f:
+            # Read and validate header
+            header = f.read(cls.HEADER_SIZE)
+            magic, version, _, checksum, payload_size = struct.unpack(cls.HEADER_FORMAT, header)
+            
+            if magic != b'SDFA':
+                raise ValueError("Invalid file format (bad magic number)")
+            if version != cls.VERSION:
+                raise ValueError(f"Unsupported version: {version}")
+            
+            # Read and validate payload
+            payload = f.read(payload_size)
+            if zlib.crc32(payload) != checksum:
+                raise ValueError("Data corruption detected (checksum mismatch)")
+            
+            return cls._parse_payload(payload)
+    
+    @classmethod
+    def _create_payload(cls, dfa: 'SparseDFA') -> bytes:
+        """Create binary payload from SparseDFA"""
+        # Convert arrays to numpy for efficient serialization
+        default_states = np.array(dfa.default_states, dtype=np.uint32)
+        exception_symbols = np.array(dfa.exception_symbols, dtype=np.int32)
+        exception_states = np.array(dfa.exception_states, dtype=np.int32)
+        is_accepting = np.array(dfa.is_accepting, dtype=np.uint8)
+        
+        # Serialize base alphabet as JSON
+        base_alphabet_json = json.dumps(sorted(dfa.base_alphabet)).encode('utf-8')
+        base_alphabet_len = len(base_alphabet_json)
+        
+        # Pack metadata
+        metadata = struct.pack(
+            cls.METADATA_FORMAT,
+            dfa.num_states,
+            dfa.max_exceptions,
+            dfa.start_state,
+            dfa.symbol_arity,
+            base_alphabet_len
+        )
+        
+        # Pack components
+        components = [
+            metadata,
+            base_alphabet_json,
+            default_states.tobytes(),
+            exception_symbols.tobytes(),
+            exception_states.tobytes(),
+            is_accepting.tobytes()
+        ]
+        
+        return b''.join(components)
+    
+    @classmethod
+    def _parse_payload(cls, payload: bytes) -> 'SparseDFA':
+        """Parse binary payload into SparseDFA"""
+        # Unpack metadata
+        meta = struct.unpack(
+            cls.METADATA_FORMAT,
+            payload[:cls.METADATA_SIZE]
+        )
+        num_states, max_exceptions, start_state, symbol_arity, alpha_len = meta
+        
+        # Calculate offsets
+        offset = cls.METADATA_SIZE
+        base_alphabet_json = payload[offset:offset+alpha_len]
+        base_alphabet = set(json.loads(base_alphabet_json.decode('utf-8')))
+        offset += alpha_len
+        
+        # Calculate array sizes
+        states_bytes = num_states * 4
+        exceptions_bytes = num_states * max_exceptions * 4
+        accepting_bytes = num_states
+        
+        # Extract arrays
+        default_states = jnp.array(np.frombuffer(
+            payload[offset:offset+states_bytes],
+            dtype=np.uint32
+        ))
+        offset += states_bytes
+        
+        exception_symbols = jnp.array(np.frombuffer(
+            payload[offset:offset+exceptions_bytes],
+            dtype=np.int32
+        ).reshape(num_states, max_exceptions))
+        offset += exceptions_bytes
+        
+        exception_states = jnp.array(np.frombuffer(
+            payload[offset:offset+exceptions_bytes],
+            dtype=np.int32
+        ).reshape(num_states, max_exceptions))
+        offset += exceptions_bytes
+        
+        is_accepting = jnp.array(np.frombuffer(
+            payload[offset:offset+accepting_bytes],
+            dtype=np.uint8
+        ).astype(bool))
+        
+        return SparseDFA(
+            num_states=num_states,
+            default_states=default_states,
+            exception_symbols=exception_symbols,
+            exception_states=exception_states,
+            is_accepting=is_accepting,
+            start_state=start_state,
+            symbol_arity=symbol_arity,
+            base_alphabet=base_alphabet
+        )
+    
+    @classmethod
+    def to_bytes(cls, dfa: 'SparseDFA') -> bytes:
+        """Serialize SparseDFA to bytes object"""
+        payload = cls._create_payload(dfa)
+        header = struct.pack(
+            cls.HEADER_FORMAT,
+            b'SDFA',
+            cls.VERSION,
+            b'\0\0\0',
+            zlib.crc32(payload),
+            len(payload)
+        )
+        return header + payload
+    
+    @classmethod
+    def from_bytes(cls, data: bytes) -> 'SparseDFA':
+        """Deserialize SparseDFA from bytes object"""
+        if len(data) < cls.HEADER_SIZE:
+            raise ValueError("Data too short for header")
+        
+        header = data[:cls.HEADER_SIZE]
+        magic, version, _, checksum, payload_size = struct.unpack(cls.HEADER_FORMAT, header)
+        
+        if magic != b'SDFA':
+            raise ValueError("Invalid SparseDFA format")
+        if version != cls.VERSION:
+            raise ValueError(f"Unsupported SparseDFA version: {version}")
+        
+        payload = data[cls.HEADER_SIZE:cls.HEADER_SIZE+payload_size]
+        if len(payload) != payload_size:
+            raise ValueError("Payload size mismatch")
+        if zlib.crc32(payload) != checksum:
+            raise ValueError("SparseDFA data corruption detected")
+        
+        return cls._parse_payload(payload)
 
 
 class SparseDFA:
@@ -129,6 +327,19 @@ class SparseDFA:
             result = jnp.where(mask, ex_states_valid[i], result)
         
         return result
+    
+    def reverse_transition(self, state: int, symbol: int) -> jnp.ndarray:
+        """Get the states that transition to the given state on the given symbol."""
+        default_mask = (self.default_states == state) & jnp.all(self.exception_symbols != symbol, axis=1)
+        ex_mask = (self.exception_states == state) & (self.exception_symbols == symbol)
+
+        return jnp.arange(self.num_states)[default_mask | ex_mask]
+
+    def successors(self, state: int) -> jnp.ndarray:
+        """Get all successor states from a given state."""
+        default_succ = self.default_states[state]
+        ex_succ = self.exception_states[state, self.exception_symbols[state] != -1]
+        return jnp.unique(jnp.concatenate([jnp.array([default_succ]), ex_succ]))
 
     def _product(self, other: 'SparseDFA', combine_accept: Callable[[bool, bool], bool]) -> 'SparseDFA':
         if self.symbol_arity != other.symbol_arity:
@@ -827,6 +1038,13 @@ class SparseDFA:
         # Render and view
         dot.render(filename=filename, format=format, view=view)
         return dot
+    
+    def sparse_dfa_to_file(self, filename: str) -> None:
+        SparseDFASerializer.serialize(self, filename)
+
+    @classmethod
+    def sparse_dfa_from_file(cls, filename: str) -> 'SparseDFA':
+        return SparseDFASerializer.deserialize(filename)
     
 
 class SparseNFA:

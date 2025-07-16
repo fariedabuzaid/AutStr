@@ -8,15 +8,16 @@ import math
 from autstr.buildin.automata import k_longer_automaton
 from autstr.sparse_automata import SparseDFA
 from autstr.utils.automata_tools import iterate_language, lsbf_Z_automaton
-from autstr.buildin.presentations import buechi_arithmetic_Z
+from autstr.buildin.presentations import BuechiArithmeticZ
 from autstr.utils.misc import get_unique_id
+from autstr.utils.misc import encode_symbol, decode_symbol
 
 
 class Term(ABC):
     """
     Abstract class representing a term over the (base 2) Büchi arithmetic over the integers :math:`\\mathbb{Z}`
     """
-    arithmetic = buechi_arithmetic_Z()
+    arithmetic = BuechiArithmeticZ()
 
     def __init__(self):
         self.presentation = None
@@ -156,7 +157,7 @@ class RelationalAlgebraTerm(Term, ABC):
         if self.presentation is None:
             self.update_presentation()
 
-        return self.presentation.isempty()
+        return self.presentation.is_empty()
 
     def isfinite(self) -> bool:
         """
@@ -179,7 +180,7 @@ class RelationalAlgebraTerm(Term, ABC):
         if self.presentation is None:
             self.update_presentation()
 
-        for t in iterate_language(self.presentation, backward=True):
+        for t in iterate_language(self.presentation, backward=True, padding_symbol='*'):
             yield tuple(
                 int(
                     n.replace('*', '')[:-1], base=2

@@ -6,10 +6,12 @@ from collections import deque, defaultdict
 from functools import partial
 from typing import Generator, Optional, Callable, Dict, List, Set, Union
 import itertools as it
+
 from autstr.utils.logic import get_free_elementary_vars
 from autstr.sparse_automata import SparseDFA, SparseNFA
 from autstr.buildin.automata import one
-from autstr.utils.misc import decode_symbol, encode_symbol
+from autstr.utils.misc import decode_symbol, encode_symbol, complement
+
 
 
 
@@ -585,7 +587,7 @@ class LengthLexHeap:
         # item: (word_tuple, state)
         # word_tuple is tuple of strings
         # Priority: 1. Total length (sum of lengths), 2. Lex order
-        total_length = sum(len(comp) for comp in item[0])
+        total_length = max(len(comp) for comp in item[0])
         heapq.heappush(self.heap, (total_length, item[0], item[1]))
         
     def pop(self):
@@ -599,80 +601,27 @@ def iterate_language(dfa: SparseDFA, decoder: Callable = None,
                     backward: bool = False, padding_symbol: int = -1) -> Generator:
     """
     Generator over the language of a SparseDFA. Yields words in length-lexicographic order.
-    
+    Note: The algorithm assumes minimality and optimal sparsity of the automaton.
+
     :param dfa: Sparse automaton
     :param decoder: Function to decode words to Python objects
     :param backward: If True, generate words in reverse order
     :param padding_symbol: Integer representing padding symbol
     :return: Generator of words (or decoded objects)
     """
+    successors = {q: dfa.successors(q) for q in range(dfa.num_states)}
+    nonempty = {q for q in range(dfa.num_states) if len(successors[q]) > 0 or q not in successors[q]}
+
     arity = dfa.symbol_arity
-    base_alphabet = sorted(dfa.base_alphabet)
     
     # Build reversed transitions: state -> symbol -> set of previous states
     rev_transitions = {}
     for state in range(dfa.num_states):
         rev_transitions[state] = {}
-    
-    # Process all transitions
-    for state in range(dfa.num_states):
-        # Default transition
-        default_target = int(dfa.default_states[state])
-        symbol_enc = -1  # Special marker for default transition
-        rev_transitions.setdefault(default_target, {}).setdefault(symbol_enc, set()).add(state)
-        
-        # Exception transitions
-        for i in range(dfa.max_exceptions):
-            sym_enc = int(dfa.exception_symbols[state, i])
-            if sym_enc == -1:
-                continue
-            target = int(dfa.exception_states[state, i])
-            rev_transitions.setdefault(target, {}).setdefault(sym_enc, set()).add(state)
-    
-    # Compute non-empty states (states that can reach acceptance)
-    nonempty = set()
-    queue = deque()
-    
-    if backward:
-        # Backward iteration: non-empty if can reach initial state
-        visited = set()
-        for q in range(dfa.num_states):
-            if q == dfa.start_state:
-                queue.append(q)
-                visited.add(q)
-                nonempty.add(q)
-                
-        while queue:
-            state = queue.popleft()
-            for sym_enc, prev_states in rev_transitions.get(state, {}).items():
-                for prev in prev_states:
-                    if prev not in visited:
-                        visited.add(prev)
-                        nonempty.add(prev)
-                        queue.append(prev)
 
-        final_set = set([int(n) for n in jnp.arange(dfa.num_states)[dfa.is_accepting]])
-        start_set = final_set
-    else:
-        # Forward iteration: non-empty if can reach final state
-        visited = set()
-        final_states = set(np.where(dfa.is_accepting)[0])
-        for q in final_states:
-            queue.append(q)
-            visited.add(q)
-            nonempty.add(q)
-            
-        while queue:
-            state = queue.popleft()
-            for sym_enc, prev_states in rev_transitions.get(state, {}).items():
-                for prev in prev_states:
-                    if prev not in visited:
-                        visited.add(prev)
-                        nonempty.add(prev)
-                        queue.append(prev)
-                        
-        start_set = final_states
-        final_set = {dfa.start_state}
+
+    start_set = {dfa.start_state}
+    final_set = set(jnp.where(dfa.is_accepting)[0].tolist())
 
     # Initialize heap with starting states
     heap = LengthLexHeap()
@@ -680,6 +629,36 @@ def iterate_language(dfa: SparseDFA, decoder: Callable = None,
         if state in nonempty:
             # Represent words as tuple of empty strings
             heap.push((tuple(["" for _ in range(arity)]), state))
+    
+    def cat(word, symbol):
+        """Concatenate symbol to word based on direction."""
+        if backward:
+            return str(symbol) + word
+        else:
+            return word + str(symbol)
+        
+    def push(heap, word_tuple, sym_enc, next_state):
+        """Push a new word onto the heap with the given extension symbol and next state."""
+        if encode_symbol((padding_symbol,) * arity, dfa.base_alphabet) == sym_enc:
+            # Skip padding symbols
+            return
+        # Decode symbol
+        symbol_tuple = decode_symbol(sym_enc, arity, dfa.base_alphabet)
+
+        # Create new word components
+        new_components = []
+        for comp, sym in zip(word_tuple, symbol_tuple):
+            if sym == padding_symbol:
+                # Keep component unchanged
+                new_components.append(comp)
+            else:
+                # Prepend symbol to component
+                new_components.append(cat(comp, sym))
+
+        new_word_tuple = tuple(new_components)
+
+        # Add to heap
+        heap.push((new_word_tuple, next_state))
 
     # Main loop
     visited_words = set()
@@ -698,37 +677,28 @@ def iterate_language(dfa: SparseDFA, decoder: Callable = None,
                 yield decoder(word_tuple)
             else:
                 yield word_tuple
-                
-        # Process incoming transitions
-        for sym_enc, prev_states in rev_transitions.get(state, {}).items():
-            for prev_state in prev_states:
-                if prev_state not in nonempty:
-                    continue
-                    
-                # Skip padding-only transitions
-                if sym_enc == -1:  # Default transition
-                    # Use the most common symbol? Instead, we'll skip
-                    continue
-                    
-                # Decode symbol
-                symbol_tuple = decode_symbol(sym_enc, arity, dfa.base_alphabet)
-                
-                # Create new word components
-                new_components = []
-                for comp, sym in zip(word_tuple, symbol_tuple):
-                    if sym == padding_symbol:
-                        # Keep component unchanged
-                        new_components.append(comp)
-                    else:
-                        # Prepend symbol to component
-                        new_components.append(str(sym) + comp)
-                
-                new_word_tuple = tuple(new_components)
-                
-                # Add to heap
-                heap.push((new_word_tuple, prev_state))
+        
+        # process transitions
+        ex_mask = dfa.exception_symbols[state] != -1
+        ex_symbols = dfa.exception_symbols[state, ex_mask]
+        ex_states = dfa.exception_states[state, ex_mask]
+        for sym_enc, next_state in zip(ex_symbols, ex_states):
+            sym_enc, next_state = int(sym_enc), int(next_state)
+            if next_state not in nonempty:
+                continue
+            
+            push(heap, word_tuple, sym_enc, next_state)
+        
+        default = int(dfa.default_states[state])
+        if default in nonempty:
+            # get all non-exception symbols
+            default_symbols = complement(ex_symbols, 0, len(dfa.base_alphabet)**dfa.symbol_arity - 1)
+            for sym_enc in default_symbols:
+                push(heap, word_tuple, sym_enc, default)
 
-import jax.numpy as jnp
+
+
+
 
 def lsbf_Z_automaton(z: int) -> SparseDFA:
     """
