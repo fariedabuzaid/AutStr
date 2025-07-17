@@ -7,9 +7,6 @@ authors = [
 ]
 license-files = ["LICENSE"]
 
-[tool.setuptools]
-packages = ["autstr"]
-
 dependencies = [
     "nltk~=3.7",
     "automata-lib~=5.0.0",
@@ -32,6 +29,8 @@ dependencies = [
 ]
 requires-python = ">=3.9,<3.13"
 
+[tool.setuptools]
+packages = ["autstr"]
 
 [tool.uv]
 build-system = "setuptools"
