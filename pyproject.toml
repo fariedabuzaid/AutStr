@@ -1,11 +1,13 @@
 [project]
 name = "autstr"
-version = "0.1"
+version = "1.0.0"
 description = "Library for working with finitely presentable infinite structures"
 authors = [
     { name = "Faried Abu Zaid", email = "fariedaz@gmail.com" }
 ]
 license = { text = "GPL v3.0" }
+
+
 dependencies = [
     "nltk~=3.7",
     "automata-lib~=5.0.0",
@@ -15,18 +17,19 @@ dependencies = [
     "visual-automata (>=1.1.1,<2.0.0)",
     "jax>=0.4.13",
     "graphviz (>=0.21,<0.22)",
+    # TODO dev group
+    "pytest~=7.4.0",
+    "pytest-cov~=4.1.0",
+    "pytest-mock~=3.10.0",
+    "pytest-asyncio>=0.22.0",
+    "black~=23.9.1",
+    "isort~=5.12.0",
+    "mypy~=1.11.0",
+    "flake8~=6.1.0",
+    "pre-commit~=3.2.0"
 ]
 requires-python = ">=3.9,<3.13"
 
-[project.optional-dependencies]
-docs = [
-    "sphinxcontrib-applehelp~=1.0.2",
-    "sphinxcontrib-devhelp~=1.0.2",
-    "sphinxcontrib-htmlhelp~=2.0.0",
-    "sphinxcontrib-jsmath~=1.0.1",
-    "sphinxcontrib-qthelp~=1.0.3",
-    "sphinxcontrib-serializinghtml~=1.1.5"
-]
 
 [tool.uv]
 build-system = "setuptools"
