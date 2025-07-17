@@ -5,8 +5,10 @@ description = "Library for working with finitely presentable infinite structures
 authors = [
     { name = "Faried Abu Zaid", email = "fariedaz@gmail.com" }
 ]
-license = { text = "GPL v3.0" }
+license-files = ["LICENSE"]
 
+[tool.setuptools]
+packages = ["autstr"]
 
 dependencies = [
     "nltk~=3.7",
