@@ -2,22 +2,22 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from copy import deepcopy, copy
-from typing import List, Union, Tuple, Dict, Set
+from typing import List, Union, Tuple, Dict
 import math
 
-from automata.fa.dfa import DFA
-
 from autstr.buildin.automata import k_longer_automaton
+from autstr.sparse_automata import SparseDFA
 from autstr.utils.automata_tools import iterate_language, lsbf_Z_automaton
-from autstr.buildin.presentations import buechi_arithmetic_Z
+from autstr.buildin.presentations import BuechiArithmeticZ
 from autstr.utils.misc import get_unique_id
+from autstr.utils.misc import encode_symbol, decode_symbol
 
 
 class Term(ABC):
     """
     Abstract class representing a term over the (base 2) Büchi arithmetic over the integers :math:`\\mathbb{Z}`
     """
-    arithmetic = buechi_arithmetic_Z()
+    arithmetic = BuechiArithmeticZ()
 
     def __init__(self):
         self.presentation = None
@@ -32,7 +32,7 @@ class Term(ABC):
         """
         raise NotImplementedError
 
-    def evaluate(self) -> DFA:
+    def evaluate(self) -> SparseDFA:
         """
         Returns automatic presentation of the relation.
 
@@ -119,7 +119,7 @@ class RelationalAlgebraTerm(Term, ABC):
                 words[i] = w + ('*' * difference)
 
         input_word = [tuple(w[i] for w in words) for i in range(l_max)]
-        return self.evaluate().accepts_input(input_word)
+        return self.evaluate().accepts(input_word)
 
     def drop(self, variables: List[Union[str, VariableETerm]]) -> DropRATerm:
         """
@@ -157,7 +157,7 @@ class RelationalAlgebraTerm(Term, ABC):
         if self.presentation is None:
             self.update_presentation()
 
-        return self.presentation.isempty()
+        return self.presentation.is_empty()
 
     def isfinite(self) -> bool:
         """
@@ -168,7 +168,7 @@ class RelationalAlgebraTerm(Term, ABC):
         if self.presentation is None:
             self.update_presentation()
 
-        return self.presentation.isfinite()
+        return self.presentation.is_finite()
 
     def __iter__(self):
         """
@@ -180,7 +180,7 @@ class RelationalAlgebraTerm(Term, ABC):
         if self.presentation is None:
             self.update_presentation()
 
-        for t in iterate_language(self.presentation, backward=True):
+        for t in iterate_language(self.presentation, backward=True, padding_symbol='*'):
             yield tuple(
                 int(
                     n.replace('*', '')[:-1], base=2
@@ -201,8 +201,8 @@ class ExInfRATerm(RelationalAlgebraTerm):
             self.subterm.update_presentation(recursive)
 
         sub_presentation = self.subterm.evaluate()
-        k_distance = len(sub_presentation.states) + 1
-        inf_witness = k_longer_automaton(k_distance, len(self.subterm.get_variables()) - 1, self.arithmetic.sigma)
+        k_distance = sub_presentation.num_states + 1
+        inf_witness = k_longer_automaton(k_distance, len(self.subterm.get_variables()) - 1, self.arithmetic.sigma, self.arithmetic.padding_symbol)
         arithmetic = deepcopy(self.arithmetic)
         T, L = get_unique_id(arithmetic.get_relation_symbols(), 2)
         arithmetic.update(**{T: self.subterm.evaluate(), L: inf_witness})
@@ -504,9 +504,9 @@ class ElementaryTerm(Term, ABC):
         :param other: The term on the lhs
         :return:
         """
-        return BaseRATerm('Lt', [other, self])
+        return BaseRATerm('Gt', [self, other])
 
-    def evaluate(self) -> DFA:
+    def evaluate(self) -> SparseDFA:
         if self.presentation is None:
             self.update_presentation()
 

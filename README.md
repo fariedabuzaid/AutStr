@@ -2,7 +2,13 @@
 Working with infinite data structures in Python.
 
 ## Introduction
-Have you ever wondered what would happen if you could input an infinite structure (e.g., an infinite graph) into your algorithm instead of a finite one? With AutStr, you can do exactly that for certain infinite structures. AutStr provides an easy-to-use interface for defining relational structures over predefined infinite base structures. Currently, AutStr offers built-in support for a robust extension of linear integer arithmetic, while additional base structures over arbitrary countable domains can be defined via the low-level API.
+What if your algorithms could process infinite structures — like complete infinite graphs or the entire set of natural numbers — with the same ease as manipulating a data frame? AutStr provides an intuitive interface for defining and manipulating exact representations of infinite relational structures. With AutStr, infinite structures become first-class citizens in Python.
+
+Targeted at researchers in algorithmic model theory and curious practitioners alike, AutStr offers:
+- **Symbolic representation** of infinite sets and relations
+- **Automata-based computation** for efficient manipulation
+- **First-order logic interface** for formal queries
+- **Visualization tools** for insight into infinite structures
 
 ### Installation with `uv` 
 Here's how to install AutStr using `uv`, the high-performance Python package installer:
@@ -222,31 +228,14 @@ VisualDFA(remaining.evaluate()).show_diagram()
    # width=2 (easier):
    narrow = "∃x.∃y.E(x,y) ∧ (∃z.E(y,z))"
    ```
-   - Depth scales often better due to incremental minimization
-   - Width causes exponential alphabet growth: $|\Sigma|^k$
+   - Depth can cause non-elementary(!) statespace explosion but scales often much better due to incremental minimization
+   - Width causes exponential alphabet growth: $|\Sigma|^k$ but SparseDFAs can avoid explicit enumeration of entire alphabet in many cases.
 
 2. **Complexity Boundaries**
    | Parameter        | Best Case       | Worst Case          |
    |------------------|-----------------|---------------------|
    | **Quantifier Depth** | Constant state space   | Non-elementary state space |
-   | **Free Variables**  | Exponential alphabet size  | Exponential alphabet size |
-   
-4. **Optimization Strategies**
-   - **Minimize aggressively**:
-     ```python
-     candidates = (candidates - multiples).minify()  # Force state reduction
-     ```
-   - **Avoid high-arity**:
-     ```python
-     # Decompose wide relations:
-     R1 = project(relation, ['x','y'])
-     R2 = project(relation, ['z'])
-     ```
-   - **Use bounded quantification**:
-     ```python
-     # Instead of ∀x.φ(x), use:
-     bounded = ∀(x, x<1000).φ(x)  # Finite domain restriction
-     ```
+   | **Free Variables**  | constant number of exceptions  | Exponential alphabet size |
 
 #### Theoretical Insight
 While this infinite sieve beautifully demonstrates symbolic algorithm design, state complexity grows rapidly for sieved primes
@@ -268,17 +257,53 @@ This implementation provides a complete toolkit for working with automatic struc
 ### Final Note
 AutStr began as a summer passion project in 2022—a practical exploration of the automatic structures I'd studied theoretically during my PhD. This library represents the intersection of academic curiosity and hands-on implementation, born from a desire to make abstract model theory concepts tangible.
 
-Released in June 2025 as-is, the library remains fundamentally unchanged from its original vision except for:
+Released in July 2025 following a major update, the library now includes significant new features beyond its original vision. This update was developed through a vibe coding session using DeepSeek, with extensive human testing and supervision throughout the process.
+
+Highlights of the update:
+- Newly implemented `sparse_dfa` backend for efficient automata operations
+- Serialization support for automata and structures
+- MSO0 as finite powerset structure over natural numbers (e.g. index sets)
 - Modernized packaging (`pyproject.toml`)
 - Dependency version updates
 - Expanded documentation
 
-While not actively maintained, AutStr stands as:
-1. A functional implementation of basic automatic structure theory
-2. A testament to the elegance of infinite-state computation
-3. An invitation to explore algorithmic model theory hands-on
+#### Performance and Maintenance
+Recent updates have removed obvious performance bottlenecks through:
 
-> "Some things are worth building not because they scale, but because they reveal."  
-> — Faried Abu Zaid, June 2025
+- JAX-accelerated automata operations
+- Sparse DFA representations
+- Efficient serialization, which allows storing precompiled results
 
-For researchers and enthusiasts: May this implementation spark new insights into the beautiful complexity of infinite structures. For practical applications, consider pairing with finite approximations or domain-specific abstractions.
+However, significant optimization opportunities remain:
+- Vectorization: Many sequential operations could still be parallelized
+- Query Optimization: Advanced planning for first-order queries
+
+As this is a passion project developed outside my primary research, active maintenance will be limited. That said:
+
+- Bug reports are welcome and will be prioritized
+- Performance contributions are especially appreciated
+- Research collaborations involving AutStr are encouraged
+
+
+## References on Automatic Structures
+1. **Abu Zaid, F.**  
+   *Algorithmic Solutions via Model Theoretic Interpretations.*  
+   Dissertation, RWTH Aachen University, 2016.  
+   DOI: [10.18154/RWTH-2017-07663](https://doi.org/10.18154/RWTH-2017-07663)  
+
+2. **Blumensath, A., & Grädel, E.**  
+   *Automatic Structures.*  
+   Proceedings of the 15th Annual IEEE Symposium on Logic in Computer Science (LICS 2000).  
+   Pages: 51–62.  
+   URL: [LICS 2000 Proceedings](https://lics.siglog.org/2000/Grdel-AutomaticStructures.html)  
+
+3. **Khoussainov, B., & Nerode, A.**  
+   *Automatic presentations of structures.*  
+   In D. Leivant (Ed.), Logic and Computational Complexity (LCC 1994). Lecture Notes in Computer Science, vol 960.  
+   Springer. DOI: [10.1007/3-540-60178-3_93](https://doi.org/10.1007/3-540-60178-3_93)  
+
+4. **Khoussainov, B., Rubin, S., & Stephan, F.**  
+   *Automatic Structures: Richness and Limitations.*  
+   Logical Methods in Computer Science, Volume 3, Issue 2 (2007).  
+   arXiv: [cs/0703064](https://arxiv.org/abs/cs/0703064)  
+   DOI: [10.2168/LMCS-3(2:2)2007](https://doi.org/10.2168/LMCS-3%282%3A2%292007)  
