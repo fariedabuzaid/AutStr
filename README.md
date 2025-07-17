@@ -194,7 +194,7 @@ def infinite_sieve(steps):
 primes, remainig = infinite_sieve(steps=3)
 print(f"Primes found: {primes}")  # [2,3,5,7,11]
 print(f"Remaining infinite set:") 
-VisualDFA(remaining.evaluate()).show_diagram()
+remaining.evaluate().show_diagram()
 ```
 
 #### Key Algorithmic Features:
