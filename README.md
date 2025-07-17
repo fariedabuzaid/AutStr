@@ -2,9 +2,13 @@
 Working with infinite data structures in Python.
 
 ## Introduction
-Have you ever wondered what would happen if you could input an infinite structure (e.g., an infinite graph, or the entire set of natural numbers) into your algorithm and manipulate just as you are used to manipulate e.g. a data frame? AutStr provides an easy-to-use interface that allows definition and manipulation of exact presentations of infinite relational structures. With AutStr infinite structures become first class citizens in python! 
+What if your algorithms could process infinite structures — like complete infinite graphs or the entire set of natural numbers — with the same ease as manipulating a data frame? AutStr provides an intuitive interface for defining and manipulating exact representations of infinite relational structures. With AutStr, infinite structures become first-class citizens in Python.
 
-Currently, AutStr offers built-in support for data structures defined using (linear/Büchi) integer arithmetic, while additional data-types can be defined together with compatible operations over arbitrary countable domains via a model-theoretic presentation API.
+Targeted at researchers in algorithmic model theory and curious practitioners alike, AutStr offers:
+- **Symbolic representation** of infinite sets and relations
+- **Automata-based computation** for efficient manipulation
+- **First-order logic interface** for formal queries
+- **Visualization tools** for insight into infinite structures
 
 ### Installation with `uv` 
 Here's how to install AutStr using `uv`, the high-performance Python package installer:
@@ -224,31 +228,14 @@ VisualDFA(remaining.evaluate()).show_diagram()
    # width=2 (easier):
    narrow = "∃x.∃y.E(x,y) ∧ (∃z.E(y,z))"
    ```
-   - Depth scales often better due to incremental minimization
-   - Width causes exponential alphabet growth: $|\Sigma|^k$
+   - Depth can cause non-elementary(!) statespace explosion but scales often much better due to incremental minimization
+   - Width causes exponential alphabet growth: $|\Sigma|^k$ but SparseDFAs can avoid explicit enumeration of entire alphabet in many cases.
 
 2. **Complexity Boundaries**
    | Parameter        | Best Case       | Worst Case          |
    |------------------|-----------------|---------------------|
    | **Quantifier Depth** | Constant state space   | Non-elementary state space |
-   | **Free Variables**  | Exponential alphabet size  | Exponential alphabet size |
-   
-4. **Optimization Strategies**
-   - **Minimize aggressively**:
-     ```python
-     candidates = (candidates - multiples).minify()  # Force state reduction
-     ```
-   - **Avoid high-arity**:
-     ```python
-     # Decompose wide relations:
-     R1 = project(relation, ['x','y'])
-     R2 = project(relation, ['z'])
-     ```
-   - **Use bounded quantification**:
-     ```python
-     # Instead of ∀x.φ(x), use:
-     bounded = ∀(x, x<1000).φ(x)  # Finite domain restriction
-     ```
+   | **Free Variables**  | constant number of exceptions  | Exponential alphabet size |
 
 #### Theoretical Insight
 While this infinite sieve beautifully demonstrates symbolic algorithm design, state complexity grows rapidly for sieved primes
@@ -273,25 +260,30 @@ AutStr began as a summer passion project in 2022—a practical exploration of th
 Released in July 2025 following a major update, the library now includes significant new features beyond its original vision. This update was developed through a vibe coding session using DeepSeek, with extensive human testing and supervision throughout the process.
 
 Highlights of the update:
-- Newly implemented `sparse_dfa` backend for efficient automata operations, featuring:
-   - Space-efficient representation via implicit default transitions
-   - Improved scalability to large alphabets and multi-ary relations
-   - Enhanced visualization capabilities
+- Newly implemented `sparse_dfa` backend for efficient automata operations
 - Serialization support for automata and structures
-- Indexset structures, including $(P_{\mathrm{fin}}(\mathbb{N}), \subseteq, \textrm{Singleton}, \min, \max)$
+- MSO0 as finite powerset structure over natural numbers (e.g. index sets)
 - Modernized packaging (`pyproject.toml`)
 - Dependency version updates
 - Expanded documentation
 
-While not actively maintained, AutStr stands as:
-1. A functional implementation of basic automatic structure theory
-2. A testament to the elegance of infinite-state computation
-3. An invitation to explore algorithmic model theory hands-on
+#### Performance and Maintenance
+Recent updates have removed obvious performance bottlenecks through:
 
-> "Some things are worth building not because they scale, but because they reveal."  
-> — Faried Abu Zaid, June 2025
+- JAX-accelerated automata operations
+- Sparse DFA representations
+- Efficient serialization, which allows storing precompiled results
 
-For researchers and enthusiasts: May this implementation spark new insights into the beautiful complexity of infinite structures. For practical applications, consider pairing with finite approximations or domain-specific abstractions.
+However, significant optimization opportunities remain:
+- Vectorization: Many sequential operations could still be parallelized
+- Query Optimization: Advanced planning for first-order queries
+
+As this is a passion project developed outside my primary research, active maintenance will be limited. That said:
+
+- Bug reports are welcome and will be prioritized
+- Performance contributions are especially appreciated
+- Research collaborations involving AutStr are encouraged
+
 
 ## References on Automatic Structures
 1. **Abu Zaid, F.**  
