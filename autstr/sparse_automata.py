@@ -663,7 +663,7 @@ class SparseDFA:
         
 
     def minimize(self) -> 'SparseDFA':
-        """Minimizes the DFA using Hopcroft's algorithm with sparse optimizations"""
+        """Minimizes the DFA using Hopcroft's algorithm with sparse optimizations."""
         self.fill_defaults()
 
         # Convert to numpy for processing
@@ -849,7 +849,7 @@ class SparseDFA:
             new_start,
             self.symbol_arity,
             self.base_alphabet
-        )
+        ).sparsify()
     
     def sparsify(self) -> 'SparseDFA':
         """Computes the sparsest possible equivalent DFA by choosing optimal default states.
