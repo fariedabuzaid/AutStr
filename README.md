@@ -2,7 +2,9 @@
 Working with infinite data structures in Python.
 
 ## Introduction
-Have you ever wondered what would happen if you could input an infinite structure (e.g., an infinite graph) into your algorithm instead of a finite one? With AutStr, you can do exactly that for certain infinite structures. AutStr provides an easy-to-use interface for defining relational structures over predefined infinite base structures. Currently, AutStr offers built-in support for a robust extension of linear integer arithmetic, while additional base structures over arbitrary countable domains can be defined via the low-level API.
+Have you ever wondered what would happen if you could input an infinite structure (e.g., an infinite graph, or the entire set of natural numbers) into your algorithm and manipulate just as you are used to manipulate e.g. a data frame? AutStr provides an easy-to-use interface that allows definition and manipulation of exact presentations of infinite relational structures. With AutStr infinite structures become first class citizens in python! 
+
+Currently, AutStr offers built-in support for data structures defined using (linear/Büchi) integer arithmetic, while additional data-types can be defined together with compatible operations over arbitrary countable domains via a model-theoretic presentation API.
 
 ### Installation with `uv` 
 Here's how to install AutStr using `uv`, the high-performance Python package installer:
@@ -290,3 +292,26 @@ While not actively maintained, AutStr stands as:
 > — Faried Abu Zaid, June 2025
 
 For researchers and enthusiasts: May this implementation spark new insights into the beautiful complexity of infinite structures. For practical applications, consider pairing with finite approximations or domain-specific abstractions.
+
+## References on Automatic Structures
+1. **Abu Zaid, F.**  
+   *Algorithmic Solutions via Model Theoretic Interpretations.*  
+   Dissertation, RWTH Aachen University, 2016.  
+   DOI: [10.18154/RWTH-2017-07663](https://doi.org/10.18154/RWTH-2017-07663)  
+
+2. **Blumensath, A., & Grädel, E.**  
+   *Automatic Structures.*  
+   Proceedings of the 15th Annual IEEE Symposium on Logic in Computer Science (LICS 2000).  
+   Pages: 51–62.  
+   URL: [LICS 2000 Proceedings](https://lics.siglog.org/2000/Grdel-AutomaticStructures.html)  
+
+3. **Khoussainov, B., & Nerode, A.**  
+   *Automatic presentations of structures.*  
+   In D. Leivant (Ed.), Logic and Computational Complexity (LCC 1994). Lecture Notes in Computer Science, vol 960.  
+   Springer. DOI: [10.1007/3-540-60178-3_93](https://doi.org/10.1007/3-540-60178-3_93)  
+
+4. **Khoussainov, B., Rubin, S., & Stephan, F.**  
+   *Automatic Structures: Richness and Limitations.*  
+   Logical Methods in Computer Science, Volume 3, Issue 2 (2007).  
+   arXiv: [cs/0703064](https://arxiv.org/abs/cs/0703064)  
+   DOI: [10.2168/LMCS-3(2:2)2007](https://doi.org/10.2168/LMCS-3%282%3A2%292007)  
