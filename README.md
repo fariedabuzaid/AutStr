@@ -10,24 +10,16 @@ Targeted at researchers in algorithmic model theory and curious practitioners al
 - **First-order logic interface** for formal queries
 - **Visualization tools** for insight into infinite structures
 
-### Installation with `uv` 
-Here's how to install AutStr using `uv`, the high-performance Python package installer:
-
-#### Install with `uv` from local clone
+### Installation
 
 ```bash
-git clone https://github.com/fariedabuzaid/AutStr.git
-cd AutStr
-
-# Install core package
-uv lock
-uv sync
+pip install autstr
 ```
 
 #### Verify Installation
 ```bash
-uv run python -c "from autstr import __version__; print(f'AutStr v{__version__} installed')"
-# Should output: AutStr v0.1 installed
+python -c "from autstr import __version__; print(f'AutStr v{__version__} installed')"
+# Should output: AutStr v1.0.1 installed
 ```
 
 ## Getting started
