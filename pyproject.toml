@@ -1,6 +1,6 @@
 [project]
 name = "autstr"
-version = "1.0.0"
+version = "1.0.1"
 description = "Library for working with finitely presentable infinite structures"
 authors = [
     { name = "Faried Abu Zaid", email = "fariedaz@gmail.com" }
@@ -35,3 +35,12 @@ packages = ["autstr"]
 [tool.uv]
 build-system = "setuptools"
 packages = ["autstr", "autstr.utils"]
+
+[tool.poetry-dynamic-versioning]
+enable = true
+vcs = "git"
+style = "semver"
+
+[tool.poetry-dynamic-versioning.substitution]
+files = ["autstr/_version.py"]
+pattern = '__version__ = ".*"'
