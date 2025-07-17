@@ -308,8 +308,8 @@ def stack(dfa1: SparseDFA, dfa2: SparseDFA) -> SparseDFA:
         for full_enc in sorted(list(all_relevant_symbols)): # Sort for deterministic output
             s1_enc, s2_enc = split_symbol(full_enc)
             
-            next_i = dfa1.transition(i, s1_enc)
-            next_j = dfa2.transition(j, s2_enc)
+            next_i = int(dfa1.transition(i, s1_enc))
+            next_j = int(dfa2.transition(j, s2_enc))
             next_pair = (next_i, next_j)
             
             # Only add as an exception if it deviates from the default transition
@@ -711,14 +711,14 @@ def lsbf_Z_automaton(z: int) -> SparseDFA:
     # Handle special case for zero
     if z == 0:
         return SparseDFA(
-            num_states=3,
-            default_states=jnp.array([2, 2, 2], dtype=jnp.int32),
-            exception_symbols=jnp.array([[1], [0], [-1]], dtype=jnp.int32),  # "0"=1, "*"=0
-            exception_states=jnp.array([[1], [1], [-1]], dtype=jnp.int32),
-            is_accepting=jnp.array([False, True, False]),
+            num_states=4,
+            default_states=jnp.array([3, 3, 3, 3], dtype=jnp.int32),
+            exception_symbols=jnp.array([[1], [1], [0], [-1]], dtype=jnp.int32),  # "0"=1, "*"=0
+            exception_states=jnp.array([[1], [2], [2], [-1]], dtype=jnp.int32),
+            is_accepting=jnp.array([False, False, True, False]),
             start_state=0,
             symbol_arity=1,
-            base_alphabet={0, 1, 2}  # "*"=0, "0"=1, "1"=2
+            base_alphabet={"*", "0", "1"}  # "*"=0, "0"=1, "1"=2
         )
     
     # Determine sign and magnitude
