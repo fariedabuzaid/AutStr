@@ -119,7 +119,7 @@ class RelationalAlgebraTerm(Term, ABC):
                 words[i] = w + ('*' * difference)
 
         input_word = [tuple(w[i] for w in words) for i in range(l_max)]
-        return self.evaluate().accepts_input(input_word)
+        return self.evaluate().accepts(input_word)
 
     def drop(self, variables: List[Union[str, VariableETerm]]) -> DropRATerm:
         """
@@ -168,7 +168,7 @@ class RelationalAlgebraTerm(Term, ABC):
         if self.presentation is None:
             self.update_presentation()
 
-        return self.presentation.isfinite()
+        return self.presentation.is_finite()
 
     def __iter__(self):
         """
@@ -201,8 +201,8 @@ class ExInfRATerm(RelationalAlgebraTerm):
             self.subterm.update_presentation(recursive)
 
         sub_presentation = self.subterm.evaluate()
-        k_distance = len(sub_presentation.states) + 1
-        inf_witness = k_longer_automaton(k_distance, len(self.subterm.get_variables()) - 1, self.arithmetic.sigma)
+        k_distance = sub_presentation.num_states + 1
+        inf_witness = k_longer_automaton(k_distance, len(self.subterm.get_variables()) - 1, self.arithmetic.sigma, self.arithmetic.padding_symbol)
         arithmetic = deepcopy(self.arithmetic)
         T, L = get_unique_id(arithmetic.get_relation_symbols(), 2)
         arithmetic.update(**{T: self.subterm.evaluate(), L: inf_witness})
@@ -504,7 +504,7 @@ class ElementaryTerm(Term, ABC):
         :param other: The term on the lhs
         :return:
         """
-        return BaseRATerm('Lt', [other, self])
+        return BaseRATerm('Gt', [self, other])
 
     def evaluate(self) -> SparseDFA:
         if self.presentation is None:

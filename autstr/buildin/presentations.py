@@ -173,6 +173,7 @@ def buechi_arithmetic() -> AutomaticPresentation:
     presentation.update(Eq='exists z.(Z(z) and A(x,z,y))')
     presentation.update(Pt='B(x,x)')
     presentation.update(Lt='exists z.(not Z(z) and A(x, z, y))')
+    presentation.update(Gt='exists z.(not Z(z) and A(y, z, x))')
     
     return presentation
 
@@ -282,6 +283,7 @@ def buechi_arithmetic_Z() -> AutomaticPresentation:
     presentation.update(Eq='exists z.(Z(z) and A(x,z,y))')
     presentation.update(Pt='B(x,x) and N0(x)')
     presentation.update(Lt='exists z.(N0(z) and not Z(z) and A(x, z, y))')
+    presentation.update(Gt='exists z.(N0(z) and not Z(z) and A(y, z, x))')
     presentation.update(Neg='exists z.(Z(z) and A(x,y,z))')
     
     # Delete auxiliary relation

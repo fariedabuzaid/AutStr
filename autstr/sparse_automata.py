@@ -3,8 +3,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from collections import deque, defaultdict
-from functools import partial
-from typing import Tuple, Optional, Callable, Dict, List, Set, Union
+from typing import Tuple, Optional, Callable, List, Set
 import graphviz
 
 import struct
@@ -238,16 +237,16 @@ class SparseDFA:
     
     def transition(self, state: int, symbol: int) -> int:
         """Get the next state for a given symbol."""
-        # Check for exception transitions
-        for i in range(self.max_exceptions):
-            ex_symbol = int(self.exception_symbols[state, i])
-            if ex_symbol == -1:
-                continue  # Skip padding
-            if ex_symbol == symbol:
-                return int(self.exception_states[state, i])
-        
-        # Return default state if no exception matches
-        return int(self.default_states[state])
+
+        # Check if exception exists for this automaton
+        if self.exception_symbols.shape[1] == 0:
+            # No exceptions, use default state
+            return self.default_states[state]
+        else:
+            target = jnp.where(self.exception_symbols[state] == symbol, self.exception_states[state], -1).max()
+            target = jnp.where(target == -1, self.default_states[state], target)
+
+            return target
 
     def compute(self, word: jnp.ndarray) -> int:
         def step(state, symbol):
@@ -256,6 +255,8 @@ class SparseDFA:
         return final_state
 
     def accepts(self, word: jnp.ndarray) -> jnp.ndarray:
+        # encode word for internal representation
+        word = jnp.array([encode_symbol(s, self.base_alphabet_frozen) for s in word])
         final_state = self.compute(word)
         return self.is_accepting[final_state]
     
@@ -286,6 +287,102 @@ class SparseDFA:
                     queue.append(ns)
                     
         return True
+    
+    def is_finite(self) -> bool:
+
+        E = jnp.array([[jnp.any(self.exception_states[i] == j)or self.default_states[i] == j for j in range(self.num_states)] for i in range(self.num_states)])
+
+
+
+        # Step 1: Find reachable states (forward BFS)
+        reachable = set()
+        queue = deque([self.start_state])
+        while queue:
+            state = queue.popleft()
+            if state in reachable:
+                continue
+            reachable.add(state)
+            # Default transition
+            default_target = int(self.default_states[state])
+            if default_target not in reachable:
+                queue.append(default_target)
+            # Exception transitions
+            for i in range(self.max_exceptions):
+                sym = int(self.exception_symbols[state, i])
+                if sym == -1:
+                    continue
+                target = int(self.exception_states[state, i])
+                if target not in reachable:
+                    queue.append(target)
+        
+        # Step 2: Find co-reachable states (backward BFS from accepting states)
+        # Precompute reverse transition map
+        rev_map = defaultdict(set)
+        for u in range(self.num_states):
+            # Default transitions
+            v_def = int(self.default_states[u])
+            rev_map[v_def].add(u)
+            # Exception transitions
+            for i in range(self.max_exceptions):
+                sym = int(self.exception_symbols[u, i])
+                if sym != -1:
+                    v_ex = int(self.exception_states[u, i])
+                    rev_map[v_ex].add(u)
+        
+        co_reachable = set()
+        # Initialize queue with all accepting states
+        queue = deque([state for state in range(self.num_states) if self.is_accepting[state]])
+        while queue:
+            state = queue.popleft()
+            if state in co_reachable:
+                continue
+            co_reachable.add(state)
+            for pred in rev_map[state]:
+                if pred not in co_reachable:
+                    queue.append(pred)
+        
+        # Step 3: Useful states (reachable and co-reachable)
+        useful_states = reachable & co_reachable
+        
+        # If no useful states, language is empty -> finite
+        if not useful_states:
+            return True
+        
+        # Step 4: Build graph for useful states
+        graph = {}
+        for u in useful_states:
+            neighbors = set()
+            # Default transition
+            v_def = int(self.default_states[u])
+            if v_def in useful_states:
+                neighbors.add(v_def)
+            # Exception transitions
+            for i in range(self.max_exceptions):
+                sym = int(self.exception_symbols[u, i])
+                if sym != -1:
+                    v_ex = int(self.exception_states[u, i])
+                    if v_ex in useful_states:
+                        neighbors.add(v_ex)
+            graph[u] = neighbors
+        
+        # Step 5: Cycle detection with iterative DFS
+        color = {state: 0 for state in useful_states}  # 0: white, 1: gray, 2: black
+        for state in useful_states:
+            if color[state] == 0:
+                stack = [state]
+                while stack:
+                    u = stack.pop()
+                    if color[u] == 0:
+                        color[u] = 1  # Mark as gray
+                        stack.append(u)  # Push back for backtracking
+                        for v in graph[u]:
+                            if color[v] == 0:
+                                stack.append(v)
+                            elif color[v] == 1:
+                                return False  # Cycle found -> infinite language
+                    else:
+                        color[u] = 2  # Mark as black
+        return True  # No cycles -> finite language
 
     def complement(self) -> 'SparseDFA':
         new_accepting = ~self.is_accepting
