@@ -97,7 +97,7 @@ E3 = R.drop(['x'])  # Or R.ex('x')
 E4 = E0.exinf('x') 
 ```
 
-### Automatic Presentations
+### Automatic Structures
 AutStr enables finite automata to represent infinite mathematical structures through **automatic presentations**. This powerful technique encodes:
 - The domain as a regular language of strings (`automata['U']`)
 - Relations as synchronous multi-tape automata recognizing valid tuples
