@@ -1,6 +1,6 @@
 [project]
 name = "autstr"
-version = "1.0.1"
+version = "2.0.0"
 description = "Library for working with finitely presentable infinite structures"
 authors = [
     { name = "Faried Abu Zaid", email = "fariedaz@gmail.com" }
@@ -8,13 +8,13 @@ authors = [
 license-files = ["LICENSE"]
 
 dependencies = [
+    "numpy>=1.24",
     "nltk~=3.7",
     "automata-lib~=5.0.0",
     "sphinx-autodoc-typehints~=1.19.2",
     "ipykernel>=6.29.5",
     "jupyter (>=1.1.1,<2.0.0)",
     "visual-automata (>=1.1.1,<2.0.0)",
-    "jax>=0.4.13",
     "graphviz (>=0.21,<0.22)",
     # TODO dev group
     "pytest~=7.4.0",
@@ -27,7 +27,14 @@ dependencies = [
     "flake8~=6.1.0",
     "pre-commit~=3.2.0"
 ]
-requires-python = ">=3.10,<3.13"
+requires-python = ">=3.10,<3.15"
+
+[project.optional-dependencies]
+# JAX only accelerates batched word processing (SparseDFA.accepts_batch);
+# everything else runs on numpy.
+jax = ["jax>=0.4.13"]
+# networkx conversion for the bounded tree-depth graph package (autstr.graphs)
+graphs = ["networkx>=3.0"]
 
 [tool.setuptools]
 packages = ["autstr"]

@@ -8,18 +8,55 @@ Targeted at researchers in algorithmic model theory and curious practitioners al
 - **Symbolic representation** of infinite sets and relations
 - **Automata-based computation** for efficient manipulation
 - **First-order logic interface** for formal queries
+- **Uniformly automatic classes** — one automaton deciding a property for a whole family of structures
 - **Visualization tools** for insight into infinite structures
+
+## What's new in 2.0
+
+Version 2.0 is a near-complete overhaul of the computational core plus a new layer of
+mathematics on top:
+
+- **10²–10³× faster.** Every core algorithm (products, subset constructions,
+  minimization, padding) was profiled and rewritten as batched, sparsity-aware NumPy:
+  the reference benchmark query dropped from 85 s to 0.03 s, and the v1 test suite from
+  200 s to under 2 s. Memory usage is linear — batched binary-search transition lookups
+  and hashed partition refinement replaced all dense intermediate tensors.
+- **NumPy-canonical, JAX optional.** The core depends only on NumPy and installs
+  anywhere. JAX moved to the optional extra `autstr[jax]` and accelerates exactly one
+  thing: `SparseDFA.accepts_batch`, bulk word processing on a fixed automaton
+  (jit + scan, ~5× on CPU for 100k+ words, GPU-ready).
+- **Uniformly automatic classes** (`autstr.uniform`): present a whole *class* of
+  structures with one automaton tuple reading an advice string synchronously with the
+  element encodings. Evaluate a first-order query once — model checking any member is
+  then just running its advice word through a DFA. Includes relativized quantifiers,
+  member-structure instantiation (`get_structure`), and a first-order bootstrap
+  mechanism (`define`) for building complex relations from small primitives.
+- **Graph classes** (`autstr.graphs`): bounded tree-depth and bounded pathwidth graphs
+  as uniformly automatic classes with set-valued elements — full **monadic second-order
+  logic** over the graphs. Conversion from/to networkx (exact decompositions for small
+  graphs), graphviz rendering. A 6-state automaton deciding bipartiteness for *every*
+  graph of tree-depth ≤ 3 compiles in seconds.
+- **Algebraic classes** (`autstr.algebra`): finite Boolean algebras, finite abelian
+  groups, and automatic presentations of the localizations **Z[1/p]** — with the
+  first-order divisibility sentences that distinguish them.
+- **Non-abelian group classes** (`autstr.groups`): the groups with a cyclic subgroup of
+  index ≤ 2 (dihedral, dicyclic/quaternion, semidihedral, modular, …) under one advice
+  format, and extraspecial p-groups — nilpotency class 2 with growing rank.
+- **Notebooks**: `treedepth_graphs`, `algebra_showcase`, and `groups_showcase` walk
+  through all of the above end to end.
 
 ### Installation
 
 ```bash
-pip install autstr
+pip install autstr           # NumPy-only core
+pip install autstr[jax]      # + JAX-accelerated batch word processing
+pip install autstr[graphs]   # + networkx conversion for the graph classes
 ```
 
 #### Verify Installation
 ```bash
 python -c "from autstr import __version__; print(f'AutStr v{__version__} installed')"
-# Should output: AutStr v1.0.1 installed
+# Should output: AutStr v2.0.0 installed
 ```
 
 ## Getting started
@@ -167,6 +204,64 @@ solutions = pres.evaluate(query)
 for sol in solutions:
     print(decode(sol))  # Output: 6, 7, 8, ...
 ```
+### Uniformly Automatic Classes
+New in 2.0: a single tuple of automata can present an entire *class* of structures.
+Every automaton carries one extra tape holding an **advice string** that is read
+synchronously with the element encodings; fixing an advice instantiates one member
+structure. The payoff: a first-order (or, over set-valued elements, monadic
+second-order) query is compiled **once per class** — deciding it for a member is then
+just running that member's advice word through a DFA, in microseconds. The theory
+behind this layer is developed in references [2] and [3] below; the built-in classes
+implement the meta-theorems of [2].
+
+#### Graphs of bounded tree-depth, with full MSO
+```python
+import networkx as nx
+from autstr.graphs import TreeDepthClass, TreeDepthGraph
+
+cls = TreeDepthClass(3)  # all graphs of tree-depth <= 3
+
+bipartite = ('exists c.(all x.(all y.((not E(x,y)) or '
+             '((Subset(x,c) and (not Subset(y,c))) or '
+             '((not Subset(x,c)) and Subset(y,c))))))')
+dfa, _ = cls.evaluate(bipartite)   # compiled once: a 6-state automaton
+
+triangle = TreeDepthGraph.from_networkx(nx.cycle_graph(3))
+dfa.accepts([(s,) for s in cls.advice(triangle)])   # False — in microseconds
+```
+`PathWidthClass(w)` does the same for bounded pathwidth. Both classes represent sets
+of vertices (as in MSO0), support `check(phi, graph, x={...})` for concrete set
+assignments, convert from/to networkx, and render via graphviz.
+
+#### Algebra: from powerset algebras to Z[1/p]
+```python
+from autstr.algebra import FiniteAbelianGroups, z1p_localization
+
+ab = FiniteAbelianGroups()          # advice = the cyclic decomposition
+ab.check('A(x,y,z)', [2, 3], x=(1, 1), y=(1, 2), z=(0, 0))   # True in Z_2 + Z_3
+
+z2 = z1p_localization(2)            # automatic presentation of (Z[1/2], +)
+z2.check('A(x,y,z)', x=z2.from_fraction(1, 2),
+         y=z2.from_fraction(3, 4), z=z2.from_fraction(5, 4))  # True
+z2.check('all x.(exists y.(A(y,y,x)))')   # True: everything is 2-divisible
+```
+
+#### Non-abelian groups
+```python
+from autstr.groups import IndexTwoCyclicGroups, ExtraspecialGroups
+
+G = IndexTwoCyclicGroups()   # dihedral, quaternion, semidihedral, modular, ...
+q8 = G.dicyclic(4)           # the quaternion group Q_8
+G.check('M(x,y,z)', q8, x=(0, 1), y=(1, 0), z=(1, 1))   # i * j = k
+
+H = ExtraspecialGroups(3)    # nilpotency class 2, order 3^(1+2n)
+H.check('Cen(x)', 2, x=(1, (0, 0), (0, 0)))              # central elements
+```
+The multiplication of the index-2 class is *defined first-order* from small primitive
+automata via `UniformlyAutomaticClass.define` — the uniform analog of the Büchi
+arithmetic bootstrap. See the `groups_showcase` notebook for the theory of where
+uniform automaticity ends (spoiler: unbounded bilinearity).
+
 ### Algorithmic Design with Infinite Sets: The Sieve of Eratosthenes
 AutStr enables novel algorithm design using infinite sets as first-class citizens. This implementation of the Sieve of Eratosthenes maintains the infinite candidate prime set symbolically:
 
@@ -249,26 +344,34 @@ This implementation provides a complete toolkit for working with automatic struc
 ### Final Note
 AutStr began as a summer passion project in 2022—a practical exploration of the automatic structures I'd studied theoretically during my PhD. This library represents the intersection of academic curiosity and hands-on implementation, born from a desire to make abstract model theory concepts tangible.
 
-Released in July 2025 following a major update, the library now includes significant new features beyond its original vision. This update was developed through a vibe coding session using DeepSeek, with extensive human testing and supervision throughout the process.
+Released in July 2025 following a major update, the library gained significant new features beyond its original vision. That update was developed through a vibe coding session using DeepSeek, with extensive human testing and supervision throughout the process, and introduced the `sparse_dfa` backend, serialization, MSO0, and modernized packaging.
 
-Highlights of the update:
-- Newly implemented `sparse_dfa` backend for efficient automata operations
-- Serialization support for automata and structures
-- MSO0 as finite powerset structure over natural numbers (e.g. index sets)
-- Modernized packaging (`pyproject.toml`)
-- Dependency version updates
-- Expanded documentation
+**Version 2.0 (July 2026) was designed and implemented in an intensive two-day
+pair-programming session with Claude — specifically Anthropic's Fable 5 model —
+working inside Claude Code.** Fable 5 profiled and rewrote the entire automata core
+(the 10²–10³× speedups above), migrated the library from JAX to a NumPy-canonical
+representation, and then built the whole uniformly automatic layer: the generic
+advice-class machinery, bounded tree-depth and pathwidth graphs with MSO, finite
+Boolean algebras, finite abelian groups, the Z[1/p] presentations, and the non-abelian
+group classes — each verified against exhaustive ground-truth oracles, brute-force
+semantics checks, or exact arithmetic models along the way. The mathematical direction,
+the theory of uniform automaticity these packages implement, and the final review
+remained human; the code is Fable 5's. It was a genuinely remarkable collaboration:
+ideas from my dissertation that had waited a decade for an implementation became
+running, tested code within hours of being sketched in conversation.
 
 #### Performance and Maintenance
-Recent updates have removed obvious performance bottlenecks through:
+Version 2.0 removed the known performance bottlenecks:
 
-- JAX-accelerated automata operations
-- Sparse DFA representations
-- Efficient serialization, which allows storing precompiled results
+- All core algorithms are batched, sparsity-aware NumPy (binary-search transition
+  lookups, hashed partition refinement, frontier-batched constructions) with linear
+  memory usage
+- JAX is now an optional extra used solely for bulk word processing on fixed automata
+- Efficient serialization allows storing precompiled results
 
-However, significant optimization opportunities remain:
-- Vectorization: Many sequential operations could still be parallelized
-- Query Optimization: Advanced planning for first-order queries
+Remaining optimization opportunities:
+- Query optimization: advanced planning for first-order queries
+- Caching of evaluated query automata across `check` calls
 
 As this is a passion project developed outside my primary research, active maintenance will be limited. That said:
 
@@ -283,18 +386,32 @@ As this is a passion project developed outside my primary research, active maint
    Dissertation, RWTH Aachen University, 2016.  
    DOI: [10.18154/RWTH-2017-07663](https://doi.org/10.18154/RWTH-2017-07663)  
 
-2. **Blumensath, A., & Grädel, E.**  
+2. **Abu Zaid, F.**  
+   *Uniformly Automatic Classes of Finite Structures.*  
+   38th IARCS Annual Conference on Foundations of Software Technology and Theoretical Computer Science (FSTTCS 2018).  
+   Leibniz International Proceedings in Informatics (LIPIcs), Volume 122, Pages 10:1–10:21.  
+   DOI: [10.4230/LIPIcs.FSTTCS.2018.10](https://doi.org/10.4230/LIPIcs.FSTTCS.2018.10)  
+   *The algorithmic meta-theorems for finite Boolean algebras, finite groups, and graphs of bounded tree-depth implemented by the `autstr.uniform`, `autstr.graphs`, `autstr.algebra`, and `autstr.groups` packages.*
+
+3. **Abu Zaid, F., Grädel, E., & Reinhardt, F.**  
+   *Advice Automatic Structures and Uniformly Automatic Classes.*  
+   26th EACSL Annual Conference on Computer Science Logic (CSL 2017).  
+   Leibniz International Proceedings in Informatics (LIPIcs), Volume 82, Pages 35:1–35:20.  
+   DOI: [10.4230/LIPIcs.CSL.2017.35](https://doi.org/10.4230/LIPIcs.CSL.2017.35)  
+   *Introduces automatic presentations with advice — the foundation of the uniformly automatic classes in this library; the advice-automatic presentation of (Q, +) is the blueprint for `z1p_localization`.*
+
+4. **Blumensath, A., & Grädel, E.**  
    *Automatic Structures.*  
    Proceedings of the 15th Annual IEEE Symposium on Logic in Computer Science (LICS 2000).  
    Pages: 51–62.  
    URL: [LICS 2000 Proceedings](https://lics.siglog.org/2000/Grdel-AutomaticStructures.html)  
 
-3. **Khoussainov, B., & Nerode, A.**  
+5. **Khoussainov, B., & Nerode, A.**  
    *Automatic presentations of structures.*  
    In D. Leivant (Ed.), Logic and Computational Complexity (LCC 1994). Lecture Notes in Computer Science, vol 960.  
    Springer. DOI: [10.1007/3-540-60178-3_93](https://doi.org/10.1007/3-540-60178-3_93)  
 
-4. **Khoussainov, B., Rubin, S., & Stephan, F.**  
+6. **Khoussainov, B., Rubin, S., & Stephan, F.**  
    *Automatic Structures: Richness and Limitations.*  
    Logical Methods in Computer Science, Volume 3, Issue 2 (2007).  
    arXiv: [cs/0703064](https://arxiv.org/abs/cs/0703064)  
