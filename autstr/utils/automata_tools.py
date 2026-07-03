@@ -1,14 +1,12 @@
 import heapq
-import jax
-import jax.numpy as jnp
 import numpy as np
-from collections import deque, defaultdict
+from collections import deque, defaultdict, Counter
 from functools import partial
 from typing import Generator, Optional, Callable, Dict, List, Set, Union
 import itertools as it
 
 from autstr.utils.logic import get_free_elementary_vars
-from autstr.sparse_automata import SparseDFA, SparseNFA
+from autstr.sparse_automata import SparseDFA, SparseNFA, _sort_exception_rows, _sorted_row_lookup
 from autstr.buildin.automata import one
 from autstr.utils.misc import decode_symbol, encode_symbol, complement
 
@@ -60,23 +58,17 @@ def pad(dfa: SparseDFA, padding_symbol: int = -1) -> SparseDFA:
     exception_states_arr = np.full((num_states, new_max_exceptions), -1, dtype=np.int32)
 
     # Copy original exceptions
-    for i in range(n_orig):
-        for j in range(dfa.max_exceptions):
-            sym = exception_symbols_np[i, j]
-            if sym != -1:
-                exception_symbols_arr[i, j] = sym
-                exception_states_arr[i, j] = exception_states_np[i, j]
+    valid = exception_symbols_np != -1
+    exception_symbols_arr[:n_orig, :dfa.max_exceptions] = np.where(valid, exception_symbols_np, -1)
+    exception_states_arr[:n_orig, :dfa.max_exceptions] = np.where(valid, exception_states_np, -1)
 
     # Add new transitions:
-    # 1. From original accepting states to pad state on padding symbol
-    for i in range(n_orig):
-        if is_accepting_np[i]:
-            # Find first available slot
-            slot = np.where(exception_symbols_arr[i] == -1)[0]
-            if slot.size > 0:
-                slot_idx = slot[0]
-                exception_symbols_arr[i, slot_idx] = pad_enc
-                exception_states_arr[i, slot_idx] = n_pad
+    # 1. From original accepting states to pad state on padding symbol,
+    #    in the first free slot (the extra slot guarantees one exists)
+    accepting_rows = np.flatnonzero(is_accepting_np[:n_orig])
+    free_slot = (exception_symbols_arr[accepting_rows] == -1).argmax(axis=1)
+    exception_symbols_arr[accepting_rows, free_slot] = pad_enc
+    exception_states_arr[accepting_rows, free_slot] = n_pad
 
     # 2. From pad state to itself on padding symbol
     exception_symbols_arr[n_pad, 0] = pad_enc
@@ -105,60 +97,45 @@ def unpad(dfa: SparseDFA, padding_symbol: int = -1, remove_blank: bool = False) 
         padding_symbol = sorted(base_alphabet)[0]  # Default to first symbol
     pad_tuple = (padding_symbol,) * arity
     pad_tuple_enc = encode_symbol(pad_tuple, base_alphabet)
-    
-    # Compute closure under padding symbols
-    closure = {}
-    for q in range(dfa.num_states):
-        closure[q] = set()
-        stack = [q]
-        while stack:
-            state = stack.pop()
-            # Convert state to native int for set operations
-            state_int = int(state) if hasattr(state, '__int__') else state
-            
-            if state_int not in closure[q]:
-                closure[q].add(state_int)
-                # Follow padding transitions
-                if pad_tuple_enc in dfa.exception_symbols[state]:
-                    idx = jnp.where(dfa.exception_symbols[state] == pad_tuple_enc)[0]
-                    if idx.size > 0:
-                        next_state = dfa.exception_states[state, idx[0]]
-                        # Convert to native int before adding to stack
-                        stack.append(int(next_state))  
-                # Default transition for padding
-                else:
-                    next_state = dfa.default_states[state]
-                    # Avoid infinite loops from self-transitions
-                    if int(next_state) != state_int:  
-                        # Convert to native int before adding to stack
-                        stack.append(int(next_state))  
-    
-    # New acceptance: states that can reach a final state via padding
-    new_accepting = jnp.array([
-        any(dfa.is_accepting[p] for p in closure[q]) for q in range(dfa.num_states)
-    ])
-    
+
+    defaults = np.asarray(dfa.default_states, dtype=np.int64)
+    ex_symbols = np.asarray(dfa.exception_symbols, dtype=np.int64)
+    ex_states = np.asarray(dfa.exception_states, dtype=np.int64)
+    accepting = np.asarray(dfa.is_accepting, dtype=bool)
+
+    # The padding successor of each state (a deterministic function)
+    if ex_symbols.shape[1] > 0:
+        is_pad = ex_symbols == pad_tuple_enc
+        hit = is_pad.any(axis=1)
+        first = is_pad.argmax(axis=1)
+        pad_next = np.where(
+            hit,
+            np.take_along_axis(ex_states, first[:, None], axis=1)[:, 0],
+            defaults
+        )
+    else:
+        pad_next = defaults
+
+    # New acceptance: states that can reach a final state via padding.
+    # OR of acceptance over each state's forward orbit by iterative doubling.
+    new_accepting = accepting.copy()
+    steps = 1
+    while steps < dfa.num_states:
+        new_accepting |= new_accepting[pad_next]
+        pad_next = pad_next[pad_next]
+        steps *= 2
+
     # Create new automaton
     if remove_blank:
         # Remove padding symbol from input symbols
         new_base_alphabet = base_alphabet - {padding_symbol}
-        # Filter out padding transitions
-        new_exception_symbols = jnp.full_like(dfa.exception_symbols, -1)
-        new_exception_states = jnp.full_like(dfa.exception_states, -1)
-        
-        for q in range(dfa.num_states):
-            valid_mask = (dfa.exception_symbols[q] != pad_tuple_enc) & (dfa.exception_symbols[q] != -1)
-            valid_indices = jnp.where(valid_mask)[0]
-            num_valid = len(valid_indices)
-            
-            if num_valid > 0:
-                new_exception_symbols = new_exception_symbols.at[q, :num_valid].set(
-                    dfa.exception_symbols[q, valid_indices]
-                )
-                new_exception_states = new_exception_states.at[q, :num_valid].set(
-                    dfa.exception_states[q, valid_indices]
-                )
-        
+        # Filter out padding transitions and left-compact the rows
+        keep = (ex_symbols != pad_tuple_enc) & (ex_symbols != -1)
+        order = np.argsort(~keep, axis=1, kind='stable')
+        keep_sorted = np.take_along_axis(keep, order, axis=1)
+        new_exception_symbols = np.where(keep_sorted, np.take_along_axis(ex_symbols, order, axis=1), -1)
+        new_exception_states = np.where(keep_sorted, np.take_along_axis(ex_states, order, axis=1), -1)
+
         return SparseDFA(
             num_states=dfa.num_states,
             default_states=dfa.default_states,
@@ -328,221 +305,198 @@ def stack(dfa1: SparseDFA, dfa2: SparseDFA) -> SparseDFA:
     # Pad exceptions to uniform length
     num_new_states = len(state_map)
     max_exceptions = max(len(ex) for ex in new_exception_symbols_list) if new_exception_symbols_list else 0
-    padded_ex_syms = jnp.full((num_new_states, max_exceptions), -1, dtype=jnp.int32)
-    padded_ex_states = jnp.full((num_new_states, max_exceptions), -1, dtype=jnp.int32)
-    
+    padded_ex_syms = np.full((num_new_states, max_exceptions), -1, dtype=np.int32)
+    padded_ex_states = np.full((num_new_states, max_exceptions), -1, dtype=np.int32)
+
     for i in range(num_new_states):
         syms = new_exception_symbols_list[i]
         states = new_exception_states_list[i]
         if syms:
-            padded_ex_syms = padded_ex_syms.at[i, :len(syms)].set(jnp.array(syms, dtype=jnp.int32))
-            padded_ex_states = padded_ex_states.at[i, :len(states)].set(jnp.array(states, dtype=jnp.int32))
-    
+            padded_ex_syms[i, :len(syms)] = syms
+            padded_ex_states[i, :len(states)] = states
+
     # Create and return the stacked automaton
     return SparseDFA(
         num_states=num_new_states,
-        default_states=jnp.array(new_default_states_list),
-        exception_symbols=jnp.array(padded_ex_syms),
-        exception_states=jnp.array(padded_ex_states),
-        is_accepting=jnp.array(new_is_accepting_list),
+        default_states=np.array(new_default_states_list, dtype=np.int32),
+        exception_symbols=padded_ex_syms,
+        exception_states=padded_ex_states,
+        is_accepting=np.array(new_is_accepting_list, dtype=bool),
         start_state=0, # Start state is always 0 in the new mapping
         symbol_arity=arity,
         base_alphabet=base_alphabet
     )
 
 def projection(dfa: SparseDFA, i: int) -> SparseDFA:
-    """Project the automaton by existentially quantifying the i-th position."""
+    """Project the automaton by existentially quantifying the i-th position.
+
+    Sparse subset construction: for a subset S, only projected symbols whose
+    insertions hit an exception of some member of S can lead anywhere other
+    than the subset of member defaults. Candidates are therefore derived from
+    the members' exception tables instead of enumerating the full projected
+    alphabet, and all transitions of a subset are resolved in one batched
+    numpy lookup.
+    """
     arity = dfa.symbol_arity
     base_alphabet = dfa.base_alphabet
+    m = len(base_alphabet)
     new_arity = arity - 1
-    
-    # Create new automaton via subset construction
-    start_state = frozenset([int(dfa.start_state)])
-    state_queue = deque([start_state])
-    state_to_id = {start_state: 0}
-    id_to_state = [start_state]
-    
-    # New DFA components
+    n_proj_symbols = m ** new_arity
+
+    defaults = np.asarray(dfa.default_states, dtype=np.int64)
+    ex_syms = np.asarray(dfa.exception_symbols, dtype=np.int64)
+    ex_states = np.asarray(dfa.exception_states, dtype=np.int64)
+    sorted_syms, sorted_targets = _sort_exception_rows(ex_syms, ex_states)
+    acc = np.asarray(dfa.is_accepting, dtype=bool)
+    max_ex = ex_syms.shape[1]
+
+    # Weight of the projected-out digit: enc = (high*m + digit_i)*p + low
+    p = m ** (arity - 1 - i)
+    insert_offsets = np.arange(m, dtype=np.int64) * p
+
+    state_to_id = {}
+    id_to_set = []
+    new_accepting = []
+
+    def get_id(key):
+        idx = state_to_id.get(key)
+        if idx is None:
+            idx = state_to_id[key] = len(id_to_set)
+            members = np.array(key, dtype=np.int64)
+            id_to_set.append(members)
+            new_accepting.append(bool(acc[members].any()))
+        return idx
+
+    get_id((int(dfa.start_state),))
+
     new_default_states = []
     new_exception_symbols = []
     new_exception_states = []
-    new_accepting = []
-    
-    # Generate all possible symbols for the new alphabet
-    new_alphabet = set(it.product(sorted(base_alphabet), repeat=new_arity))
-    
-    while state_queue:
-        state_set = state_queue.popleft()
-        state_id = state_to_id[state_set]
-        
-        # For each possible symbol in new alphabet
-        trans_map = {}
-        for symbol_tuple in new_alphabet:
-            next_set = set()
-            for q in state_set:
-                # Try all possible values at position i
-                for a in base_alphabet:
-                    full_symbol = symbol_tuple[:i] + (a,) + symbol_tuple[i:]
-                    full_symbol_enc = encode_symbol(full_symbol, base_alphabet)
-                    next_state = dfa.transition(q, full_symbol_enc)
-                    next_set.add(int(next_state))  # Convert to native int
-            trans_map[symbol_tuple] = frozenset(next_set)
-        
-        # Handle case with no transitions
-        if not trans_map:
-            # Create a dead state if no transitions exist
-            dead_state = frozenset()
-            if dead_state not in state_to_id:
-                new_id = len(id_to_state)
-                state_to_id[dead_state] = new_id
-                id_to_state.append(dead_state)
-                # Dead state never accepts and transitions to itself
-                new_accepting.append(False)
-                new_default_states.append(new_id)
-                new_exception_symbols.append([])
-                new_exception_states.append([])
-            default_target = state_to_id[dead_state]
-            state_id_for_default = default_target
-        else:
-            # Find the most common transition
-            targets = list(trans_map.values())
-            default_target_set = max(set(targets), key=targets.count)
-            
-            # Get or create state ID for default target
-            if default_target_set not in state_to_id:
-                new_id = len(id_to_state)
-                state_to_id[default_target_set] = new_id
-                id_to_state.append(default_target_set)
-                state_queue.append(default_target_set)
-                state_id_for_default = new_id
-            else:
-                state_id_for_default = state_to_id[default_target_set]
-            
-            # Create exceptions for deviations
-            exceptions = []
-            for symbol_tuple, target_set in trans_map.items():
-                if target_set != default_target_set:
-                    # Get or create state ID for this target
-                    if target_set not in state_to_id:
-                        new_id = len(id_to_state)
-                        state_to_id[target_set] = new_id
-                        id_to_state.append(target_set)
-                        state_queue.append(target_set)
-                        target_id = new_id
-                    else:
-                        target_id = state_to_id[target_set]
-                    
-                    symbol_enc = encode_symbol(symbol_tuple, base_alphabet)
-                    exceptions.append((symbol_enc, target_id))
-            
-            new_exception_symbols.append([e[0] for e in exceptions])
-            new_exception_states.append([e[1] for e in exceptions])
-        
-        new_default_states.append(state_id_for_default)
-        new_accepting.append(any(dfa.is_accepting[q] for q in state_set))
-    
+
+    next_unprocessed = 0
+    while next_unprocessed < len(id_to_set):
+        members = id_to_set[next_unprocessed]
+        next_unprocessed += 1
+
+        # Candidate projected symbols: projections of members' exceptions
+        member_syms = ex_syms[members]
+        valid_syms = member_syms[member_syms != -1]
+        cand = np.unique(valid_syms // (p * m) * p + valid_syms % p)
+
+        default_key = tuple(np.unique(defaults[members]).tolist())
+
+        exceptions = []
+        if cand.size > 0:
+            # All insertions of the candidates: (n_cand, m)
+            full = (cand[:, None] // p) * (p * m) + insert_offsets + cand[:, None] % p
+
+            # Batched transition lookup via binary search: (n_members, n_cand, m)
+            n_members, n_cand = members.shape[0], cand.shape[0]
+            flat_cands = np.broadcast_to(full.reshape(-1), (n_members, n_cand * m))
+            next_states = _sorted_row_lookup(
+                sorted_syms[members], sorted_targets[members],
+                defaults[members], flat_cands
+            ).reshape(n_members, n_cand, m)
+
+            for j in range(n_cand):
+                key = tuple(np.unique(next_states[:, j, :]).tolist())
+                if key != default_key:
+                    exceptions.append((int(cand[j]), key))
+
+            if len(exceptions) == n_proj_symbols:
+                # Every projected symbol is an exception, so the all-defaults
+                # target can never be reached; make the most common target the
+                # default instead of introducing a spurious state.
+                counts = Counter(key for _, key in exceptions)
+                default_key = counts.most_common(1)[0][0]
+                exceptions = [(sym, key) for sym, key in exceptions if key != default_key]
+
+        new_default_states.append(get_id(default_key))
+        new_exception_symbols.append([sym for sym, _ in exceptions])
+        new_exception_states.append([get_id(key) for _, key in exceptions])
+
     # Pad exceptions
-    max_ex = max(len(ex) for ex in new_exception_symbols) if new_exception_symbols else 0
-    padded_ex_syms = jnp.full((len(id_to_state), max_ex), -1)
-    padded_ex_states = jnp.full((len(id_to_state), max_ex), -1)
-    
+    num_new_states = len(id_to_set)
+    max_new_ex = max(len(ex) for ex in new_exception_symbols) if new_exception_symbols else 0
+    padded_ex_syms = np.full((num_new_states, max_new_ex), -1, dtype=np.int32)
+    padded_ex_states = np.full((num_new_states, max_new_ex), -1, dtype=np.int32)
+
     for idx, (syms, states) in enumerate(zip(new_exception_symbols, new_exception_states)):
         if syms:
-            padded_ex_syms = padded_ex_syms.at[idx, :len(syms)].set(jnp.array(syms, dtype=jnp.int32))
-            padded_ex_states = padded_ex_states.at[idx, :len(states)].set(jnp.array(states, dtype=jnp.int32))
-    
+            padded_ex_syms[idx, :len(syms)] = syms
+            padded_ex_states[idx, :len(states)] = states
+
     return SparseDFA(
-        num_states=len(id_to_state),
-        default_states=jnp.array(new_default_states, dtype=jnp.int32),
+        num_states=num_new_states,
+        default_states=np.array(new_default_states, dtype=np.int32),
         exception_symbols=padded_ex_syms,
         exception_states=padded_ex_states,
-        is_accepting=jnp.array(new_accepting),
+        is_accepting=np.array(new_accepting, dtype=bool),
         start_state=0,
         symbol_arity=new_arity,
         base_alphabet=base_alphabet
     )
 
 def expand(dfa, new_arity: int, pos: List[int]):
-    # Input validation (unchanged)
+    """Expand a DFA of arity k to new_arity by placing original tape t at new
+    position pos[t]; the remaining positions accept any symbol. Every expanded
+    exception is a closed-form function of an original exception, so the whole
+    construction is computed as one batched numpy operation over all exceptions.
+    """
     original_arity = dfa.symbol_arity
     base_alphabet = dfa.base_alphabet
-    sorted_alphabet = sorted(base_alphabet)
     m = len(base_alphabet)
-    new_num_states = dfa.num_states
-    K = m ** (new_arity - len(set(pos)))  # Account for duplicate positions
-    new_max_exceptions = dfa.max_exceptions * K
-    
-    # Precompute fixed positions and free indices
-    fixed_mask = jnp.zeros(new_arity, dtype=bool)
-    for idx in pos:
-        fixed_mask = fixed_mask.at[idx].set(True)
-    free_indices = jnp.where(~fixed_mask, size=new_arity, fill_value=-1)[0]
-    free_count = jnp.sum(~fixed_mask).item()
-    
-    # Precompute encoding powers
-    powers = m ** jnp.arange(new_arity-1, -1, -1, dtype=jnp.int64)
-    sorted_alphabet_arr = jnp.arange(len(sorted_alphabet))
-    
-    # Prepare new DFA arrays
-    new_default_states = jnp.zeros(new_num_states, dtype=jnp.int32)
-    new_exception_symbols = jnp.full((new_num_states, new_max_exceptions), -1, dtype=jnp.int32)
-    new_exception_states = jnp.full((new_num_states, new_max_exceptions), -1, dtype=jnp.int32)
-    
-    # Process each state
-    for state in range(dfa.num_states):
-        # Calculate new default state via frequency counts
-        # The default state for the expanded DFA is simply the default state of the original DFA
-        # as the 'default' transition applies when no exception matches, regardless of arity.
-        new_default_states = new_default_states.at[state].set(int(dfa.default_states[state]))
+    num_states = dfa.num_states
 
-        # Collect original exceptions
-        orig_exceptions = dfa.exception_symbols[state][dfa.exception_symbols[state] != -1]
-        orig_targets = dfa.exception_states[state][dfa.exception_symbols[state] != -1]     
-        
-        # Process exception blocks
-        all_exception_symbols = []
-        all_exception_states = []
-        for sym_enc, target in zip(orig_exceptions, orig_targets):
-            # Decode and convert to indices
-            orig_tuple = decode_symbol(int(sym_enc), original_arity, base_alphabet)
+    ex_syms = np.asarray(dfa.exception_symbols, dtype=np.int64)
+    ex_states = np.asarray(dfa.exception_states, dtype=np.int64)
+    max_ex = ex_syms.shape[1]
 
-            # Check consistency for duplicate positions
-            expected = {}
-            consistent = True
-            for orig_idx, new_idx in enumerate(pos):
-                val = orig_tuple[orig_idx]
-                if new_idx in expected and expected[new_idx] != val:
-                    consistent = False
-                    break
-                expected[new_idx] = val
-            if not consistent:
-                continue  # Skip inconsistent symbol
+    # Digit representation of all exception symbols: (num_states, max_ex, k)
+    powers_orig = m ** np.arange(original_arity - 1, -1, -1, dtype=np.int64)
+    digits = (ex_syms[:, :, None] // powers_orig) % m
 
-            # Generate expanded symbols as a block
-            expanded_symbols = generate_expanded_block(
-                sym_enc, 
-                sorted_alphabet_arr,
-                fixed_mask,
-                free_indices,
-                free_count,
-                powers,
-                original_arity,
-                m,
-                pos
-            )
-            all_exception_symbols.append(expanded_symbols)
-            all_exception_states.append(jnp.full_like(expanded_symbols, target))
-        
-        if all_exception_symbols:
-            # Flatten the lists and pad to max_exceptions
-            all_exception_symbols = jnp.concatenate(all_exception_symbols)
-            all_exception_states = jnp.concatenate(all_exception_states)
-            new_exception_symbols = new_exception_symbols.at[state, :len(all_exception_symbols)].set(all_exception_symbols)
-            new_exception_states = new_exception_states.at[state, :len(all_exception_states)].set(all_exception_states)
-        
+    powers_new = m ** np.arange(new_arity - 1, -1, -1, dtype=np.int64)
+
+    # Fixed part of the expanded encoding, plus consistency check for
+    # duplicate positions (all original tapes mapped to the same new position
+    # must carry the same value; otherwise the exception has no expansion).
+    valid = ex_syms != -1
+    fixed_enc = np.zeros((num_states, max_ex), dtype=np.int64)
+    first_at = {}
+    for orig_idx, new_idx in enumerate(pos):
+        if new_idx in first_at:
+            valid &= digits[:, :, orig_idx] == digits[:, :, first_at[new_idx]]
+        else:
+            first_at[new_idx] = orig_idx
+            fixed_enc += digits[:, :, orig_idx] * powers_new[new_idx]
+
+    # Encodings of all combinations at the free positions: (K,)
+    free_pos = [p for p in range(new_arity) if p not in first_at]
+    free_count = len(free_pos)
+    if free_count > 0:
+        grid = np.indices((m,) * free_count).reshape(free_count, -1).T  # (K, free_count)
+        free_enc = grid @ powers_new[free_pos]
+    else:
+        free_enc = np.zeros(1, dtype=np.int64)
+    K = free_enc.shape[0]
+
+    # Expanded exceptions: each original exception becomes a block of K
+    # symbols with the same target. Flattened per state, blocks keep the
+    # original exception order.
+    exp_syms = (fixed_enc[:, :, None] + free_enc).reshape(num_states, max_ex * K)
+    exp_states = np.broadcast_to(ex_states[:, :, None], (num_states, max_ex, K)).reshape(num_states, max_ex * K)
+    exp_valid = np.broadcast_to(valid[:, :, None], (num_states, max_ex, K)).reshape(num_states, max_ex * K)
+
+    # Left-compact valid entries within each row, pad with -1
+    order = np.argsort(~exp_valid, axis=1, kind='stable')
+    exp_valid_sorted = np.take_along_axis(exp_valid, order, axis=1)
+    new_exception_symbols = np.where(exp_valid_sorted, np.take_along_axis(exp_syms, order, axis=1), -1)
+    new_exception_states = np.where(exp_valid_sorted, np.take_along_axis(exp_states, order, axis=1), -1)
+
     return SparseDFA(
-        num_states=new_num_states,
-        default_states=new_default_states,
+        num_states=num_states,
+        default_states=dfa.default_states,
         exception_symbols=new_exception_symbols,
         exception_states=new_exception_states,
         is_accepting=dfa.is_accepting,
@@ -550,33 +504,6 @@ def expand(dfa, new_arity: int, pos: List[int]):
         symbol_arity=new_arity,
         base_alphabet=base_alphabet
     )
-
-
-def generate_expanded_block(sym_enc, sorted_alphabet_arr, fixed_mask, free_indices, 
-                           free_count, powers, original_arity, m, pos):
-    # Decode original symbol
-    powers_orig = m ** jnp.arange(original_arity-1, -1, -1, dtype=jnp.int64)
-    digits = (sym_enc // powers_orig) % m
-    orig_tuple = sorted_alphabet_arr[digits]
-    
-    # Create fixed values template
-    fixed_values = jnp.full(len(fixed_mask), -1, dtype=sorted_alphabet_arr.dtype)
-    for orig_idx, new_idx in enumerate(pos):
-        fixed_values = fixed_values.at[new_idx].set(orig_tuple[orig_idx])
-    
-    # Generate free combinations
-    if free_count > 0:
-        n_comb = m ** free_count
-        grid = jnp.indices((m,)*free_count).reshape(free_count, -1).T
-        free_vals = sorted_alphabet_arr[grid]
-        symbol_tensors = jnp.tile(fixed_values, (n_comb, 1))
-        symbol_tensors = symbol_tensors.at[:, free_indices[:free_count]].set(free_vals)
-    else:
-        symbol_tensors = fixed_values[None, :]
-    
-    # Encode symbols
-    indices = jnp.searchsorted(sorted_alphabet_arr, symbol_tensors)
-    return jnp.sum(indices * powers, axis=1, dtype=jnp.int32)
 
 # We'll define a custom heap structure for length-lexicographic ordering
 class LengthLexHeap:
@@ -621,7 +548,7 @@ def iterate_language(dfa: SparseDFA, decoder: Callable = None,
 
 
     start_set = {dfa.start_state}
-    final_set = set(jnp.where(dfa.is_accepting)[0].tolist())
+    final_set = set(np.flatnonzero(dfa.is_accepting).tolist())
 
     # Initialize heap with starting states
     heap = LengthLexHeap()
@@ -700,6 +627,72 @@ def iterate_language(dfa: SparseDFA, decoder: Callable = None,
 
 
 
+def permute_tapes(dfa: SparseDFA, perm: List[int]) -> SparseDFA:
+    """Reorder the tapes of a multi-tape automaton: tape t of the result is
+    tape perm[t] of the input. Only the symbol encodings change."""
+    if sorted(perm) != list(range(dfa.symbol_arity)):
+        raise ValueError(f"perm must be a permutation of range({dfa.symbol_arity})")
+    m = len(dfa.base_alphabet)
+    powers = m ** np.arange(dfa.symbol_arity - 1, -1, -1, dtype=np.int64)
+    symbols = dfa.exception_symbols.astype(np.int64)
+    digits = (symbols[:, :, None] // powers) % m
+    new_symbols = (digits[:, :, perm] * powers).sum(axis=2)
+    new_symbols = np.where(dfa.exception_symbols == -1, -1, new_symbols).astype(np.int32)
+    return SparseDFA(
+        num_states=dfa.num_states,
+        default_states=dfa.default_states,
+        exception_symbols=new_symbols,
+        exception_states=dfa.exception_states,
+        is_accepting=dfa.is_accepting,
+        start_state=dfa.start_state,
+        symbol_arity=dfa.symbol_arity,
+        base_alphabet=dfa.base_alphabet
+    )
+
+
+def word_automaton(word: List, base_alphabet: Set, padding_symbol=None) -> SparseDFA:
+    """Automaton accepting exactly the given word, optionally followed by
+    trailing padding symbols.
+
+    :param word: sequence of symbols from base_alphabet
+    :param base_alphabet: the base alphabet
+    :param padding_symbol: if given, accept word followed by any number of
+        padding symbols
+    :return: SparseDFA of arity 1 recognizing {word}·{pad}*
+    """
+    n = len(word)
+    # States 0..n-1 read the word, n accepts (with optional pad loop), n+1 dead
+    num_states = n + 2
+    dead = n + 1
+
+    max_exc = 1
+    default_states = np.full(num_states, dead, dtype=np.int32)
+    exception_symbols = np.full((num_states, max_exc), -1, dtype=np.int32)
+    exception_states = np.full((num_states, max_exc), -1, dtype=np.int32)
+
+    for i, symbol in enumerate(word):
+        exception_symbols[i, 0] = encode_symbol((symbol,), base_alphabet)
+        exception_states[i, 0] = i + 1
+
+    if padding_symbol is not None:
+        exception_symbols[n, 0] = encode_symbol((padding_symbol,), base_alphabet)
+        exception_states[n, 0] = n
+
+    is_accepting = np.zeros(num_states, dtype=bool)
+    is_accepting[n] = True
+
+    return SparseDFA(
+        num_states=num_states,
+        default_states=default_states,
+        exception_symbols=exception_symbols,
+        exception_states=exception_states,
+        is_accepting=is_accepting,
+        start_state=0,
+        symbol_arity=1,
+        base_alphabet=base_alphabet
+    )
+
+
 def lsbf_Z_automaton(z: int) -> SparseDFA:
     """
     Creates a SparseDFA for LSB-first representation of integer z with sign bit and padding.
@@ -712,10 +705,10 @@ def lsbf_Z_automaton(z: int) -> SparseDFA:
     if z == 0:
         return SparseDFA(
             num_states=4,
-            default_states=jnp.array([3, 3, 3, 3], dtype=jnp.int32),
-            exception_symbols=jnp.array([[1], [1], [0], [-1]], dtype=jnp.int32),  # "0"=1, "*"=0
-            exception_states=jnp.array([[1], [2], [2], [-1]], dtype=jnp.int32),
-            is_accepting=jnp.array([False, False, True, False]),
+            default_states=np.array([3, 3, 3, 3], dtype=np.int32),
+            exception_symbols=np.array([[1], [1], [0], [-1]], dtype=np.int32),  # "0"=1, "*"=0
+            exception_states=np.array([[1], [2], [2], [-1]], dtype=np.int32),
+            is_accepting=np.array([False, False, True, False]),
             start_state=0,
             symbol_arity=1,
             base_alphabet={"*", "0", "1"}  # "*"=0, "0"=1, "1"=2
@@ -742,21 +735,21 @@ def lsbf_Z_automaton(z: int) -> SparseDFA:
     num_states = n + 2
     
     # Create arrays with vectorized operations
-    default_states = jnp.full(num_states, n+1, dtype=jnp.int32)  # Default to dead state
-    
+    default_states = np.full(num_states, n+1, dtype=np.int32)  # Default to dead state
+
     # Exception symbols: rep for states 0..n-1, 0 ('*') for state n
-    exception_symbols = jnp.full((num_states, 1), -1, dtype=jnp.int32)
-    exception_symbols = exception_symbols.at[:n, 0].set(jnp.array(rep, dtype=jnp.int32))
-    exception_symbols = exception_symbols.at[n, 0].set(0)  # '*' for accepting state
-    
+    exception_symbols = np.full((num_states, 1), -1, dtype=np.int32)
+    exception_symbols[:n, 0] = rep
+    exception_symbols[n, 0] = 0  # '*' for accepting state
+
     # Exception states: next state for representation, self for padding
-    exception_states = jnp.full((num_states, 1), -1, dtype=jnp.int32)
-    exception_states = exception_states.at[:n, 0].set(jnp.arange(1, n+1))
-    exception_states = exception_states.at[n, 0].set(n)  # loop in accepting state
-    
+    exception_states = np.full((num_states, 1), -1, dtype=np.int32)
+    exception_states[:n, 0] = np.arange(1, n+1)
+    exception_states[n, 0] = n  # loop in accepting state
+
     # Accepting state is state n
-    is_accepting = jnp.zeros(num_states, dtype=bool)
-    is_accepting = is_accepting.at[n].set(True)
+    is_accepting = np.zeros(num_states, dtype=bool)
+    is_accepting[n] = True
     
     return SparseDFA(
         num_states=num_states,

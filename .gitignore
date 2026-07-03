@@ -127,3 +127,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Graphviz render artifacts
+notebooks/automaton
+notebooks/automaton.png

@@ -2,7 +2,7 @@ from functools import cmp_to_key
 from heapq import heapify, heappop, heappush
 from typing import FrozenSet, Set, List, Tuple, Union
 
-from jax import numpy as jnp
+import numpy as np
 
 def cmp_llex(v: str, w: str) -> int:
     """
@@ -99,29 +99,18 @@ def decode_symbol(enc: int, arity: int, base_alphabet: FrozenSet[int]) -> Tuple[
         symbols.append(alphabet_sorted[r])
     return tuple(reversed(symbols))
 
-def complement(values, min_val: int, max_val: int) -> jnp.ndarray:
+def complement(values, min_val: int, max_val: int) -> np.ndarray:
     """Find the complement of a set of values within a specified range.
-    
-    Args:
-        values (jnp.ndarray): The input array of values.
-        min (int): The minimum value of the range.
-        max (int): The maximum value of the range.
-    
-    Returns:
-        jnp.ndarray: The complement of the input array.
-    """
 
-    unique_idxs = jnp.unique(values)
-    if unique_idxs.size == 0:
-        result = jnp.array([], dtype=values.dtype)
-    else:
-        
-        # Create full range and mask for present values
-        full_range = jnp.arange(min_val, max_val + 1)
-        mask = jnp.zeros_like(full_range, dtype=bool)
-        indices_in_full = unique_idxs - min_val
-        mask = mask.at[indices_in_full].set(True)
-        
-        # Extract missing values
-        result = full_range[~mask]
-    return result
+    Args:
+        values (np.ndarray): The input array of values.
+        min_val (int): The minimum value of the range.
+        max_val (int): The maximum value of the range.
+
+    Returns:
+        np.ndarray: The sorted values of the range missing from the input.
+    """
+    values = np.asarray(values)
+    if values.size == 0:
+        return np.array([], dtype=values.dtype)
+    return np.setdiff1d(np.arange(min_val, max_val + 1), values)

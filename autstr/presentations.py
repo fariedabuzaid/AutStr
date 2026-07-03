@@ -2,7 +2,7 @@ from nltk.sem import logic
 from typing import Dict, Optional, Union, List
 
 from autstr.sparse_automata import SparseDFA, SparseDFASerializer
-from autstr.utils.automata_tools import pad, unpad, product, projection, expand, stack
+from autstr.utils.automata_tools import pad, unpad, projection, expand, stack
 from autstr.buildin.automata import zero, one  
 from autstr.utils.logic import get_free_elementary_vars, optimize_query
 
@@ -168,6 +168,18 @@ class AutomaticPresentation:
             dfa = dfa.intersection(domain_i).minimize()
         return pad(dfa, self.padding_symbol).minimize()
 
+    def _domain_product(self, arity: int) -> SparseDFA:
+        """Universe automaton for `arity` tapes, built one tape at a time."""
+        if arity <= 1:
+            return self.automata['U']
+
+        domain = expand(self.automata['U'], arity, [0]).minimize()
+        for i in range(1, arity):
+            domain = domain.intersection(
+                expand(self.automata['U'], arity, [i]).minimize()
+            ).minimize()
+        return domain
+
     def check(self, phi: logic.Expression | str) -> bool:
         """Checks if a given first-order formula holds on the presented structure. Free variables are assumed be
         implicitly existentially quantified.
@@ -229,33 +241,25 @@ class AutomaticPresentation:
             phi = logic.Expression.fromstring(phi)
 
         if isinstance(phi, logic.AllExpression):
-
             variable = str(phi.variable)
             free_vars = get_free_elementary_vars(phi.term)
 
             if variable not in free_vars:
                 return self._build_automaton(phi.term, verbose=verbose, init=False)
+
+            psi = (phi.term.negate()).simplify()
+            dfa_rec = self._build_automaton(psi, verbose=verbose, init=False).minimize()
+            pos = free_vars.index(variable)
+
+            if len(free_vars) > 1:
+                domain = self._domain_product(len(free_vars) - 1)
+                result = projection(dfa_rec, pos).minimize().complement().minimize().intersection(domain).minimize()
             else:
-                psi = (phi.term.negate()).simplify()
-                dfa_rec = self._build_automaton(psi, verbose=verbose, init=False).minimize()
+                result = one() if dfa_rec.is_empty() else zero()
 
-                pos = free_vars.index(variable)
-
-                if len(free_vars) > 1:
-                    domain = product(self.automata['U'], len(free_vars) - 1)
-                    result = projection(
-                        dfa_rec,
-                        pos
-                    ).minimize().complement().minimize().intersection(domain).minimize()
-                else:
-                    if dfa_rec.is_empty():
-                        result = one()
-                    else:
-                        result = zero()
-
-                if verbose:
-                    print(f'{str(phi)}: {result.num_states} states')
-                return result
+            if verbose:
+                print(f'{str(phi)}: {result.num_states} states')
+            return result
         elif isinstance(phi, logic.ExistsExpression):
             psi = phi.term
             variable = str(phi.variable)
@@ -270,14 +274,25 @@ class AutomaticPresentation:
                 else:
                     if verbose:
                         print(f'{str(phi)}: 1 state')
-                    if dfa_rec.is_empty():
-                        return zero()
-                    else:
-                        return one()
+                    return zero() if dfa_rec.is_empty() else one()
             else:
-                result = self._build_automaton(psi, verbose=verbose, init=False)
+                result = dfa_rec
 
             result = pad(unpad(result, self.padding_symbol).minimize(), self.padding_symbol).minimize()
+
+            if verbose:
+                print(f'{str(phi)}: {result.num_states} states')
+            return result
+        elif isinstance(phi, logic.NegatedExpression):
+            psi = phi.term
+            # Skip double negation
+            if isinstance(psi, logic.NegatedExpression):
+                return self._build_automaton(psi.term, verbose=verbose, init=False)
+
+            free_vars = get_free_elementary_vars(phi)
+            domain = self._domain_product(len(free_vars))
+            result = self._build_automaton(psi, verbose=verbose, init=False).complement()
+            result = result.intersection(domain).minimize()
 
             if verbose:
                 print(f'{str(phi)}: {result.num_states} states')
@@ -298,21 +313,6 @@ class AutomaticPresentation:
                 print(f'{str(phi)}: {result.num_states} states')
             return result
 
-        elif isinstance(phi, logic.NegatedExpression):
-            psi = phi.term
-            # Skip double negation
-            if isinstance(psi, logic.NegatedExpression):
-                return self._build_automaton(psi.term, verbose=verbose, init=False)
-            else:
-                free_vars = get_free_elementary_vars(phi)
-
-                domain = product(self.automata['U'], len(free_vars))
-
-                result = self._build_automaton(psi, verbose=verbose, init=False).complement()
-                result = result.intersection(domain).minimize()
-                if verbose:
-                    print(f'{str(phi)}: {result.num_states} states')
-                return result
         elif isinstance(phi, logic.OrExpression):
             left = phi.first
             right = phi.second

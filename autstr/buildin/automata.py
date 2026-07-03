@@ -1,7 +1,7 @@
 import itertools as it
 from typing import Optional, Set
 from autstr.sparse_automata import SparseDFA
-from jax import numpy as jnp
+import numpy as np
 
 from autstr.utils.misc import encode_symbol
 
@@ -16,12 +16,12 @@ def length_automaton(n: int, base_alphabet: Set[int]) -> SparseDFA:
     # States: 0 (start), 1, 2, ..., n (accepting), n+1 (dead)
     num_states = n + 2
     # Default transitions: move to next state or dead state
-    default_states = jnp.array([i + 1 for i in range(n)] + [n + 1, n + 1])
+    default_states = np.array([i + 1 for i in range(n)] + [n + 1, n + 1], dtype=np.int32)
     # No exceptions needed (same behavior for all symbols)
-    exception_symbols = jnp.full((num_states, 0), -1)
-    exception_states = jnp.full((num_states, 0), -1)
+    exception_symbols = np.full((num_states, 0), -1, dtype=np.int32)
+    exception_states = np.full((num_states, 0), -1, dtype=np.int32)
     # Only state n is accepting
-    is_accepting = jnp.array([False] * n + [True, False])
+    is_accepting = np.array([False] * n + [True, False])
     start_state = 0
 
     return SparseDFA(
@@ -57,7 +57,7 @@ def k_longer_automaton(k: int, r: int, base_alphabet: Set[int], padding_symbol: 
     symbol_encodings = [encode_symbol(t, base_alphabet) for t in symbol_tuples]
     
     # Initialize DFA components
-    default_states = jnp.full(num_states, state_mapping[-1])  # Default to dead state
+    default_states = np.full(num_states, state_mapping[-1], dtype=np.int32)  # Default to dead state
     exception_list = [[] for _ in range(num_states)]
     
     # Build transitions
@@ -85,17 +85,17 @@ def k_longer_automaton(k: int, r: int, base_alphabet: Set[int], padding_symbol: 
     max_exceptions = max(len(ex_list) for ex_list in exception_list) if exception_list else 0
     
     # Build exception arrays
-    exception_symbols = jnp.full((num_states, max_exceptions), -1)
-    exception_states = jnp.full((num_states, max_exceptions), -1)
-    
+    exception_symbols = np.full((num_states, max_exceptions), -1, dtype=np.int32)
+    exception_states = np.full((num_states, max_exceptions), -1, dtype=np.int32)
+
     for i, ex_list in enumerate(exception_list):
         if ex_list:
             syms, states = zip(*ex_list)
-            exception_symbols = exception_symbols.at[i, :len(syms)].set(jnp.array(syms))
-            exception_states = exception_states.at[i, :len(states)].set(jnp.array(states))
+            exception_symbols[i, :len(syms)] = syms
+            exception_states[i, :len(states)] = states
     
     # Final states: state k (meaning we've counted k extra symbols)
-    is_accepting = jnp.array([i == state_mapping[k] for i in range(num_states)])
+    is_accepting = np.array([i == state_mapping[k] for i in range(num_states)])
     
     return SparseDFA(
         num_states=num_states,
@@ -114,10 +114,10 @@ def zero(symbol_arity: int = 1, base_alphabet: Optional[Set[int]] = None) -> Spa
     base_alphabet = base_alphabet or {0}
     return SparseDFA(
         num_states=1,
-        default_states=jnp.array([0]),
-        exception_symbols=jnp.full((1, 0), -1),
-        exception_states=jnp.full((1, 0), -1),
-        is_accepting=jnp.array([False]),
+        default_states=np.array([0], dtype=np.int32),
+        exception_symbols=np.full((1, 0), -1, dtype=np.int32),
+        exception_states=np.full((1, 0), -1, dtype=np.int32),
+        is_accepting=np.array([False]),
         start_state=0,
         symbol_arity=symbol_arity,
         base_alphabet=base_alphabet
@@ -128,10 +128,10 @@ def one(symbol_arity: int = 1, base_alphabet: Optional[Set[int]] = None) -> Spar
     base_alphabet = base_alphabet or {0}
     return SparseDFA(
         num_states=1,
-        default_states=jnp.array([0]),
-        exception_symbols=jnp.full((1, 0), -1),
-        exception_states=jnp.full((1, 0), -1),
-        is_accepting=jnp.array([True]),
+        default_states=np.array([0], dtype=np.int32),
+        exception_symbols=np.full((1, 0), -1, dtype=np.int32),
+        exception_states=np.full((1, 0), -1, dtype=np.int32),
+        is_accepting=np.array([True]),
         start_state=0,
         symbol_arity=symbol_arity,
         base_alphabet=base_alphabet

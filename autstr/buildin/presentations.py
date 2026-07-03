@@ -1,7 +1,7 @@
 from pathlib import Path
 import itertools as it
 from typing import Dict, List, Set, Tuple
-import jax.numpy as jnp 
+import numpy as np
 
 from autstr.sparse_automata import SparseDFA
 from autstr.presentations import AutomaticPresentation
@@ -37,7 +37,7 @@ def create_sparse_dfa(states: List[str], input_symbols: Set[Tuple[str]],
     default_states = []
     exception_symbols = []
     exception_states = []
-    is_accepting = jnp.array([state in final_states for state in states], dtype=bool)
+    is_accepting = np.array([state in final_states for state in states], dtype=bool)
     
     # Build symbol mapping
     symbol_map = {}
@@ -66,17 +66,17 @@ def create_sparse_dfa(states: List[str], input_symbols: Set[Tuple[str]],
     
     # Pad exceptions
     max_exceptions = max(len(e) for e in exception_symbols) if exception_symbols else 0
-    padded_ex_syms = jnp.full((num_states, max_exceptions), -1, dtype=jnp.int32)
-    padded_ex_states = jnp.full((num_states, max_exceptions), -1, dtype=jnp.int32)
-    
+    padded_ex_syms = np.full((num_states, max_exceptions), -1, dtype=np.int32)
+    padded_ex_states = np.full((num_states, max_exceptions), -1, dtype=np.int32)
+
     for i in range(num_states):
         if exception_symbols[i]:
-            padded_ex_syms = padded_ex_syms.at[i, :len(exception_symbols[i])].set(jnp.array(exception_symbols[i], dtype=jnp.int32))
-            padded_ex_states = padded_ex_states.at[i, :len(exception_states[i])].set(jnp.array(exception_states[i], dtype=jnp.int32))
-    
+            padded_ex_syms[i, :len(exception_symbols[i])] = exception_symbols[i]
+            padded_ex_states[i, :len(exception_states[i])] = exception_states[i]
+
     return SparseDFA(
         num_states=num_states,
-        default_states=jnp.array(default_states, dtype=jnp.int32),
+        default_states=np.array(default_states, dtype=np.int32),
         exception_symbols=padded_ex_syms,
         exception_states=padded_ex_states,
         is_accepting=is_accepting,
