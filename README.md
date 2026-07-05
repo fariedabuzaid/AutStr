@@ -1,418 +1,367 @@
 # AutStr
-Working with infinite data structures in Python.
 
-## Introduction
-What if your algorithms could process infinite structures — like complete infinite graphs or the entire set of natural numbers — with the same ease as manipulating a data frame? AutStr provides an intuitive interface for defining and manipulating exact representations of infinite relational structures. With AutStr, infinite structures become first-class citizens in Python.
+[![PyPI](https://img.shields.io/pypi/v/autstr?color=blue)](https://pypi.org/project/autstr/)
+[![Python](https://img.shields.io/badge/python-3.10--3.14-blue?logo=python&logoColor=white)](https://pypi.org/project/autstr/)
+[![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
+[![NumPy](https://img.shields.io/badge/powered%20by-NumPy-013243?logo=numpy&logoColor=white)](https://numpy.org)
+[![JAX](https://img.shields.io/badge/optional-JAX-9c27b0)](https://github.com/jax-ml/jax)
+[![NetworkX](https://img.shields.io/badge/graphs-NetworkX-2c5bb4)](https://networkx.org)
+[![NLTK](https://img.shields.io/badge/parsing-NLTK-154f5b)](https://www.nltk.org)
 
-Targeted at researchers in algorithmic model theory and curious practitioners alike, AutStr offers:
-- **Symbolic representation** of infinite sets and relations
-- **Automata-based computation** for efficient manipulation
-- **First-order logic interface** for formal queries
-- **Uniformly automatic classes** — one automaton deciding a property for a whole family of structures
-- **Visualization tools** for insight into infinite structures
+**Compute with infinite structures in Python — one formalism, many roles.**
 
-## What's new in 2.0
+AutStr represents infinite mathematical structures — the integers, the rationals
+ℤ[1/p], whole classes of finite graphs and groups — as *finite automata*, and
+lets you query them with first-order and monadic second-order logic. Because the
+representation is exact and the logic is decidable, a single small framework acts
+as several tools at once:
 
-Version 2.0 is a near-complete overhaul of the computational core plus a new layer of
-mathematics on top:
+- 🧮 **a computer algebra system** for infinite domains — manipulate infinite
+  sets and relations (ℤ, ℤ[1/p], …) with exact algebra, not floating point;
+- ⊢ **a decision procedure / theorem prover** — decide first-order and MSO
+  statements over infinite structures (Presburger and Büchi arithmetic, MSO over
+  graphs), returning a proof-carrying yes/no;
+- 🔬 **a (finite) algebra & model-theory system** — decide a property across an
+  *entire family* of finite structures (all finite abelian groups, all graphs of
+  bounded tree-depth) with one compiled automaton;
+- ⚙️ **an algorithm synthesizer** — turn a logical *specification* into a
+  **provably linear-time algorithm**. Problems that are NP-hard on general inputs
+  become linear-time decisions on structurally restricted ones, running at tens
+  of millions of elements per second.
 
-- **10²–10³× faster.** Every core algorithm (products, subset constructions,
-  minimization, padding) was profiled and rewritten as batched, sparsity-aware NumPy:
-  the reference benchmark query dropped from 85 s to 0.03 s, and the v1 test suite from
-  200 s to under 2 s. Memory usage is linear — batched binary-search transition lookups
-  and hashed partition refinement replaced all dense intermediate tensors.
-- **NumPy-canonical, JAX optional.** The core depends only on NumPy and installs
-  anywhere. JAX moved to the optional extra `autstr[jax]` and accelerates exactly one
-  thing: `SparseDFA.accepts_batch`, bulk word processing on a fixed automaton
-  (jit + scan, ~5× on CPU for 100k+ words, GPU-ready).
-- **Uniformly automatic classes** (`autstr.uniform`): present a whole *class* of
-  structures with one automaton tuple reading an advice string synchronously with the
-  element encodings. Evaluate a first-order query once — model checking any member is
-  then just running its advice word through a DFA. Includes relativized quantifiers,
-  member-structure instantiation (`get_structure`), and a first-order bootstrap
-  mechanism (`define`) for building complex relations from small primitives.
-- **Graph classes** (`autstr.graphs`): bounded tree-depth and bounded pathwidth graphs
-  as uniformly automatic classes with set-valued elements — full **monadic second-order
-  logic** over the graphs. Conversion from/to networkx (exact decompositions for small
-  graphs), graphviz rendering. A 6-state automaton deciding bipartiteness for *every*
-  graph of tree-depth ≤ 3 compiles in seconds.
-- **Algebraic classes** (`autstr.algebra`): finite Boolean algebras, finite abelian
-  groups, and automatic presentations of the localizations **Z[1/p]** — with the
-  first-order divisibility sentences that distinguish them.
-- **Non-abelian group classes** (`autstr.groups`): the groups with a cyclic subgroup of
-  index ≤ 2 (dihedral, dicyclic/quaternion, semidihedral, modular, …) under one advice
-  format, and extraspecial p-groups — nilpotency class 2 with growing rank.
-- **Notebooks**: `treedepth_graphs`, `algebra_showcase`, and `groups_showcase` walk
-  through all of the above end to end.
+All four are the same underlying object — an *automatic presentation* — viewed
+from different angles.
 
-### Installation
+---
+
+## Quick start
 
 ```bash
-pip install autstr           # NumPy-only core
-pip install autstr[jax]      # + JAX-accelerated batch word processing
-pip install autstr[graphs]   # + networkx conversion for the graph classes
+pip install autstr
 ```
 
-#### Verify Installation
-```bash
-python -c "from autstr import __version__; print(f'AutStr v{__version__} installed')"
-# Should output: AutStr v2.0.0 installed
-```
+The friendliest entry point is the arithmetic package, which presents the
+integers ℤ with addition, order, and base-2 weak divisibility.
 
-## Getting started
-The most convenient way to get started is through the arithmetic package, which supports integers.
-
-### Defining a relation
 ```python
 from autstr.arithmetic import VariableETerm as Var
+
+x, y = Var('x'), Var('y')
+
+# A relation is defined by comparing linear terms. This is the *infinite* set
+# of all integer pairs (x, y) with x + y + 3 < 2x:
+R = (x + y + 3).lt(2 * x)
+
+R.isempty()      # False   — is the relation empty?
+R.isfinite()     # False   — does it have finitely many solutions?
+(0, 4) in R      # False   — membership test
+
+for solution, _ in zip(R, range(5)):   # enumerate solutions, smallest-first
+    print(solution)                     # (1, -3), (2, -2), (2, -3), ...
 ```
-The most basic building blocks are variables:
+
+Every relation is a first-class, exactly-represented infinite object you can
+combine with **relational algebra**:
+
 ```python
-x = Var('x')
-y = Var('y')
+z = Var('z')
+E = (x + y).eq(z)                 # the ternary relation  x + y = z
+band = E & z.gt(0) & z.lt(3)      # intersect with  0 < z < 3
+proj = band.drop(['z'])           # project away z  (an existential quantifier)
+complement = ~proj                # negation
+inf = E.exinf('x')                # { (y,z) | infinitely many x with x+y=z }
 ```
-Variables can be added to integer constants or other variables. A variable can be multiplied by a constant but not by another variable (linear arithmetic):
+
+and a base-2 **weak divisibility** predicate that makes definitions like the
+powers of two a one-liner:
+
 ```python
-t0 = x + y + 3
-t1 = 2 * x
-```
-To define a relation, compare terms using built-in operations. AutStr supports $<$ and $=$ comparisons:
-```python
-R = t0.lt(t1)  # < (less than) Defines binary relation R: (x, y) ∈ R ⇔ x + y + 3 < 2x
-```
-You can work with this representation of integer solutions similarly to an explicit set:
-* Test for emptiness:
-```python
-R.is_empty()
-```
-* Test for finiteness:
-```python
-R.is_finite()
-```
-* Test tuple membership:
-```python
-(0, 4) in R
-```
-* Enumerate all solutions (AutStr guarantees each solution is enumerated exactly once):
-```python
-for solution, _ in zip(R, range(10)):  # First 10 pairs
-    print(solution)
+powers_of_two = x | x       # { 2^n : n >= 0 }
+(1024,) in powers_of_two    # True
+(3,) in powers_of_two       # False
 ```
 
-### Weak divisibility
-In addition to ordinal comparisons, AutStr supports the weak divisibility predicate (base 2):
-- $x|y \Leftrightarrow \exists n > 0: y = 2^n \land y \text{ divides } x$
+---
 
-This powerful predicate enables definitions like the powers of 2:
-```python
-Pt = x | x  # Set of powers of 2
+## ⚙️ Highlight: synthesizing linear-time algorithms
 
-assert 2**10 in Pt
-assert 3 not in Pt
-```
+Write *what* you want as a logical formula; AutStr compiles it — once — into a
+finite automaton that decides it. On structurally restricted inputs (bounded
+tree-depth, bounded pathwidth, …) that automaton is a **linear-time algorithm**,
+even for properties that are NP-hard in general.
 
-### Relational algebra
-Combine relations using relational algebra operators:
-* **Union**: $(x, y) \in E_0 \Leftrightarrow \text{Pt}(x) \lor R(x, y)$
-```python
-E0 = Pt | R 
-```
-* **Intersection**: $(x, y) \in E_1 \Leftrightarrow \text{Pt}(x) \land R(x, y)$
-```python
-E1 = Pt & R
-```
-* **Complement**: $(x, y) \in E_2 \Leftrightarrow \neg R(x, y)$
-```python
-E2 = ~R
-```
-* **Projection (Existential Quantification)**: $y \in E_3 \Leftrightarrow \exists x . R(x, y)$
-```python
-E3 = R.drop(['x'])  # Or R.ex('x')
-```
-* **Infinite Quantification**: $y \in E_4 \Leftrightarrow \exists^{\infty} x . E_0(x, y)$
-```python
-E4 = E0.exinf('x') 
-```
+The [`autstr.graphs`](autstr/graphs.py) package presents *all graphs of tree-depth
+≤ d* as one **uniformly automatic class** (see below). A graph is encoded as an
+*advice word*; deciding an MSO property means running that word through the query
+automaton — a single linear pass.
 
-### Automatic Structures
-AutStr enables finite automata to represent infinite mathematical structures through **automatic presentations**. This powerful technique encodes:
-- The domain as a regular language of strings (`automata['U']`)
-- Relations as synchronous multi-tape automata recognizing valid tuples
-- Enables efficient model checking for first-order queries
-
-#### Key Features
-```python
-from autstr.presentations import AutomaticPresentation
-
-# Initialize with automata for domain and relations
-ap = AutomaticPresentation(automata={
-    'U': universe_dfa,       # Domain automaton
-    'R1': relation_dfa1,     # Relation automaton (arity k)
-    'R2': relation_dfa2
-})
-```
-
-1. **Automated Consistency Enforcement**
-   - Automatically pads and minimizes automata
-   - Ensures relations stay within domain bounds
-   - Handles variable-length string encodings
-
-2. **First-order Query Evaluation**
-   ```python
-   # Evaluate formula and get solution automaton
-   solution_automaton = ap.evaluate("∃x.∀y.R1(x,y) ∧ R2(y)")
-   
-   # Check truth of closed formulas
-   is_true = ap.check("∀x.∃y.R1(x,y)")
-   ```
-
-3. **Quantifier Support**
-   - Existential (`∃`): `projection()`
-   - Universal (`∀`): `complement(projection(complement()))`
-   - Infinite quantification via automata operations
-
-4. **Dynamic Relation Updates**
-   ```python
-   # Temporarily modify relations during evaluation
-   result = ap.evaluate("R1(x,y)", updates={'R1': new_automaton})
-   
-   # Permanently update presentation
-   ap.update(R1=new_automaton, R2="automaton_spec")
-   ```
-
-5. **Formal Logic Integration**
-   - Seamless parsing of first-order formulas
-   - Handles free variable expansion
-   - Supports negation, conjunction, disjunction
-
-#### Workflow Example
-```python
-# 1. Define domain automaton (e.g., base-2 integers)
-universe = DFA(states=..., transitions=...)  
-
-# 2. Create relation automata (e.g., addition)
-plus_automaton = build_automaton_for("x+y=z")
-
-# 3. Construct presentation
-pres = AutomaticPresentation(automata={'U': universe, 'Plus': plus_automaton})
-
-# 4. Query: "∃z. Plus(5,x,z) ∧ (z > 10)"
-query = "∃z. Plus('5',x,z) ∧ ∃k. Plus(z,'10',k)"
-solutions = pres.evaluate(query)
-
-# 5. Enumerate solutions (x=6,7,8,...)
-for sol in solutions:
-    print(decode(sol))  # Output: 6, 7, 8, ...
-```
-### Uniformly Automatic Classes
-New in 2.0: a single tuple of automata can present an entire *class* of structures.
-Every automaton carries one extra tape holding an **advice string** that is read
-synchronously with the element encodings; fixing an advice instantiates one member
-structure. The payoff: a first-order (or, over set-valued elements, monadic
-second-order) query is compiled **once per class** — deciding it for a member is then
-just running that member's advice word through a DFA, in microseconds. The theory
-behind this layer is developed in references [2] and [3] below; the built-in classes
-implement the meta-theorems of [2].
-
-#### Graphs of bounded tree-depth, with full MSO
 ```python
 import networkx as nx
 from autstr.graphs import TreeDepthClass, TreeDepthGraph
 
-cls = TreeDepthClass(3)  # all graphs of tree-depth <= 3
+cls = TreeDepthClass(3)
 
-bipartite = ('exists c.(all x.(all y.((not E(x,y)) or '
-             '((Subset(x,c) and (not Subset(y,c))) or '
-             '((not Subset(x,c)) and Subset(y,c))))))')
-dfa, _ = cls.evaluate(bipartite)   # compiled once: a 6-state automaton
+# Bipartiteness, as a monadic second-order formula. Compiled ONCE for the whole
+# class into a 6-state automaton:
+bipartite, _ = cls.evaluate(
+    'exists c.(all x.(all y.((not E(x,y)) or '
+    '((Subset(x,c) and (not Subset(y,c))) or '
+    '((not Subset(x,c)) and Subset(y,c))))))')
 
 triangle = TreeDepthGraph.from_networkx(nx.cycle_graph(3))
-dfa.accepts([(s,) for s in cls.advice(triangle)])   # False — in microseconds
-```
-`PathWidthClass(w)` does the same for bounded pathwidth. Both classes represent sets
-of vertices (as in MSO0), support `check(phi, graph, x={...})` for concrete set
-assignments, convert from/to networkx, and render via graphviz.
-
-#### Algebra: from powerset algebras to Z[1/p]
-```python
-from autstr.algebra import FiniteAbelianGroups, z1p_localization
-
-ab = FiniteAbelianGroups()          # advice = the cyclic decomposition
-ab.check('A(x,y,z)', [2, 3], x=(1, 1), y=(1, 2), z=(0, 0))   # True in Z_2 + Z_3
-
-z2 = z1p_localization(2)            # automatic presentation of (Z[1/2], +)
-z2.check('A(x,y,z)', x=z2.from_fraction(1, 2),
-         y=z2.from_fraction(3, 4), z=z2.from_fraction(5, 4))  # True
-z2.check('all x.(exists y.(A(y,y,x)))')   # True: everything is 2-divisible
+bipartite.accepts([(s,) for s in cls.advice(triangle)])   # False — in microseconds
 ```
 
-#### Non-abelian groups
-```python
-from autstr.groups import IndexTwoCyclicGroups, ExtraspecialGroups
+**This scales.** Deciding the property on a graph is linear in its size, and the
+work batches beautifully (optionally on a GPU via the JAX backend). Measured on a
+laptop CPU (full details and reproduction in [`benchmarks/`](benchmarks/)):
 
-G = IndexTwoCyclicGroups()   # dihedral, quaternion, semidihedral, modular, ...
-q8 = G.dicyclic(4)           # the quaternion group Q_8
-G.check('M(x,y,z)', q8, x=(0, 1), y=(1, 0), z=(1, 1))   # i * j = k
+![Linear-time MSO query evaluation](benchmarks/runtime_curves.svg)
 
-H = ExtraspecialGroups(3)    # nilpotency class 2, order 3^(1+2n)
-H.check('Cen(x)', 2, x=(1, (0, 0), (0, 0)))              # central elements
-```
-The multiplication of the index-2 class is *defined first-order* from small primitive
-automata via `UniformlyAutomaticClass.define` — the uniform analog of the Büchi
-arithmetic bootstrap. See the `groups_showcase` notebook for the theory of where
-uniform automaticity ends (spoiler: unbounded bilinearity).
+- **Perfectly linear** decision time — a through-the-origin fit of R² = 1.0000
+  across three orders of magnitude; the JAX backend decides a million-vertex graph
+  in ~20 ms per query.
+- **Batched evaluation** classifies tens of thousands of graphs at once at
+  **~90 million vertices / second** — about **190×** a naive per-graph loop.
+- **3-colourability** — NP-complete in general — becomes a linear-time decision
+  here (its automaton is a heavier one-time compile; see the benchmark notes).
 
-### Algorithmic Design with Infinite Sets: The Sieve of Eratosthenes
-AutStr enables novel algorithm design using infinite sets as first-class citizens. This implementation of the Sieve of Eratosthenes maintains the infinite candidate prime set symbolically:
+The benchmark suite covers four different classes — tree-depth and pathwidth
+graphs, finite abelian groups, and extraspecial p-groups — each showing the same
+linear scaling. This is the practical payoff of the theory: **a declarative
+specification becomes an optimal streaming algorithm.**
+
+### Programming with infinite sets
+
+The flip side of algorithm *synthesis* is algorithm *design*: because relations
+are first-class infinite objects, you can write algorithms that manipulate them
+directly. Here is the Sieve of Eratosthenes running over the **actual infinite
+set** of integers — no bound, no array:
 
 ```python
 def infinite_sieve(steps):
-    """Sieve of Eratosthenes over infinite integers"""
-    candidates = (x.gt(1))  # Initial infinite set: {2,3,4,...}
+    candidates = x.gt(1)                          # the infinite set {2, 3, 4, ...}
     primes = []
-    
     for _ in range(steps):
-        # Find smallest candidate (symbolic operation)
-        for p in candidates: # Elements are listed in ascending order (absolute values) 
-            primes.append(p[0])
-            break
-        
-        # Remove multiples: candidates = candidates \ {k·p | k>1}
-        p = primes[-1]
-        y = Var("y")
-        multiples = (x.eq(p * y)).drop("y")
-        candidates = candidates & ~multiples 
-        
+        for (p,) in candidates:                   # candidates enumerate smallest-first
+            primes.append(p); break               # ... so this is the next prime
+        multiples = (x.eq(primes[-1] * Var('y'))).drop(['y'])
+        candidates = candidates & ~multiples      # remove its multiples, symbolically
     return primes, candidates
 
-# Execute first 3 sieving steps
-primes, remainig = infinite_sieve(steps=3)
-print(f"Primes found: {primes}")  # [2,3,5,7,11]
-print(f"Remaining infinite set:") 
-remaining.evaluate().show_diagram()
+primes, remaining = infinite_sieve(4)
+# primes    == [2, 3, 5, 7]
+# remaining  is the infinite set enumerating 11, 13, 17, 19, 23, 29, ...
 ```
 
-#### Key Algorithmic Features:
-1. **Ordered Iteration**
-   ```python
-   for p in candidates:  # enumerates candidates in ascending order
-   ```
-2. **Infinite Set Operations**
-   ```python
-   multiples = (x.eq(p * y)).drop("y")
-   candidates = candidates & ~multiples   
-   ```
-3. **Lazy Evaluation**
-   - Relations remain symbolic until materialization
-   - No explicit storage of infinite elements
+Each `candidates & ~multiples` is an exact operation on infinite sets; nothing is
+materialized until you iterate. It is a conceptual tool for reasoning about and
+verifying infinite-state computations, not a fast primality test — but it shows
+how naturally infinite structures become ordinary Python values.
 
-#### Practical Guidelines:
-1. **Prefer Deep/Narrow Formulas**
-   ```python
-   # Width=3 : 
-   wide = "∃x.∃y.∃z.E(x,y) ∧ E(y, z)"
-   
-   # width=2 (easier):
-   narrow = "∃x.∃y.E(x,y) ∧ (∃z.E(y,z))"
-   ```
-   - Depth can cause non-elementary(!) statespace explosion but scales often much better due to incremental minimization
-   - Width causes exponential alphabet growth: $|\Sigma|^k$ but SparseDFAs can avoid explicit enumeration of entire alphabet in many cases.
+---
 
-2. **Complexity Boundaries**
-   | Parameter        | Best Case       | Worst Case          |
-   |------------------|-----------------|---------------------|
-   | **Quantifier Depth** | Constant state space   | Non-elementary state space |
-   | **Free Variables**  | constant number of exceptions  | Exponential alphabet size |
+## ⊢ Decision procedure & theorem prover
 
-#### Theoretical Insight
-While this infinite sieve beautifully demonstrates symbolic algorithm design, state complexity grows rapidly for sieved primes
+An [`AutomaticPresentation`](autstr/presentations.py) bundles automata for a
+domain and its relations, and decides first-order statements about the presented
+structure:
 
-> **Practical Recommendation**: Use infinite representations for conceptual modeling and verification, but switch to finite approximations with bounds for computational work. AutStr excels at proving properties about infinite structures, not processing them exhaustively.
+```python
+from autstr.buildin.presentations import BuechiArithmeticZ
 
-This paradigm shift enables:
-- Formal verification of infinite-state algorithms
-- Symbolic exploration of hypothetical structures
-- Correctness proofs for infinite data transformations
+Z = BuechiArithmeticZ()          # (ℤ, +, <, |) as automata
 
-#### Theoretical Foundation
-Automatic presentations leverage:
-- **Regularity Preservation**: First-order operations maintain automata recognizability
-- **Decidability**: First-order theories remain decidable for automatic structures
+Z.check('all x.(exists y.(A(x,y,x)))')          # ∀x ∃y: x+y=x   — True
+Z.check('exists x.(all y.(Lt(x,y)))')           # a least integer? — False
+```
 
-This implementation provides a complete toolkit for working with automatic structures over countable domains like ℤ, ℚ, and tree-like structures.
+Because the first-order theory of an automatic structure is decidable, `check`
+always terminates with a definite answer — a theorem prover for the fragment of
+mathematics these structures capture. `evaluate` goes further and returns the
+automaton of *all* satisfying assignments, which you can enumerate or reuse.
 
-### Final Note
-AutStr began as a summer passion project in 2022—a practical exploration of the automatic structures I'd studied theoretically during my PhD. This library represents the intersection of academic curiosity and hands-on implementation, born from a desire to make abstract model theory concepts tangible.
+---
 
-Released in July 2025 following a major update, the library gained significant new features beyond its original vision. That update was developed through a vibe coding session using DeepSeek, with extensive human testing and supervision throughout the process, and introduced the `sparse_dfa` backend, serialization, MSO0, and modernized packaging.
+## 🧮 Computer algebra over infinite domains
 
-**Version 2.0 (July 2026) was designed and implemented in an intensive two-day
-pair-programming session with Claude — specifically Anthropic's Fable 5 model —
-working inside Claude Code.** Fable 5 profiled and rewrote the entire automata core
-(the 10²–10³× speedups above), migrated the library from JAX to a NumPy-canonical
-representation, and then built the whole uniformly automatic layer: the generic
-advice-class machinery, bounded tree-depth and pathwidth graphs with MSO, finite
-Boolean algebras, finite abelian groups, the Z[1/p] presentations, and the non-abelian
-group classes — each verified against exhaustive ground-truth oracles, brute-force
-semantics checks, or exact arithmetic models along the way. The mathematical direction,
-the theory of uniform automaticity these packages implement, and the final review
-remained human; the code is Fable 5's. It was a genuinely remarkable collaboration:
-ideas from my dissertation that had waited a decade for an implementation became
-running, tested code within hours of being sketched in conversation.
+Structures need not be finitely generated. The localizations **ℤ[1/p]** — the
+rationals whose denominator is a power of p — are infinite, non-finitely-generated
+groups, yet each has an exact automatic presentation:
 
-#### Performance and Maintenance
-Version 2.0 removed the known performance bottlenecks:
+```python
+from autstr.algebra import z1p_localization
 
-- All core algorithms are batched, sparsity-aware NumPy (binary-search transition
-  lookups, hashed partition refinement, frontier-batched constructions) with linear
-  memory usage
-- JAX is now an optional extra used solely for bulk word processing on fixed automata
-- Efficient serialization allows storing precompiled results
+z2 = z1p_localization(2)                       # (ℤ[1/2], +)
 
-Remaining optimization opportunities:
-- Query optimization: advanced planning for first-order queries
-- Caching of evaluated query automata across `check` calls
+x = z2.from_fraction(1, 2)
+y = z2.from_fraction(3, 4)
+z2.check('A(x,y,z)', x=x, y=y, z=z2.add(x, y))                    # 1/2 + 3/4 = 5/4 — True
+z2.check('all x.(exists y.(A(y,y,x)))')                           # 2-divisible?    — True
+z2.check('all x.(exists y.(exists w.(A(y,y,w) and A(w,y,x))))')   # 3-divisible?    — False
+```
 
-As this is a passion project developed outside my primary research, active maintenance will be limited. That said:
+The first-order divisibility theory even *distinguishes* the localizations: every
+element of ℤ[1/2] is 2-divisible but not 3-divisible, and vice versa for ℤ[1/3].
 
-- Bug reports are welcome and will be prioritized
-- Performance contributions are especially appreciated
-- Research collaborations involving AutStr are encouraged
+---
 
+## 🔬 Uniformly automatic classes: one automaton for a whole family
 
-## References on Automatic Structures
-1. **Abu Zaid, F.**  
-   *Algorithmic Solutions via Model Theoretic Interpretations.*  
-   Dissertation, RWTH Aachen University, 2016.  
-   DOI: [10.18154/RWTH-2017-07663](https://doi.org/10.18154/RWTH-2017-07663)  
+The centrepiece of version 2. A **uniformly automatic class** presents not one
+structure but an entire *family*, by giving every automaton one extra tape that
+reads an **advice string** synchronously with the elements. Fixing the advice
+instantiates one member; a query is compiled once for the class and then decides
+any member by running its advice word through the resulting automaton.
 
-2. **Abu Zaid, F.**  
-   *Uniformly Automatic Classes of Finite Structures.*  
-   38th IARCS Annual Conference on Foundations of Software Technology and Theoretical Computer Science (FSTTCS 2018).  
-   Leibniz International Proceedings in Informatics (LIPIcs), Volume 122, Pages 10:1–10:21.  
-   DOI: [10.4230/LIPIcs.FSTTCS.2018.10](https://doi.org/10.4230/LIPIcs.FSTTCS.2018.10)  
-   *The algorithmic meta-theorems for finite Boolean algebras, finite groups, and graphs of bounded tree-depth implemented by the `autstr.uniform`, `autstr.graphs`, `autstr.algebra`, and `autstr.groups` packages.*
+`autstr.graphs`, `autstr.algebra`, and `autstr.groups` ship ready-made classes:
 
-3. **Abu Zaid, F., Grädel, E., & Reinhardt, F.**  
-   *Advice Automatic Structures and Uniformly Automatic Classes.*  
-   26th EACSL Annual Conference on Computer Science Logic (CSL 2017).  
-   Leibniz International Proceedings in Informatics (LIPIcs), Volume 82, Pages 35:1–35:20.  
-   DOI: [10.4230/LIPIcs.CSL.2017.35](https://doi.org/10.4230/LIPIcs.CSL.2017.35)  
-   *Introduces automatic presentations with advice — the foundation of the uniformly automatic classes in this library; the advice-automatic presentation of (Q, +) is the blueprint for `z1p_localization`.*
+```python
+# Finite abelian groups — advice is the cyclic decomposition
+from autstr.algebra import FiniteAbelianGroups
+ab = FiniteAbelianGroups()
+ab.check('A(x,y,z)', [2, 3], x=(1, 1), y=(1, 2), z=(0, 0))   # (1,1)+(1,2)=(0,0) in Z2⊕Z3
 
-4. **Blumensath, A., & Grädel, E.**  
-   *Automatic Structures.*  
-   Proceedings of the 15th Annual IEEE Symposium on Logic in Computer Science (LICS 2000).  
-   Pages: 51–62.  
-   URL: [LICS 2000 Proceedings](https://lics.siglog.org/2000/Grdel-AutomaticStructures.html)  
+# Non-abelian groups — dihedral, quaternion, semidihedral, modular, ...
+from autstr.groups import IndexTwoCyclicGroups
+G = IndexTwoCyclicGroups()
+G.check('M(x,y,z)', G.dicyclic(4), x=(0, 1), y=(1, 0), z=(1, 1))   # i·j = k in Q₈
 
-5. **Khoussainov, B., & Nerode, A.**  
-   *Automatic presentations of structures.*  
-   In D. Leivant (Ed.), Logic and Computational Complexity (LCC 1994). Lecture Notes in Computer Science, vol 960.  
-   Springer. DOI: [10.1007/3-540-60178-3_93](https://doi.org/10.1007/3-540-60178-3_93)  
+# Extraspecial p-groups — nilpotency class 2, order p^(1+2n)
+from autstr.groups import ExtraspecialGroups
+H = ExtraspecialGroups(3)
+H.check('Cen(x)', 2, x=(1, (0, 0), (0, 0)))                        # central element
+```
 
-6. **Khoussainov, B., Rubin, S., & Stephan, F.**  
-   *Automatic Structures: Richness and Limitations.*  
-   Logical Methods in Computer Science, Volume 3, Issue 2 (2007).  
-   arXiv: [cs/0703064](https://arxiv.org/abs/cs/0703064)  
-   DOI: [10.2168/LMCS-3(2:2)2007](https://doi.org/10.2168/LMCS-3%282%3A2%292007)  
+Built-in classes include:
+
+| package | classes | signature |
+|---------|---------|-----------|
+| `autstr.graphs`  | bounded **tree-depth**, bounded **pathwidth** | full MSO over vertex sets (`Sing`, `Subset`, `E`) |
+| `autstr.algebra` | finite **Boolean algebras**, finite **abelian groups**, **ℤ[1/p]** | `Meet`/`Join`/`Compl`/`Leq`/`Atom`; `+` |
+| `autstr.groups`  | **index-≤2 cyclic** groups (dihedral, quaternion, semidihedral, modular), **extraspecial** p-groups | multiplication `M` |
+
+The generic machinery in [`autstr.uniform`](autstr/uniform.py) turns *any*
+advice-indexed family of automata into a class with relativized query evaluation,
+sentence checking, member instantiation (`get_structure`), and a first-order
+`define` for bootstrapping complex relations from primitives. The three showcase
+notebooks in [`notebooks/`](notebooks/) walk through all of it.
+
+---
+
+## How it works
+
+An **automatic presentation** encodes a countable structure so that its domain is
+a regular language and each relation is recognized by a synchronous multi-tape
+automaton reading its arguments letter-by-letter in lockstep. The foundational
+fact is that this recognizability is *closed under first-order definability*:
+Boolean combinations correspond to product automata, and quantifiers to
+projection followed by determinization. Consequently the first-order theory of
+any automatic structure is **decidable**, and every definable relation is again
+automatic — which is exactly what makes the "algebra of infinite relations" above
+compute.
+
+**Advice and uniform classes.** Allowing the automata to read an additional
+fixed *advice* word widens the reach to structures like (ℚ, +) and, using a *set*
+of advices, to whole parameterized classes of finite structures. Deciding the
+first-order theory of a uniformly automatic class reduces to the monadic
+second-order theory of its advice language (Abu Zaid–Grädel–Reinhardt 2017;
+Abu Zaid 2018).
+
+**Why it is fast — and where it is hard.** Evaluating a *fixed* formula on a
+structure is one linear pass of its advice word through the query automaton, so on
+any class of bounded width every fixed MSO property is decided in linear time — a
+constructive, streaming form of Courcelle's theorem. The cost lives entirely in
+*compiling* the automaton, and it is governed by the formula's **width** (its
+number of simultaneously-free variables): the intermediate automata range over
+`|Σ|^width` symbol combinations. Bipartiteness and connectedness are width-4 and
+compile in seconds; 3-colourability — the minimal NP-hard MSO query — is width-5
+and needs a larger one-time compile. Once compiled, an automaton can be
+serialized and reused forever.
+
+The engine itself is a batched-NumPy implementation of *sparse* DFAs (every state
+stores a default transition plus a few exceptions), with binary-search transition
+lookups, hashed partition refinement, and frontier-batched constructions
+throughout. JAX is an optional accelerator used only for bulk word processing.
+
+---
+
+## Installation
+
+```bash
+pip install autstr              # NumPy-only core — installs anywhere
+pip install autstr[jax]         # + JAX-accelerated batch word processing
+pip install autstr[graphs]      # + networkx conversion for the graph classes
+pip install autstr[benchmarks]  # + matplotlib for the benchmark plots
+```
+
+```bash
+python -c "from autstr import __version__; print(f'AutStr v{__version__}')"
+```
+
+Requires Python 3.10–3.14. The core depends only on NumPy, nltk, and graphviz.
+
+---
+
+## Changelog & an experiment in AI-assisted algorithm engineering
+
+AutStr began in 2022 as a summer project — a hands-on realization of the automatic
+structures its author had studied during his PhD in algorithmic model theory.
+Since then, each major release has doubled as a **snapshot of what a frontier AI
+coding system can do on hard, verifiable algorithmic work**, with the
+mathematical direction and review kept firmly human.
+
+- **v1.0 (2022) — human.** The original library and arithmetic front-end.
+- **v1.x (July 2025) — DeepSeek.** A vibe-coding session (with extensive human
+  testing and supervision) that added the sparse-DFA backend, serialization, and
+  the MSO0 finite-powerset structure, and modernized packaging.
+- **v2.0 (July 2026) — Claude, Anthropic's Fable 5 model.** An intensive two-day
+  pair-programming session inside Claude Code that:
+  - profiled and rewrote the entire automata core as batched, sparsity-aware
+    NumPy — a **10²–10³× speedup** (the reference query dropped from 85 s to
+    0.03 s), with linear memory;
+  - migrated the library from a hard JAX dependency to a NumPy-canonical core with
+    JAX as an optional accelerator;
+  - built the whole uniformly-automatic layer — the generic advice machinery,
+    bounded tree-depth and pathwidth graphs with MSO, finite Boolean algebras,
+    finite abelian groups, the ℤ[1/p] presentations, and the non-abelian group
+    classes — each verified against exhaustive or exact ground-truth oracles;
+  - added the [benchmark suite](benchmarks/) and these docs.
+
+  The ideas realized in v2 include constructions the author had sketched a decade
+  earlier; several went from a whiteboard description to running, tested code
+  within hours. The code is the model's; the theory, the choices, and the
+  verification protocol were human.
+
+---
+
+## References
+
+1. **Abu Zaid, F.** *Algorithmic Solutions via Model Theoretic Interpretations.*
+   Dissertation, RWTH Aachen University, 2016.
+   DOI: [10.18154/RWTH-2017-07663](https://doi.org/10.18154/RWTH-2017-07663)
+
+2. **Abu Zaid, F.** *Uniformly Automatic Classes of Finite Structures.*
+   FSTTCS 2018, LIPIcs vol. 122, pp. 10:1–10:21.
+   DOI: [10.4230/LIPIcs.FSTTCS.2018.10](https://doi.org/10.4230/LIPIcs.FSTTCS.2018.10)
+   *The meta-theorems for finite Boolean algebras, finite groups, and graphs of
+   bounded tree-depth implemented by `autstr.uniform`, `autstr.graphs`,
+   `autstr.algebra`, and `autstr.groups`.*
+
+3. **Abu Zaid, F., Grädel, E., & Reinhardt, F.** *Advice Automatic Structures and
+   Uniformly Automatic Classes.* CSL 2017, LIPIcs vol. 82, pp. 35:1–35:20.
+   DOI: [10.4230/LIPIcs.CSL.2017.35](https://doi.org/10.4230/LIPIcs.CSL.2017.35)
+   *Introduces automatic presentations with advice — the foundation of the uniform
+   classes here; the ℤ[1/p] presentation follows its blueprint for (ℚ, +).*
+
+4. **Blumensath, A., & Grädel, E.** *Automatic Structures.* LICS 2000, pp. 51–62.
+   [Proceedings](https://lics.siglog.org/2000/Grdel-AutomaticStructures.html)
+
+5. **Khoussainov, B., & Nerode, A.** *Automatic presentations of structures.*
+   LCC 1994, LNCS vol. 960, Springer.
+   DOI: [10.1007/3-540-60178-3_93](https://doi.org/10.1007/3-540-60178-3_93)
+
+6. **Khoussainov, B., Rubin, S., & Stephan, F.** *Automatic Structures: Richness
+   and Limitations.* LMCS 3(2), 2007.
+   arXiv: [cs/0703064](https://arxiv.org/abs/cs/0703064) ·
+   DOI: [10.2168/LMCS-3(2:2)2007](https://doi.org/10.2168/LMCS-3%282%3A2%292007)
