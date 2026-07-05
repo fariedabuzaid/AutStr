@@ -15,7 +15,12 @@ keywords = ["automatic structures", "automata", "model theory", "first-order log
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
-    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering :: Mathematics",
 ]
 
@@ -35,6 +40,8 @@ Repository = "https://github.com/fariedabuzaid/AutStr"
 jax = ["jax>=0.4.13"]
 # networkx conversion for the graph packages (autstr.graphs)
 graphs = ["networkx>=3.0"]
+# plotting for the runtime-curve benchmark (benchmarks/runtime_curves.py)
+benchmarks = ["matplotlib>=3.5"]
 
 [dependency-groups]
 dev = [
