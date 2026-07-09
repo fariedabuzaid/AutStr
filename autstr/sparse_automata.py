@@ -302,9 +302,30 @@ class SparseDFA:
         return int(self.default_states[state])
 
     def compute(self, word: np.ndarray) -> int:
+        """Final state after reading the word (encoded symbols).
+
+        A word is a sequential dependency chain, so this cannot be vectorized;
+        instead the loop avoids per-element numpy dispatch entirely: exceptions
+        are flattened once into a sorted list of packed (state, symbol) keys
+        and each step is plain integer arithmetic plus one C bisect (~10x
+        faster than per-symbol numpy operations)."""
+        from bisect import bisect_left
+        num_symbols = len(self.base_alphabet_frozen) ** self.symbol_arity
+        rows, cols = np.nonzero(self.exception_symbols >= 0)
+        key_arr = rows.astype(np.int64) * num_symbols + \
+            self.exception_symbols[rows, cols]
+        order = np.argsort(key_arr, kind="stable")
+        keys = key_arr[order].tolist()
+        targets = self.exception_states[rows[order], cols[order]].tolist()
+        n_keys = len(keys)
+        defaults = self.default_states.tolist()
+
         state = self.start_state
         for symbol in np.asarray(word, dtype=np.int64).tolist():
-            state = self.transition(state, symbol)
+            key = state * num_symbols + symbol
+            pos = bisect_left(keys, key)
+            state = targets[pos] if pos < n_keys and keys[pos] == key \
+                else defaults[state]
         return state
 
     def accepts(self, word) -> bool:
