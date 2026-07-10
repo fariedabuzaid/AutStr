@@ -247,3 +247,96 @@ class TestDirectProduct:
     def test_rejects_an_unknown_kind(self):
         with pytest.raises(ValueError):
             direct_product(chain(['p']), chain(['r']), kind='weak')
+
+
+# ====================================================================
+# Union of two uniformly automatic classes
+# ====================================================================
+
+from autstr.closure import class_union, tagged_advice
+from autstr.uniform import UniformlyAutomaticClass, dfa_from_delta
+
+
+def prefix_chain_class(letter):
+    """The class of finite linear orders: advice `letter^n` presents the chain
+    of length n, whose elements are the nonempty prefixes of the advice."""
+    sigma = {'*', letter}
+
+    def universe(q, sym):
+        a, x = sym
+        if a != letter:
+            return 'dead'
+        if q == 'init':
+            return 'in' if x == letter else 'dead'
+        if q == 'in':
+            return 'in' if x == letter else 'done'
+        if q == 'done':
+            return 'done' if x == '*' else 'dead'
+        return 'dead'
+
+    def less(q, sym):
+        a, x, y = sym
+        if a != letter:
+            return 'dead'
+        if q == 'init':
+            return 'both' if (x, y) == (letter, letter) else 'dead'
+        if q == 'both':
+            if (x, y) == (letter, letter):
+                return 'both'
+            if (x, y) == ('*', letter):
+                return 'yonly'          # x ran out first: x is shorter
+            return 'dead'
+        if q == 'yonly':
+            if (x, y) == ('*', letter):
+                return 'yonly'
+            if (x, y) == ('*', '*'):
+                return 'done'
+            return 'dead'
+        if q == 'done':
+            return 'done' if (x, y) == ('*', '*') else 'dead'
+        return 'dead'
+
+    u = dfa_from_delta(sigma, ['init', 'in', 'done', 'dead'], 2, universe,
+                       'init', {'in', 'done'})
+    lt = dfa_from_delta(sigma, ['init', 'both', 'yonly', 'done', 'dead'], 3,
+                        less, 'init', {'yonly', 'done'})
+    return UniformlyAutomaticClass({'U': u, 'Lt': lt}, padding_symbol='*')
+
+
+SOME_EDGE = 'exists x.(exists y.(Lt(x,y)))'
+NO_MAXIMUM = 'all x.(exists y.(Lt(x,y)))'
+TOTAL = 'all x.(all y.(Lt(x,y) or Lt(y,x) or (not Lt(x,y))))'
+
+
+class TestClassUnion:
+    def test_the_factor_classes_are_recovered(self):
+        """The union must decide every sentence on a tagged advice exactly as
+        the factor decides it on the bare advice."""
+        left, right = prefix_chain_class('a'), prefix_chain_class('b')
+        both = class_union(left, right)
+        for phi in (SOME_EDGE, NO_MAXIMUM):
+            for n in (1, 2, 3):
+                assert both.check(phi, tagged_advice(['a'] * n, '<l>')) == \
+                    left.check(phi, ['a'] * n), (phi, n, 'left')
+                assert both.check(phi, tagged_advice(['b'] * n, '<r>')) == \
+                    right.check(phi, ['b'] * n), (phi, n, 'right')
+
+    def test_a_chain_of_length_one_has_no_edge(self):
+        both = class_union(prefix_chain_class('a'), prefix_chain_class('b'))
+        assert not both.check(SOME_EDGE, tagged_advice(['a'], '<l>'))
+        assert both.check(SOME_EDGE, tagged_advice(['a', 'a'], '<l>'))
+        assert not both.check(SOME_EDGE, tagged_advice(['b'], '<r>'))
+        assert both.check(SOME_EDGE, tagged_advice(['b', 'b'], '<r>'))
+
+    def test_a_wrongly_tagged_advice_presents_the_empty_structure(self):
+        """The advice languages are disjoint: the right class never reads a
+        left-tagged advice."""
+        both = class_union(prefix_chain_class('a'), prefix_chain_class('b'))
+        assert not both.check(SOME_EDGE, tagged_advice(['b', 'b'], '<l>'))
+
+    def test_rejects_mismatched_signatures(self):
+        left = prefix_chain_class('a')
+        right = prefix_chain_class('b')
+        right.class_automata['Other'] = right.class_automata['Lt']
+        with pytest.raises(ValueError):
+            class_union(left, right)

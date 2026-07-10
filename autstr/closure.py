@@ -17,6 +17,7 @@ from typing import Dict, Sequence
 import numpy as np
 
 from autstr.presentations import AutomaticPresentation
+from autstr.uniform import UniformlyAutomaticClass
 from autstr.sparse_automata import SparseDFA, num_bits, recode
 from autstr.utils.automata_tools import _symbol_assignment
 from autstr.utils.misc import encode_symbol
@@ -188,3 +189,67 @@ def direct_product(left: AutomaticPresentation, right: AutomaticPresentation,
     # contained in the product domain until it is restricted to it
     return AutomaticPresentation(automata, padding_symbol=padding,
                                  enforce_consistency=True)
+
+
+# ====================================================================
+# Uniformly automatic classes
+# ====================================================================
+
+def _class_signatures(left: UniformlyAutomaticClass,
+                      right: UniformlyAutomaticClass):
+    names = set(left.class_automata) | set(right.class_automata)
+    for name in sorted(names):
+        if name not in left.class_automata or name not in right.class_automata:
+            raise ValueError(f"only one class has the relation {name!r}")
+        if (left.class_automata[name].symbol_arity !=
+                right.class_automata[name].symbol_arity):
+            raise ValueError(f"relation {name!r} has different arities")
+    return {name: left.class_automata[name].symbol_arity for name in names}
+
+
+def class_union(left: UniformlyAutomaticClass, right: UniformlyAutomaticClass,
+                tags: Sequence = ('<l>', '<r>'), skip: str = '<#>'
+                ) -> UniformlyAutomaticClass:
+    """The union of two uniformly automatic *classes* over one signature.
+
+    A member of the result is a member of either class. What is tagged is the
+    **advice**: an advice of the left class becomes ``tags[0] . alpha`` and one
+    of the right class ``tags[1] . alpha``, so the two advice languages are
+    disjoint and each member is instantiated by exactly one of the factors.
+
+    Every tape of a convolution must be prefixed by one symbol, so the element
+    tapes get the placeholder letter `skip`: an element ``w`` becomes
+    ``skip . w``. Use `tagged_advice` and `tagged_element` to build them.
+    """
+    if left.padding_symbol != right.padding_symbol:
+        raise ValueError("the classes must share a padding symbol")
+    arities = _class_signatures(left, right)
+    if len(set(tags)) != 2:
+        raise ValueError("the two tags must differ")
+
+    shared = set(left.base_alphabet) | set(right.base_alphabet)
+    extra = set(tags) | {skip}
+    if shared & extra:
+        raise ValueError(f"{sorted(shared & extra)} already occur in an alphabet")
+    alphabet = shared | extra
+
+    automata: Dict[str, SparseDFA] = {}
+    for name, arity in arities.items():
+        sides = []
+        for uniform, tag in ((left, tags[0]), (right, tags[1])):
+            widened = recode(uniform.class_automata[name], alphabet)
+            sides.append(prefix(widened, (tag,) + (skip,) * (arity - 1)))
+        automata[name] = sides[0].union(sides[1]).minimize()
+
+    return UniformlyAutomaticClass(automata,
+                                   padding_symbol=left.padding_symbol)
+
+
+def tagged_advice(advice, tag='<l>'):
+    """The advice of a factor, as an advice of the union."""
+    return [tag] + list(advice)
+
+
+def tagged_element(element, skip='<#>'):
+    """An element of a factor, as an element of the union."""
+    return [skip] + list(element)
