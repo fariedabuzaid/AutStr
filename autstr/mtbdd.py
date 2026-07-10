@@ -268,6 +268,64 @@ class NodeStore:
 
         return build(0, 0, len(symbols))
 
+    def recode_letters(self, node: int, arity: int, old_m: int, old_bits: int,
+                       new_m: int, new_bits: int, digit_map: Sequence[int],
+                       fill: int) -> int:
+        """Re-express a diagram over a different base alphabet.
+
+        Letter d of the old alphabet becomes letter ``digit_map[d]`` of the new
+        one; letters of the new alphabet outside the image go to `fill`, and
+        binary codes that denote no letter go to NONE as always. `digit_map`
+        must be injective.
+
+        This is what lets two automata over different alphabets be combined:
+        disjoint union needs both re-expressed over the union plus its tags,
+        and the direct product needs each factor re-expressed over the pair
+        alphabet. The rewrite is per tape -- take the old block's `old_m`
+        cofactors and reassemble them at their new digits -- so it costs one
+        pass over the nodes rather than a rebuild from a decoded table.
+        """
+        if len(set(digit_map)) != len(digit_map):
+            raise ValueError("digit_map must be injective")
+        if any(not 0 <= d < new_m for d in digit_map):
+            raise ValueError("digit_map must land in the new alphabet")
+
+        suffix: Dict[int, int] = {}
+
+        def all_fill(tape: int) -> int:
+            """The constant `fill` over tapes tape..arity-1, in the new layout."""
+            node = suffix.get(tape)
+            if node is None:
+                node = self.terminal(fill)
+                for t in range(arity - 1, tape - 1, -1):
+                    node = self.letter(t, [node] * new_m, new_m, new_bits)
+                suffix[tape] = node
+            return node
+
+        cache: Dict[Tuple[int, int], int] = {}
+
+        def rebuild(current: int, tape: int) -> int:
+            if tape == arity:
+                return current                     # a terminal: nothing to recode
+            key = (current, tape)
+            result = cache.get(key)
+            if result is not None:
+                return result
+            children = [None] * new_m
+            for digit in range(old_m):
+                branch = current
+                for j in range(old_bits):          # cofactor away the old block
+                    bit = (digit >> (old_bits - 1 - j)) & 1
+                    branch = self.cofactor(branch, tape * old_bits + j, bit)
+                children[digit_map[digit]] = rebuild(branch, tape + 1)
+            for digit in range(new_m):
+                if children[digit] is None:
+                    children[digit] = all_fill(tape + 1)
+            result = cache[key] = self.letter(tape, children, new_m, new_bits)
+            return result
+
+        return rebuild(node, 0)
+
     def set_path(self, node: int, assignment: Sequence[int], value: int) -> int:
         """The node that agrees with `node` everywhere except on the single
         full variable assignment `assignment`, where it takes `value`."""

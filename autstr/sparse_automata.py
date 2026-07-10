@@ -827,6 +827,46 @@ class SparseDFA:
         return SparseDFASerializer.deserialize(filename)
     
 
+def recode(dfa: 'SparseDFA', new_alphabet, letter_map=None) -> 'SparseDFA':
+    """Re-express an automaton over a different base alphabet.
+
+    `letter_map` sends each of the automaton's letters to a letter of
+    `new_alphabet` (injectively; the identity by default). Letters of the new
+    alphabet outside the image are rejected: a fresh dead state absorbs them,
+    which is what the closure constructions want -- a factor of a disjoint
+    union must reject the other side's letters, and a factor of a direct
+    product must reject the tag letters.
+
+    The rewrite happens on the diagrams, one pass over the nodes, so widening
+    the alphabet does not rebuild any transition table.
+    """
+    old_letters = sorted(dfa.base_alphabet_frozen)
+    new_letters = sorted(frozenset(new_alphabet))
+    letter_map = letter_map or {letter: letter for letter in old_letters}
+    missing = set(old_letters) - set(letter_map)
+    if missing:
+        raise ValueError(f"letter_map does not cover {sorted(missing)}")
+    index = {letter: i for i, letter in enumerate(new_letters)}
+    try:
+        digit_map = [index[letter_map[letter]] for letter in old_letters]
+    except KeyError as exc:
+        raise ValueError(f"{exc.args[0]!r} is not in the new alphabet") from exc
+
+    store = dfa.store
+    dead = dfa.num_states
+    new_m = len(new_letters)
+    new_bits = num_bits(new_m)
+    nodes = [store.recode_letters(int(node), dfa.symbol_arity, dfa.m, dfa.bits,
+                                  new_m, new_bits, digit_map, dead)
+             for node in dfa.nodes.tolist()]
+    nodes.append(store.const(dead, dfa.symbol_arity, new_m, new_bits))
+    return SparseDFA(dead + 1, is_accepting=np.r_[dfa.is_accepting, False],
+                     start_state=dfa.start_state,
+                     symbol_arity=dfa.symbol_arity,
+                     base_alphabet=set(new_letters),
+                     nodes=np.array(nodes, dtype=np.int64))
+
+
 def _mask(states) -> int:
     """Pack an iterable of state indices into an integer bitset."""
     mask = 0
