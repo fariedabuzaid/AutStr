@@ -3,16 +3,35 @@
 
 Design notes.
 
+*Symbols are variable assignments.* Every transition is a multi-terminal BDD
+over the binary digits of the convolution symbol, tape-major (see
+`autstr.mtbdd`), which is what makes the pipeline affordable:
+
+- `expand` renames variable blocks. The tapes it adds are simply never tested,
+  so a k-tape transition widened to k+j tapes costs *nothing* — no row is
+  duplicated once per letter of each new tape. Sending two source tapes to the
+  same target block substitutes one variable block for the other, which is how
+  a relation R(x, x) is formed.
+- `project` quantifies one tape's variable block: the m cofactors of a
+  transition are combined by set union, giving the nondeterministic transition
+  as a diagram over *sets* of states, and the subset construction then folds
+  those diagrams over the members of each child subset. No symbol is ever
+  enumerated, and no "does this pair except all m preimages?" counting is
+  needed — invalid binary codes carry the reserved NONE terminal.
+- `minimize` refines over diagram identity: hash-consing means two states have
+  the same behavior on a child pair exactly when the class-relabelled diagrams
+  of that pair are the same integer.
+
 *Padding has two directions.*
 
 - `project` handles the *absent* direction: projecting away tape i turns the
-  automaton nondeterministic (several source symbols map to the same
-  projected symbol) **and** changes the domain semantics: the ∃-witness tree
-  may extend below the remaining tapes' domains, leaving regions labelled
-  all-padding that are trimmed from the projected convolution. In a bottom-up
-  run of the trimmed tree, an absent child may therefore correspond to any
-  state reachable by some pure-padding tree (the padding closure P0), so the
-  subset determinization runs with the absent-child subset S⊥ = {BOT} ∪ P0.
+  automaton nondeterministic **and** changes the domain semantics: the
+  ∃-witness tree may extend below the remaining tapes' domains, leaving
+  regions labelled all-padding that are trimmed from the projected
+  convolution. In a bottom-up run of the trimmed tree an absent child may
+  therefore correspond to any state reachable by some pure-padding tree (the
+  padding closure P0), so the subset determinization runs with the
+  absent-child subset S⊥ = {BOT} ∪ P0.
 - `attach_padding` handles the *present* direction: it accepts every tree of
   the language with arbitrary all-padding regions attached below, by making
   such regions behave exactly like absent children (a single fresh PAD state,
@@ -20,26 +39,25 @@ Design notes.
   before `expand` widens a relation to more tapes, because the wider
   convolution's domain is the union of all tapes' domains.
 
-*Sparsity is preserved on both levels.* The subset automaton's global
-default is the subset {d} of the source default; each child combo's pair
-default is the set of its members' pair defaults; and a subset transition
-deviates from that only where some source exception applies, so candidates
-are generated from the exception tables alone.
-
-*Minimization* is Moore refinement over exception signatures: transitions not
-listed as exceptions go to the global default irrespective of the state, so
-two states can only be distinguished by exceptions that mention them. A
-state's signature is its set of (side, partner class, symbol, target class)
-entries, filtered to targets outside the default's class; refinement is
-O(#exceptions) per round.
+*Sparsity.* A child pair absent from the transition table sends every symbol
+to the global default. Products, projections and minimization all drop a pair
+again as soon as its diagram is the default constant, so the pair tables stay
+driven by genuine deviations.
 """
-from itertools import chain
 from typing import Dict, FrozenSet, List, Optional, Set, Tuple
 
 import numpy as np
 
+from autstr.mtbdd import NONE, bits_of, var_tables
 from autstr.sparse_tree_automata import SparseTreeAutomaton
 from autstr.utils.misc import encode_symbol
+
+
+def _symbol_assignment(symbol: int, arity: int, m: int, bits: int) -> List[int]:
+    """The binary variable assignment of a convolution symbol."""
+    div, shift = var_tables(arity, m, bits)
+    return [int((symbol // div[v]) % m) >> int(shift[v]) & 1
+            for v in range(arity * bits)]
 
 
 # ====================================================================
@@ -49,272 +67,227 @@ from autstr.utils.misc import encode_symbol
 def expand(sta: SparseTreeAutomaton, new_arity: int, pos: List[int]
            ) -> SparseTreeAutomaton:
     """Expand a k-tape automaton to new_arity tapes, placing original tape t
-    at position pos[t]; the remaining positions range over all letters. Every
-    expanded exception is a closed-form block of an original exception.
+    at position pos[t]; the remaining positions range over all letters.
+
+    This is a variable renaming on the transition diagrams: the new tapes'
+    variables do not occur, so the automaton ignores them. Repeated entries in
+    `pos` identify tapes (the diagonal of the relation).
 
     Note: like the string `expand`, this widens only the *alphabet*; apply
     `attach_padding` first so regions contributed solely by the new tapes
     (all-padding on the original tapes) are accepted.
     """
+    store = sta.store
+    bits, m = sta.bits, sta.m
+    varmap = [pos[v // bits] * bits + v % bits for v in range(sta.nvars)]
+    valid = store.const(0, new_arity, m, bits)
+
+    def keep_valid(target: int, ok: int) -> int:
+        # the new tapes are unconstrained by the source, so restrict their
+        # invalid binary codes explicitly
+        return NONE if (target == NONE or ok == NONE) else target
+
+    rename_cache: Dict[int, int] = {}
+    mask_cache: Dict[int, int] = {}
+    default_node = store.const(sta.default_state, new_arity, m, bits)
+
+    keys, nodes = [], []
+    for key, node in zip(sta.pair_keys.tolist(), sta.pair_nodes.tolist()):
+        renamed = store.rename(node, varmap, rename_cache)
+        renamed = store.apply2(renamed, valid, keep_valid, mask_cache)
+        if renamed != default_node:
+            keys.append(key)
+            nodes.append(renamed)
+
+    return SparseTreeAutomaton(
+        sta.num_states, sta.default_state, is_accepting=sta.is_accepting,
+        symbol_arity=new_arity, base_alphabet=sta.base_alphabet,
+        pair_keys=np.array(keys, dtype=np.int64),
+        pair_nodes=np.array(nodes, dtype=np.int64))
+
+
+def permute_tapes(sta: SparseTreeAutomaton, perm: List[int]
+                  ) -> SparseTreeAutomaton:
+    """Reorder the tapes of a convolution automaton: new tape i carries what
+    was tape perm[i]."""
     k = sta.symbol_arity
-    m = len(sta.base_alphabet_frozen)
-
-    symbols = sta.exc_symbol
-    powers_old = m ** np.arange(k - 1, -1, -1, dtype=np.int64)
-    digits = (symbols[:, None] // powers_old) % m          # (E, k)
-    powers_new = m ** np.arange(new_arity - 1, -1, -1, dtype=np.int64)
-
-    # consistency for duplicated positions + fixed part of the new encoding
-    valid = np.ones(len(symbols), dtype=bool)
-    fixed = np.zeros(len(symbols), dtype=np.int64)
-    first_at: Dict[int, int] = {}
-    for old_idx, new_idx in enumerate(pos):
-        if new_idx in first_at:
-            valid &= digits[:, old_idx] == digits[:, first_at[new_idx]]
-        else:
-            first_at[new_idx] = old_idx
-            fixed += digits[:, old_idx] * powers_new[new_idx]
-
-    free_pos = [p for p in range(new_arity) if p not in first_at]
-    if free_pos:
-        grid = np.indices((m,) * len(free_pos)).reshape(len(free_pos), -1).T
-        offsets = grid @ powers_new[free_pos]
-    else:
-        offsets = np.zeros(1, dtype=np.int64)
-    K = len(offsets)
-
-    keep = np.flatnonzero(valid)
-    new_symbols = (fixed[keep, None] + offsets).ravel()
-    repeat = np.repeat(keep, K)
+    if sorted(perm) != list(range(k)):
+        raise ValueError(f"perm must be a permutation of range({k})")
+    inverse = [0] * k
+    for new_tape, old_tape in enumerate(perm):
+        inverse[old_tape] = new_tape
+    bits = sta.bits
+    varmap = [inverse[v // bits] * bits + v % bits for v in range(sta.nvars)]
+    cache: Dict[int, int] = {}
+    nodes = [sta.store.rename(node, varmap, cache)
+             for node in sta.pair_nodes.tolist()]
     return SparseTreeAutomaton(
-        sta.num_states, sta.default_state,
-        sta.exc_left[repeat], sta.exc_right[repeat],
-        new_symbols, sta.exc_target[repeat],
-        sta.is_accepting, new_arity, sta.base_alphabet,
-        sta.pd_left, sta.pd_right, sta.pd_target)
+        sta.num_states, sta.default_state, is_accepting=sta.is_accepting,
+        symbol_arity=k, base_alphabet=sta.base_alphabet,
+        pair_keys=sta.pair_keys, pair_nodes=np.array(nodes, dtype=np.int64))
 
 
 # ====================================================================
-# Subset determinization (shared by projection and padding closure)
+# Existential projection
 # ====================================================================
-
-def _padding_closure(sta: SparseTreeAutomaton, mapped: np.ndarray,
-                     pad_symbol: int, preimage_count: int) -> Set[int]:
-    """States reachable by some tree whose mapped labels are all pad_symbol.
-    Sparse-aware: an available pair's pair default (or the global default)
-    joins the closure as soon as the pair leaves a pad-preimage un-excepted."""
-    BOT = sta.BOT
-    base = sta.num_states + 1
-    available: Set[int] = {BOT}
-    is_pad = mapped == pad_symbol
-    pad_pair_keys = np.sort((sta.exc_left * base + sta.exc_right)[is_pad])
-    changed = True
-    while changed:
-        changed = False
-        av = np.array(sorted(available), dtype=np.int64)
-        lok = np.isin(sta.exc_left, av)
-        rok = np.isin(sta.exc_right, av)
-        new = set(sta.exc_target[lok & rok & is_pad].tolist()) - available
-        # per available pair: pad-preimages not fully excepted -> defaults
-        pl = np.repeat(av, len(av))
-        pr = np.tile(av, len(av))
-        pk = pl * base + pr
-        covered = np.searchsorted(pad_pair_keys, pk, 'right') - \
-            np.searchsorted(pad_pair_keys, pk, 'left')
-        defaults = sta.pair_defaults(pl, pr)
-        new |= set(defaults[covered < preimage_count].tolist()) - available
-        if new:
-            available |= new
-            changed = True
-    available.discard(BOT)
-    return available
-
-
-def _subset_determinize(sta: SparseTreeAutomaton, mapped: np.ndarray,
-                        num_new_symbols: int, new_arity: int,
-                        preimage_count: int,
-                        pad_symbol: Optional[int],
-                        max_states: Optional[int] = None) -> SparseTreeAutomaton:
-    """Determinize the NTA obtained by relabelling every exception symbol via
-    `mapped` (each new symbol having `preimage_count` source symbols), with
-    absent children ranging over {BOT} plus the padding closure.
-
-    Subset construction is worst-case exponential; `max_states` aborts with a
-    clear error instead of exhausting memory."""
-    BOT = sta.BOT
-    d = sta.default_state
-
-    if pad_symbol is not None:
-        p0 = _padding_closure(sta, mapped, pad_symbol, preimage_count)
-    else:
-        p0 = set()
-    s_bot: FrozenSet[int] = frozenset(p0 | {BOT})
-
-    # exceptions grouped by (left, right); mapped symbols aligned with the
-    # automaton's sorted exception order
-    group_keys, starts, ends = sta._exception_groups()
-    base = sta.num_states + 1
-
-    subset_ids: Dict[FrozenSet[int], int] = {}
-    subsets: List[FrozenSet[int]] = []
-
-    def get_id(fs: FrozenSet[int]) -> int:
-        idx = subset_ids.get(fs)
-        if idx is None:
-            if max_states is not None and len(subsets) >= max_states:
-                raise RuntimeError(
-                    f"subset determinization exceeded max_states={max_states} "
-                    f"({len(sta.exc_target)} source exceptions)")
-            idx = subset_ids[fs] = len(subsets)
-            subsets.append(fs)
-        return idx
-
-    default_id = get_id(frozenset({d}))
-
-    exc_l: List[int] = []
-    exc_r: List[int] = []
-    exc_s: List[int] = []
-    exc_t: List[int] = []
-    pd_l: List[int] = []
-    pd_r: List[int] = []
-    pd_t: List[int] = []
-
-    new_options = [-1, default_id]          # -1 encodes the absent-child set
-    all_options: List[int] = []
-
-    member_cache: Dict[int, np.ndarray] = {}
-
-    def members(option: int) -> np.ndarray:
-        arr = member_cache.get(option)
-        if arr is None:
-            fs = s_bot if option < 0 else subsets[option]
-            arr = member_cache[option] = np.array(sorted(fs), dtype=np.int64)
-        return arr
-
-    # dense pair probes (n is the SOURCE state count — small next to the
-    # subset space): which child pairs have exceptions at all, and every
-    # pair's default, so unproductive combos cost one fancy-index each
-    has_exc = np.zeros((base, base), dtype=bool)
-    has_exc.ravel()[group_keys] = True
-    all_pairs = np.arange(base * base, dtype=np.int64)
-    pd_dense = sta.pair_defaults(all_pairs // base,
-                                 all_pairs % base).reshape(base, base)
-    no_pd = len(sta._pd_keys) == 0
-
-    while new_options:
-        # each combo is enumerated exactly once, in the round where its later
-        # member was discovered — no dedup set (whose quadratic growth would
-        # dominate memory long before the state cap)
-        round_new = new_options
-        new_options = []
-        combo_iter = chain(
-            ((x, y) for x in round_new for y in all_options),
-            ((y, x) for x in round_new for y in all_options),
-            ((x, y) for x in round_new for y in round_new))
-        all_options.extend(round_new)
-
-        for cl, cr in combo_iter:
-            A, B = members(cl), members(cr)
-            productive = bool(has_exc[np.ix_(A, B)].any())
-            if no_pd and not productive:
-                continue                     # transitions all default
-            pl = np.repeat(A, len(B))
-            pr = np.tile(B, len(A))
-            pair_defs = pd_dense[pl, pr]
-
-            # the combo's pair default: the set of the members' pair defaults
-            D0 = frozenset(pair_defs.tolist())
-            if D0 != subsets[default_id]:
-                before = len(subsets)
-                pid = get_id(D0)
-                if len(subsets) > before:
-                    new_options.append(pid)
-                pd_l.append(cl)
-                pd_r.append(cr)
-                pd_t.append(pid)
-
-            if not productive:
-                continue
-            pair_keys = pl * base + pr
-            gpos = np.searchsorted(group_keys, pair_keys)
-            valid = gpos < len(group_keys)
-            valid[valid] &= group_keys[gpos[valid]] == pair_keys[valid]
-            # pairs without exceptions contribute their default everywhere
-            invariant = set(pair_defs[~valid].tolist())
-            vdefs = pair_defs[valid]
-            spans = [(starts[g], ends[g]) for g in gpos[valid]]
-            span_syms = [np.sort(mapped[s:e]) for s, e in spans]
-            rows = np.concatenate([np.arange(s, e) for s, e in spans])
-            row_syms = mapped[rows]
-            row_targets = sta.exc_target[rows]
-            order = np.argsort(row_syms, kind="stable")
-            sorted_syms = row_syms[order]
-            sorted_targets = row_targets[order]
-
-            candidates = np.unique(row_syms)
-            lo = np.searchsorted(sorted_syms, candidates, 'left')
-            hi = np.searchsorted(sorted_syms, candidates, 'right')
-            # which valid pairs except all preimages of each candidate
-            cover = np.zeros((len(spans), len(candidates)), dtype=bool)
-            for i, ss in enumerate(span_syms):
-                cover[i] = (np.searchsorted(ss, candidates, 'right') -
-                            np.searchsorted(ss, candidates, 'left')
-                            ) >= preimage_count
-            for j, sym in enumerate(candidates.tolist()):
-                targets = set(sorted_targets[lo[j]:hi[j]].tolist())
-                targets |= invariant
-                targets |= set(vdefs[~cover[:, j]].tolist())
-                fs = frozenset(targets)
-                if fs == D0:
-                    continue
-                before = len(subsets)
-                tid = get_id(fs)
-                if len(subsets) > before:
-                    new_options.append(tid)
-                exc_l.append(cl)
-                exc_r.append(cr)
-                exc_s.append(sym)
-                exc_t.append(tid)
-
-    num_states = len(subsets)
-    exc_l_arr = np.array(exc_l, dtype=np.int64)
-    exc_r_arr = np.array(exc_r, dtype=np.int64)
-    exc_l_arr = np.where(exc_l_arr < 0, num_states, exc_l_arr)
-    exc_r_arr = np.where(exc_r_arr < 0, num_states, exc_r_arr)
-    pd_l_arr = np.array(pd_l, dtype=np.int64)
-    pd_r_arr = np.array(pd_r, dtype=np.int64)
-    pd_l_arr = np.where(pd_l_arr < 0, num_states, pd_l_arr)
-    pd_r_arr = np.where(pd_r_arr < 0, num_states, pd_r_arr)
-    accepting = np.array([bool(fs & set(np.flatnonzero(sta.is_accepting)))
-                          for fs in subsets])
-    return SparseTreeAutomaton(
-        num_states, default_id, exc_l_arr, exc_r_arr,
-        np.array(exc_s, dtype=np.int64), np.array(exc_t, dtype=np.int64),
-        accepting, new_arity, sta.base_alphabet,
-        pd_l_arr, pd_r_arr, np.array(pd_t, dtype=np.int64))
-
 
 def project(sta: SparseTreeAutomaton, tape: int, padding_symbol,
             max_states: Optional[int] = None) -> SparseTreeAutomaton:
     """Existentially quantify one tape: accept the convolution of the
     remaining tapes iff some witness tree exists on the projected tape
     (including witnesses whose domain extends below the remaining tapes,
-    which is what the padding closure of the absent-child set captures)."""
+    which is what the padding closure of the absent-child set captures).
+
+    Subset construction is worst-case exponential; `max_states` aborts with a
+    clear error instead of exhausting memory."""
     k = sta.symbol_arity
     if k < 2:
         raise ValueError("cannot project the only tape")
     if not 0 <= tape < k:
         raise ValueError(f"tape must be in [0, {k})")
-    m = len(sta.base_alphabet_frozen)
 
-    p = m ** (k - 1 - tape)
-    mapped = (sta.exc_symbol // (p * m)) * p + sta.exc_symbol % p
-    pad_new = encode_symbol((padding_symbol,) * (k - 1),
-                            sta.base_alphabet_frozen) if k > 1 else None
-    return _subset_determinize(sta, mapped, m ** (k - 1), k - 1,
-                               preimage_count=m, pad_symbol=pad_new,
-                               max_states=max_states)
+    store = sta.store
+    m, bits = sta.m, sta.bits
+    n, BOT = sta.num_states, sta.BOT
+    new_arity = k - 1
 
+    # ---- subsets of source states, as diagram terminals (integer bitsets:
+    # every union result is interned, intermediates included) ----
+    subsets: List[int] = []
+    subset_ids: Dict[int, int] = {}
+
+    def subset_id(mask: int) -> int:
+        idx = subset_ids.get(mask)
+        if idx is None:
+            idx = subset_ids[mask] = len(subsets)
+            subsets.append(mask)
+        return idx
+
+    def singleton(target: int) -> int:
+        return subset_id(1 << target)
+
+    def union(a: int, b: int) -> int:
+        if a == NONE or b == NONE:
+            return NONE
+        return subset_id(subsets[a] | subsets[b])
+
+    # ---- the nondeterministic transition of each source pair ----
+    # relabel targets to singletons, union the quantified tape's m cofactors,
+    # then drop the tape's variable block
+    varmap = [(v // bits - (1 if v // bits > tape else 0)) * bits + v % bits
+              for v in range(sta.nvars)]
+    singleton_cache: Dict[int, int] = {}
+    union_cache: Dict[int, int] = {}
+    rename_cache: Dict[int, int] = {}
+
+    def nondeterministic(node: int) -> int:
+        node = store.apply1(node, singleton, singleton_cache)
+        node = store.quantify_letter(node, tape, m, bits, union, union_cache)
+        return store.rename(node, varmap, rename_cache)
+
+    default_set_node = nondeterministic(sta.default_node)
+    set_nodes = np.full((n + 1, n + 1), default_set_node, dtype=np.int64)
+    for key, node in zip(sta.pair_keys.tolist(), sta.pair_nodes.tolist()):
+        set_nodes[key // (n + 1), key % (n + 1)] = nondeterministic(node)
+
+    # ---- the absent-child subset: BOT plus the padding closure ----
+    pad_new = encode_symbol((padding_symbol,) * new_arity,
+                            sta.base_alphabet_frozen)
+    closure = 0                                    # bitset of the padding closure
+    while True:
+        available = np.array(bits_of(closure | (1 << BOT)), dtype=np.int64)
+        left = np.repeat(available, len(available))
+        right = np.tile(available, len(available))
+        reached = store.eval_batch(set_nodes[left, right],
+                                   np.full(len(left), pad_new, dtype=np.int64),
+                                   new_arity, m, bits)
+        grown = closure
+        for sid in reached.tolist():
+            grown |= subsets[sid]
+        if grown == closure:
+            break
+        closure = grown
+    absent = closure | (1 << BOT)
+
+    # ---- subset construction over the new states ----
+    state_subsets: List[int] = []
+    state_ids: Dict[int, int] = {}
+    fresh: List[int] = []
+
+    def state_of(sid: int) -> int:
+        mask = subsets[sid]
+        idx = state_ids.get(mask)
+        if idx is None:
+            if max_states is not None and len(state_subsets) >= max_states:
+                raise RuntimeError(
+                    f"subset determinization exceeded max_states={max_states}")
+            idx = state_ids[mask] = len(state_subsets)
+            state_subsets.append(mask)
+            fresh.append(idx)
+        return idx
+
+    default_id = state_of(singleton(sta.default_state))
+    fresh.clear()                                  # the default is not a child
+    default_node = store.const(default_id, new_arity, m, bits)
+    state_cache: Dict[int, int] = {}
+
+    member_cache: Dict[int, np.ndarray] = {}
+
+    def members(option: int) -> np.ndarray:
+        arr = member_cache.get(option)
+        if arr is None:
+            mask = absent if option < 0 else state_subsets[option]
+            arr = member_cache[option] = np.array(bits_of(mask), dtype=np.int64)
+        return arr
+
+    keys: List[Tuple[int, int]] = []
+    nodes: List[int] = []
+    new_options = [-1, default_id]                 # -1 encodes the absent set
+    all_options: List[int] = []
+
+    while new_options:
+        # each combo is enumerated exactly once, in the round where its later
+        # member was discovered — no dedup set (whose quadratic growth would
+        # dominate memory long before the state cap)
+        round_new = new_options
+        combos = [(x, y) for x in round_new for y in all_options]
+        combos += [(y, x) for x in round_new for y in all_options]
+        combos += [(x, y) for x in round_new for y in round_new]
+        all_options.extend(round_new)
+        fresh.clear()
+
+        for left_option, right_option in combos:
+            grid = set_nodes[np.ix_(members(left_option),
+                                    members(right_option))]
+            # hash-consing collapses most members onto the same diagram, and
+            # `apply2` memoizes the folds, so only the distinct ones cost
+            distinct = np.unique(grid).tolist()
+            node = distinct[0]
+            for other in distinct[1:]:
+                node = store.apply2(node, other, union, union_cache)
+            node = store.apply1(node, state_of, state_cache)
+            if node != default_node:
+                keys.append((left_option, right_option))
+                nodes.append(node)
+        new_options = list(fresh)
+
+    num_states = len(state_subsets)
+    accepting_mask = 0
+    for q in np.flatnonzero(sta.is_accepting).tolist():
+        accepting_mask |= 1 << q
+    packed = [(num_states if l < 0 else l) * (num_states + 1) +
+              (num_states if r < 0 else r) for l, r in keys]
+    return SparseTreeAutomaton(
+        num_states, default_id,
+        is_accepting=[bool(mask & accepting_mask) for mask in state_subsets],
+        symbol_arity=new_arity, base_alphabet=sta.base_alphabet,
+        pair_keys=np.array(packed, dtype=np.int64),
+        pair_nodes=np.array(nodes, dtype=np.int64))
+
+
+# ====================================================================
+# Padding
+# ====================================================================
 
 def attach_padding(sta: SparseTreeAutomaton, padding_symbol,
                    max_states: Optional[int] = None) -> SparseTreeAutomaton:
@@ -325,72 +298,49 @@ def attach_padding(sta: SparseTreeAutomaton, padding_symbol,
     original tapes see attached regions as padding).
 
     The source is deterministic, so no subset construction is needed: one
-    fresh PAD state absorbs pure-padding regions, and every exception with an
+    fresh PAD state absorbs pure-padding regions, and every child pair with an
     absent child gains a copy with PAD in that position, making a padding
     region behave exactly like an absent child. Any native transitions the
-    source had on all-padding leaves are overridden: canonical convolutions
+    source had on all-padding leaves are overridden — canonical convolutions
     contain no all-padding node, so those transitions carry no meaning."""
-    pad = encode_symbol((padding_symbol,) * sta.symbol_arity,
-                        sta.base_alphabet_frozen)
-    n = sta.num_states
+    store = sta.store
+    k, m, bits = sta.symbol_arity, sta.m, sta.bits
+    n, old_bot = sta.num_states, sta.BOT
     PAD, BOT = n, n + 1
-    src_bot = sta.BOT
+    old_base, base = n + 1, n + 2
 
-    def with_pad_variants(l, r, cols):
-        """Duplicate every row with an absent child so PAD acts like BOT."""
-        lb = l == src_bot
-        rb = r == src_bot
-        both = lb & rb
-        l0 = np.where(lb, BOT, l)
-        r0 = np.where(rb, BOT, r)
-        L = np.concatenate([l0, np.full(int(lb.sum()), PAD, dtype=np.int64),
-                            l0[rb], np.full(int(both.sum()), PAD,
-                                            dtype=np.int64)])
-        R = np.concatenate([r0, r0[lb],
-                            np.full(int(rb.sum()), PAD, dtype=np.int64),
-                            np.full(int(both.sum()), PAD, dtype=np.int64)])
-        C = [np.concatenate([c, c[lb], c[rb], c[both]]) for c in cols]
-        return L, R, C
+    pad_assignment = _symbol_assignment(
+        encode_symbol((padding_symbol,) * k, sta.base_alphabet_frozen),
+        k, m, bits)
 
-    eL, eR, (eS, eT) = with_pad_variants(
-        sta.exc_left, sta.exc_right, [sta.exc_symbol, sta.exc_target])
-    # pure-padding leaves are overridden: they start a PAD region
-    absent = np.isin(eL, (BOT, PAD)) & np.isin(eR, (BOT, PAD))
-    keep = ~(absent & (eS == pad))
-    eL, eR, eS, eT = eL[keep], eR[keep], eS[keep], eT[keep]
-    over = np.array([(BOT, BOT), (BOT, PAD), (PAD, BOT), (PAD, PAD)],
-                    dtype=np.int64)
-    eL = np.r_[eL, over[:, 0]]
-    eR = np.r_[eR, over[:, 1]]
-    eS = np.r_[eS, np.full(4, pad, dtype=np.int64)]
-    eT = np.r_[eT, np.full(4, PAD, dtype=np.int64)]
+    pairs: Dict[int, int] = {}
+    for key, node in zip(sta.pair_keys.tolist(), sta.pair_nodes.tolist()):
+        left, right = key // old_base, key % old_base
+        lefts = (BOT, PAD) if left == old_bot else (left,)
+        rights = (BOT, PAD) if right == old_bot else (right,)
+        for a in lefts:
+            for b in rights:
+                pairs[a * base + b] = node
 
-    pL, pR, (pT,) = with_pad_variants(
-        sta.pd_left, sta.pd_right, [sta.pd_target])
+    for a in (BOT, PAD):                           # pure padding starts here
+        for b in (BOT, PAD):
+            key = a * base + b
+            pairs[key] = store.set_path(pairs.get(key, sta.default_node),
+                                        pad_assignment, PAD)
 
+    listed = [(key, node) for key, node in pairs.items()
+              if node != sta.default_node]
     return SparseTreeAutomaton(
-        n + 1, sta.default_state, eL, eR, eS, eT,
-        np.r_[sta.is_accepting, False], sta.symbol_arity, sta.base_alphabet,
-        pL, pR, pT)
+        n + 1, sta.default_state,
+        is_accepting=np.r_[sta.is_accepting, False], symbol_arity=k,
+        base_alphabet=sta.base_alphabet,
+        pair_keys=np.array([p for p, _ in listed], dtype=np.int64),
+        pair_nodes=np.array([node for _, node in listed], dtype=np.int64))
 
 
-def permute_tapes(sta: SparseTreeAutomaton, perm: List[int]
-                  ) -> SparseTreeAutomaton:
-    """Reorder the tapes of a convolution automaton: new tape i carries what
-    was tape perm[i]. Closed-form relabelling of the exception symbols."""
-    k = sta.symbol_arity
-    if sorted(perm) != list(range(k)):
-        raise ValueError(f"perm must be a permutation of range({k})")
-    m = len(sta.base_alphabet_frozen)
-    powers = m ** np.arange(k - 1, -1, -1, dtype=np.int64)
-    digits = (sta.exc_symbol[:, None] // powers) % m          # (E, k)
-    new_symbols = digits[:, perm] @ powers
-    return SparseTreeAutomaton(
-        sta.num_states, sta.default_state,
-        sta.exc_left, sta.exc_right, new_symbols, sta.exc_target,
-        sta.is_accepting, k, sta.base_alphabet,
-        sta.pd_left, sta.pd_right, sta.pd_target)
-
+# ====================================================================
+# Single-tree and string-language automata
+# ====================================================================
 
 def tree_automaton(tree, base_alphabet, symbol_arity: int = 1
                    ) -> SparseTreeAutomaton:
@@ -423,204 +373,6 @@ def tree_automaton(tree, base_alphabet, symbol_arity: int = 1
         [e[2] for e in exc], [e[3] for e in exc],
         acc, symbol_arity, set(base_alphabet))
 
-
-# ====================================================================
-# Minimization
-# ====================================================================
-
-def minimize(sta: SparseTreeAutomaton) -> SparseTreeAutomaton:
-    """Minimize by Moore refinement over exception and pair-default
-    signatures.
-
-    A state pair's baseline behavior is its pair default (falling back to
-    the global default), so two states are distinguishable only through pair
-    defaults naming them whose target class differs from the global
-    default's class, or through exceptions naming them whose target class
-    differs from their pair's baseline class. Unreachable states are pruned
-    first."""
-    reach = sta.reachable_states()
-    keep = np.flatnonzero(reach)
-    if len(keep) == 0:
-        alphabet = sta.base_alphabet
-        return SparseTreeAutomaton(1, 0, [], [], [], [], [False],
-                                   sta.symbol_arity, alphabet)
-    new_of_old = np.full(sta.num_states + 1, -1, dtype=np.int64)
-    new_of_old[keep] = np.arange(len(keep))
-    new_of_old[sta.BOT] = len(keep)                      # BOT stays BOT
-
-    lm = new_of_old[sta.exc_left]
-    rm = new_of_old[sta.exc_right]
-    tmask = (lm >= 0) & (rm >= 0)
-    lm, rm = lm[tmask], rm[tmask]
-    sym = sta.exc_symbol[tmask]
-    tgt = new_of_old[sta.exc_target[tmask]]
-    tmask2 = tgt >= 0
-    lm, rm, sym, tgt = lm[tmask2], rm[tmask2], sym[tmask2], tgt[tmask2]
-
-    pdl = new_of_old[sta.pd_left]
-    pdr = new_of_old[sta.pd_right]
-    pmask = (pdl >= 0) & (pdr >= 0)
-    pdl, pdr = pdl[pmask], pdr[pmask]
-    pdt = new_of_old[sta.pd_target[pmask]]
-    pmask2 = pdt >= 0
-    pdl, pdr, pdt = pdl[pmask2], pdr[pmask2], pdt[pmask2]
-
-    n = len(keep)
-    BOT = n
-    acc = sta.is_accepting[keep]
-    default = int(new_of_old[sta.default_state])
-    if default < 0:
-        # the default was unreachable: introduce a fresh dead state for it
-        default = n
-        n += 1
-        BOT = n
-        acc = np.r_[acc, False]
-        lm = np.where(lm == n - 1, n, lm)                 # keep BOT index last
-        rm = np.where(rm == n - 1, n, rm)
-        pdl = np.where(pdl == n - 1, n, pdl)
-        pdr = np.where(pdr == n - 1, n, pdr)
-
-    # baseline state per exception row: its pair's default
-    base2 = BOT + 1
-    pd_keys = pdl * base2 + pdr
-    order = np.argsort(pd_keys, kind="stable")
-    pd_keys_sorted = pd_keys[order]
-    pdt_sorted = pdt[order]
-    exc_pair = lm * base2 + rm
-    if len(pd_keys_sorted):
-        pos = np.minimum(np.searchsorted(pd_keys_sorted, exc_pair),
-                         len(pd_keys_sorted) - 1)
-        hit = pd_keys_sorted[pos] == exc_pair
-        exc_base = np.where(hit, pdt_sorted[pos], default)
-    else:
-        exc_base = np.full(len(exc_pair), default, dtype=np.int64)
-
-    # ---- refinement (vectorized: hashed set-signatures per state) ----
-    # entry rows: (owner state, side, partner, sym, target-state); classes of
-    # partner/target are resolved per round, entries hashed and combined per
-    # owner with two independent 64-bit digests (sum and xor of the deduped
-    # entry hashes) — the tree analog of the string engine's hashed Moore.
-    PD_SYM = -1                                           # marks pd entries
-    # exception entries, both sides
-    own_parts = [lm, rm, pdl, pdr]
-    side_parts = [np.zeros(len(lm), np.int64), np.ones(len(rm), np.int64),
-                  np.zeros(len(pdl), np.int64), np.ones(len(pdr), np.int64)]
-    part_parts = [rm, lm, pdr, pdl]
-    sym_parts = [sym, sym,
-                 np.full(len(pdl), PD_SYM), np.full(len(pdr), PD_SYM)]
-    tgt_parts = [tgt, tgt, pdt, pdt]
-    is_pd_entry = np.concatenate([np.zeros(len(lm) + len(rm), dtype=bool),
-                                  np.ones(2 * len(pdl), dtype=bool)])
-    e_own = np.concatenate(own_parts)
-    e_side = np.concatenate(side_parts)
-    e_part = np.concatenate(part_parts)
-    e_sym = np.concatenate(sym_parts)
-    e_tgt = np.concatenate(tgt_parts)
-    e_base = np.concatenate([exc_base, exc_base, pdt, pdt])  # pd rows unused
-    real_own = e_own < BOT
-
-    M1 = np.uint64(0x9E3779B97F4A7C15)
-    M2 = np.uint64(0xC2B2AE3D27D4EB4F)
-    M3 = np.uint64(0x165667B19E3779F9)
-
-    def digest(values, seed):
-        h = values.astype(np.uint64) * M1 + np.uint64(seed)
-        h ^= h >> np.uint64(33)
-        h *= M2
-        h ^= h >> np.uint64(29)
-        h *= M3
-        h ^= h >> np.uint64(32)
-        return h
-
-    classes = acc.astype(np.int64)                        # 0/1 by acceptance
-    num_classes = len(np.unique(classes))
-    with np.errstate(over='ignore'):
-        while True:
-            cls_of = np.r_[classes, np.int64(-1)]         # BOT -> -1
-            dcls = classes[default]
-            live = np.where(is_pd_entry,
-                            classes[e_tgt] != dcls,
-                            cls_of[e_tgt] != classes[e_base]) & real_own
-            idx = np.flatnonzero(live)
-            packed = ((e_side[idx] * (n + 2) + cls_of[e_part[idx]] + 1)
-                      * (int(np.max(e_sym) if len(e_sym) else 0) + 3)
-                      + e_sym[idx] + 2)
-            packed = packed * np.int64(n + 1) + cls_of[e_tgt[idx]] + 1
-            h1 = digest(packed, 0x5851F42D4C957F2D)
-            h2 = digest(packed, 0x14057B7EF767814F)
-            # dedup identical entries per owner (set semantics)
-            key = np.stack([e_own[idx], h1.view(np.int64)], axis=1)
-            order = np.lexsort((h2.view(np.int64), key[:, 1], key[:, 0]))
-            so, sh1, sh2 = e_own[idx][order], h1[order], h2[order]
-            if len(so):
-                keepm = np.r_[True, (so[1:] != so[:-1]) |
-                              (sh1[1:] != sh1[:-1]) | (sh2[1:] != sh2[:-1])]
-                so, sh1, sh2 = so[keepm], sh1[keepm], sh2[keepm]
-            sig1 = np.zeros(n, dtype=np.uint64)
-            sig2 = np.zeros(n, dtype=np.uint64)
-            if len(so):
-                starts_o = np.flatnonzero(np.r_[True, so[1:] != so[:-1]])
-                sums = np.add.reduceat(sh1, starts_o)
-                xors = np.bitwise_xor.reduceat(sh2, starts_o)
-                sig1[so[starts_o]] = sums
-                sig2[so[starts_o]] = xors
-            rows = np.stack([classes.astype(np.uint64), sig1, sig2], axis=1)
-            _, new_classes = np.unique(rows, axis=0, return_inverse=True)
-            new_classes = new_classes.astype(np.int64)
-            stable = len(np.unique(new_classes)) == num_classes
-            classes = new_classes        # always adopt: labels are 0..P-1
-            num_classes = len(np.unique(classes))
-            if stable:
-                break
-
-    # ---- rebuild on classes (vectorized) ----
-    P = num_classes
-    cls_of = np.r_[classes, P]                            # BOT -> class P
-    dcls = int(classes[default])
-    keep_pd = classes[pdt] != dcls
-    pd_keys2 = cls_of[pdl][keep_pd] * (P + 1) + cls_of[pdr][keep_pd]
-    pd_vals2 = classes[pdt][keep_pd]
-    if len(pd_keys2):
-        uk, first = np.unique(pd_keys2, return_index=True)
-        pd_keys2, pd_vals2 = uk, pd_vals2[first]
-    # exception baseline per row on class level
-    exc_keys2 = cls_of[lm] * (P + 1) + cls_of[rm]
-    if len(pd_keys2):
-        pos = np.minimum(np.searchsorted(pd_keys2, exc_keys2),
-                         len(pd_keys2) - 1)
-        hit = pd_keys2[pos] == exc_keys2
-        baseline = np.where(hit, pd_vals2[pos], dcls)
-    else:
-        baseline = np.full(len(exc_keys2), dcls, dtype=np.int64)
-    new_t = classes[tgt]
-    live = new_t != baseline
-    S = sta.num_symbols
-    packed = (exc_keys2[live] * S + sym[live])
-    uk, first = np.unique(packed, return_index=True)
-    out_l = (uk // S) // (P + 1)
-    out_r = (uk // S) % (P + 1)
-    out_s = uk % S
-    out_t = new_t[live][first]
-    new_acc = np.zeros(P, dtype=bool)
-    new_acc[classes[np.flatnonzero(acc)]] = True
-    return SparseTreeAutomaton(
-        P, dcls, out_l, out_r, out_s, out_t,
-        new_acc, sta.symbol_arity, sta.base_alphabet,
-        pd_keys2 // (P + 1), pd_keys2 % (P + 1), pd_vals2)
-
-
-# ====================================================================
-# Equivalence (exact, via boolean closure + emptiness)
-# ====================================================================
-
-def equivalent(a: SparseTreeAutomaton, b: SparseTreeAutomaton) -> bool:
-    return a.intersection(b.complement()).is_empty() and \
-        b.intersection(a.complement()).is_empty()
-
-
-# ====================================================================
-# Embedding string languages (unary chains)
-# ====================================================================
 
 def string_chain(word):
     """Embed a word as a unary left-spine tree: the first letter labels the
@@ -704,3 +456,191 @@ def from_string_dfa(dfa) -> SparseTreeAutomaton:
         [e[0] for e in exc], [e[1] for e in exc],
         [e[2] for e in exc], [e[3] for e in exc],
         is_acc, dfa.symbol_arity, dfa.base_alphabet)
+
+
+# ====================================================================
+# Minimization
+# ====================================================================
+
+_M1 = np.uint64(0x9E3779B97F4A7C15)
+_M2 = np.uint64(0xC2B2AE3D27D4EB4F)
+_M3 = np.uint64(0x165667B19E3779F9)
+
+
+def _digest(values: np.ndarray, seed: int) -> np.ndarray:
+    h = values.astype(np.uint64) * _M1 + np.uint64(seed)
+    h ^= h >> np.uint64(33)
+    h *= _M2
+    h ^= h >> np.uint64(29)
+    h *= _M3
+    h ^= h >> np.uint64(32)
+    return h
+
+
+def _entry_hashes(side: np.ndarray, partner_class: np.ndarray,
+                  node: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    """Two independent 64-bit hashes of the refinement entries
+    ``(side, partner class, class-relabelled diagram)``."""
+    packed = (node.astype(np.uint64) * _M1 +
+              partner_class.astype(np.uint64) * _M2 +
+              side.astype(np.uint64) * _M3)
+    return _digest(packed, 0x5851F42D4C957F2D), _digest(packed, 0x14057B7EF767814F)
+
+
+def minimize(sta: SparseTreeAutomaton) -> SparseTreeAutomaton:
+    """Minimize by Moore refinement over class-relabelled transition diagrams.
+
+    A state q is characterized by, for each side and each partner class c, the
+    function symbol -> target class it induces together with any partner in c.
+    Relabelling a pair's diagram by the current classes turns that function
+    into a hash-consed node, so a state's signature is the *set* of triples
+    ``(side, partner class, node)`` — one `apply1` per listed pair per round.
+    Child pairs absent from the table contribute the default's class on every
+    symbol, and are folded in by counting how much of each class a state has
+    listed. Unreachable states are pruned first."""
+    store = sta.store
+    k, m, bits = sta.symbol_arity, sta.m, sta.bits
+
+    reach = sta.reachable_states()
+    keep = np.flatnonzero(reach)
+    if len(keep) == 0:
+        return SparseTreeAutomaton(1, 0, is_accepting=[False], symbol_arity=k,
+                                   base_alphabet=sta.base_alphabet)
+
+    old_base = sta.num_states + 1
+    new_of_old = np.full(sta.num_states + 1, -1, dtype=np.int64)
+    new_of_old[keep] = np.arange(len(keep))
+    n = len(keep)
+    accepting = sta.is_accepting[keep]
+    default = int(new_of_old[sta.default_state])
+    if default < 0:
+        # the default was unreachable (every available pair is listed, so no
+        # kept diagram mentions it): give it a fresh dead state
+        default = n
+        n += 1
+        accepting = np.r_[accepting, False]
+        new_of_old[sta.default_state] = default
+    BOT = n
+    new_of_old[sta.BOT] = BOT
+
+    relabel_cache: Dict[int, int] = {}
+    pair_left, pair_right, pair_nodes = [], [], []
+    for key, node in zip(sta.pair_keys.tolist(), sta.pair_nodes.tolist()):
+        left, right = new_of_old[key // old_base], new_of_old[key % old_base]
+        if left < 0 or right < 0:
+            continue
+        pair_left.append(int(left))
+        pair_right.append(int(right))
+        pair_nodes.append(store.apply1(node, lambda t: int(new_of_old[t]),
+                                       relabel_cache))
+    pair_left = np.array(pair_left, dtype=np.int64)
+    pair_right = np.array(pair_right, dtype=np.int64)
+    pair_nodes = np.array(pair_nodes, dtype=np.int64)
+
+    # entries: each listed pair is seen from both sides
+    owner = np.concatenate([pair_left, pair_right])
+    partner = np.concatenate([pair_right, pair_left])
+    side = np.concatenate([np.zeros(len(pair_left), dtype=np.int64),
+                           np.ones(len(pair_right), dtype=np.int64)])
+    node_of_entry = np.concatenate([pair_nodes, pair_nodes])
+    real = owner < BOT
+    owner, partner, side, node_of_entry = (owner[real], partner[real],
+                                           side[real], node_of_entry[real])
+
+    classes = accepting.astype(np.int64)
+    num_classes = len(np.unique(classes))
+    while True:
+        classes_full = np.r_[classes, num_classes]        # BOT is its own class
+        P = num_classes + 1                               # classes incl. BOT's
+        class_size = np.bincount(classes_full, minlength=P)
+        round_cache: Dict[int, int] = {}
+        relabelled = np.array(
+            [store.apply1(int(node), lambda t: int(classes[t]), round_cache)
+             for node in pair_nodes], dtype=np.int64) if len(pair_nodes) \
+            else np.empty(0, dtype=np.int64)
+        entry_node = np.concatenate([relabelled, relabelled])[real]
+        entry_class = classes_full[partner]
+        default_node = store.const(int(classes[default]), k, m, bits)
+
+        # every state behaves like the default on the pairs it does not list,
+        # so start from the digest of all (side, class, default) entries
+        all_sides = np.repeat([0, 1], P)
+        all_classes = np.tile(np.arange(P), 2)
+        h1, h2 = _entry_hashes(all_sides, all_classes,
+                               np.full(2 * P, default_node, dtype=np.int64))
+        sig1 = np.full(n, h1.sum(), dtype=np.uint64)
+        sig2 = np.full(n, np.bitwise_xor.reduce(h2), dtype=np.uint64)
+
+        with np.errstate(over='ignore'):
+            # add the listed entries that deviate from the default (deduped:
+            # signatures are sets)
+            deviates = entry_node != default_node
+            if deviates.any():
+                rows = np.stack([owner[deviates], side[deviates],
+                                 entry_class[deviates],
+                                 entry_node[deviates]], axis=1)
+                rows = np.unique(rows, axis=0)
+                h1, h2 = _entry_hashes(rows[:, 1], rows[:, 2], rows[:, 3])
+                np.add.at(sig1, rows[:, 0], h1)
+                np.bitwise_xor.at(sig2, rows[:, 0], h2)
+
+            # remove (side, c, default) where the state lists every member of
+            # class c and none of them behaves like the default
+            group = np.stack([owner, side, entry_class], axis=1)
+            uniq, inverse = np.unique(group, axis=0, return_inverse=True)
+            listed = np.bincount(inverse, minlength=len(uniq))
+            like_default = np.zeros(len(uniq), dtype=bool)
+            np.logical_or.at(like_default, inverse, ~deviates)
+            drop = (listed == class_size[uniq[:, 2]]) & ~like_default
+            if drop.any():
+                rows = uniq[drop]
+                h1, h2 = _entry_hashes(
+                    rows[:, 1], rows[:, 2],
+                    np.full(len(rows), default_node, dtype=np.int64))
+                np.subtract.at(sig1, rows[:, 0], h1)
+                np.bitwise_xor.at(sig2, rows[:, 0], h2)
+
+        signature = np.stack([classes.astype(np.uint64), sig1, sig2], axis=1)
+        _, refined = np.unique(signature, axis=0, return_inverse=True)
+        refined = refined.astype(np.int64)
+        stable = len(np.unique(refined)) == num_classes
+        classes = refined
+        num_classes = len(np.unique(classes))
+        if stable:
+            break
+
+    # ---- rebuild on the classes ----
+    P = num_classes
+    classes_full = np.r_[classes, P]
+    default_class = int(classes[default])
+    default_node = store.const(default_class, k, m, bits)
+    final_cache: Dict[int, int] = {}
+    keys, nodes = [], []
+    seen: Set[int] = set()
+    for left, right, node in zip(pair_left.tolist(), pair_right.tolist(),
+                                 pair_nodes.tolist()):
+        key = int(classes_full[left]) * (P + 1) + int(classes_full[right])
+        if key in seen:
+            continue
+        seen.add(key)
+        node = store.apply1(node, lambda t: int(classes[t]), final_cache)
+        if node != default_node:
+            keys.append(key)
+            nodes.append(node)
+
+    new_accepting = np.zeros(P, dtype=bool)
+    new_accepting[classes[np.flatnonzero(accepting)]] = True
+    return SparseTreeAutomaton(
+        P, default_class, is_accepting=new_accepting, symbol_arity=k,
+        base_alphabet=sta.base_alphabet,
+        pair_keys=np.array(keys, dtype=np.int64),
+        pair_nodes=np.array(nodes, dtype=np.int64))
+
+
+# ====================================================================
+# Equivalence (exact, via boolean closure + emptiness)
+# ====================================================================
+
+def equivalent(a: SparseTreeAutomaton, b: SparseTreeAutomaton) -> bool:
+    return a.intersection(b.complement()).is_empty() and \
+        b.intersection(a.complement()).is_empty()

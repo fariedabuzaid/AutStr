@@ -7,12 +7,12 @@ import pytest
 from autstr.sparse_tree_automata import Tree
 from autstr.tree_graphs import TreeWidthClass, TreeWidthGraph
 
-# Set-quantifier (MSO) queries and w>=2 multi-variable queries currently
-# exceed the flat-symbol engine's practical envelope (see the module
-# docstring of autstr.tree_graphs); they are opt-in until the factored-
-# symbol transition representation lands.
+# Set-quantifier (MSO) queries determinize over subsets of the intermediate
+# automaton's states, and each subset carries its own transition diagram (see
+# the module docstring of autstr.tree_graphs). Two-colourability compiles at
+# w = 1 in about a minute; the w >= 2 queries are still bounded by memory.
 heavy = pytest.mark.skipif(not os.environ.get('AUTSTR_HEAVY'),
-                           reason="needs >6GB RAM and minutes of compile "
+                           reason="minutes of compile and gigabytes of RAM "
                                   "(set AUTSTR_HEAVY=1)")
 
 

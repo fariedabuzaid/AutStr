@@ -125,20 +125,17 @@ class TestExpand:
                 assert got == ref, trial
 
     def test_duplicate_positions(self):
-        """Mapping both original tapes to one position keeps exactly the
-        diagonal-consistent exceptions, with the shared digit as symbol."""
+        """Mapping both original tapes to one position restricts the
+        transition function to the diagonal of the two tapes."""
         rng = random.Random(1)
         m = 2
         A = random_sta_arity(rng, 2, m, max_exc=8)
         E = expand(A, 1, [0, 0])
-        diagonal = {(int(l), int(r), int(s) // m, int(t))
-                    for l, r, s, t in zip(A.exc_left, A.exc_right,
-                                          A.exc_symbol, A.exc_target)
-                    if int(s) // m == int(s) % m}
-        got = {(int(l), int(r), int(s), int(t))
-               for l, r, s, t in zip(E.exc_left, E.exc_right,
-                                     E.exc_symbol, E.exc_target)}
-        assert got == diagonal
+        source, image = A.dense_delta(), E.dense_delta()
+        for l in range(A.num_states + 1):
+            for r in range(A.num_states + 1):
+                for a in range(m):
+                    assert image[l, r, a] == source[l, r, a * m + a]
 
 
 def tree_to_arrays_encoded(t: Tree):

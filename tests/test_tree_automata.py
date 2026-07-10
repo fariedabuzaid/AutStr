@@ -18,23 +18,12 @@ class RefDTA:
         self.n = sta.num_states
         self.BOT = sta.num_states
         self.default = sta.default_state
-        self.table = {
-            (int(l), int(r), int(s)): int(t)
-            for l, r, s, t in zip(sta.exc_left, sta.exc_right,
-                                  sta.exc_symbol, sta.exc_target)
-        }
-        self.pd = {
-            (int(l), int(r)): int(t)
-            for l, r, t in zip(sta.pd_left, sta.pd_right, sta.pd_target)
-        }
         self.acc = sta.is_accepting.copy()
         self.num_symbols = sta.num_symbols
+        self.table = sta.dense_delta()
 
     def delta(self, l, r, s):
-        key = (l, r, s)
-        if key in self.table:
-            return self.table[key]
-        return self.pd.get((l, r), self.default)
+        return int(self.table[l, r, s])
 
     def run(self, tree: Tree) -> int:
         # iterative post-order
@@ -79,6 +68,43 @@ class RefDTA:
 # ====================================================================
 # Generators
 # ====================================================================
+
+def random_spec(rng: random.Random, max_states=5, max_symbols=4,
+                max_exc=12, max_pd=6):
+    """A random transition function in the flat three-tier form: a global
+    default, pair defaults, and (left, right, symbol) exceptions."""
+    n = rng.randint(1, max_states)
+    m = rng.randint(2, max_symbols)
+    k = rng.randint(0, min(max_exc, (n + 1) * (n + 1) * m))
+    triples = set()
+    while len(triples) < k:
+        triples.add((rng.randint(0, n), rng.randint(0, n), rng.randrange(m)))
+    kp = rng.randint(0, min(max_pd, (n + 1) * (n + 1)))
+    pairs = set()
+    while len(pairs) < kp:
+        pairs.add((rng.randint(0, n), rng.randint(0, n)))
+    return {
+        'n': n, 'm': m,
+        'default': rng.randrange(n),
+        'exc': {t: rng.randrange(n) for t in sorted(triples)},
+        'pd': {p: rng.randrange(n) for p in sorted(pairs)},
+        'acc': [rng.random() < 0.5 for _ in range(n)],
+    }
+
+
+def sta_of_spec(spec) -> SparseTreeAutomaton:
+    exc = sorted(spec['exc'])
+    pd = sorted(spec['pd'])
+    return SparseTreeAutomaton(
+        num_states=spec['n'], default_state=spec['default'],
+        exc_left=[t[0] for t in exc], exc_right=[t[1] for t in exc],
+        exc_symbol=[t[2] for t in exc],
+        exc_target=[spec['exc'][t] for t in exc],
+        is_accepting=spec['acc'], symbol_arity=1,
+        base_alphabet=set(range(spec['m'])),
+        pd_left=[p[0] for p in pd], pd_right=[p[1] for p in pd],
+        pd_target=[spec['pd'][p] for p in pd])
+
 
 def random_sta(rng: random.Random, max_states=5, max_symbols=4,
                max_exc=12, max_pd=6) -> SparseTreeAutomaton:
@@ -135,6 +161,42 @@ def random_tree(rng: random.Random, m: int, max_size=12) -> Tree:
 # Tests
 # ====================================================================
 
+class TestCompilation:
+    def test_diagrams_agree_with_the_flat_spec(self):
+        """Compiling the three-tier flat form into one diagram per child pair
+        preserves delta pointwise."""
+        rng = random.Random(17)
+        for trial in range(60):
+            spec = random_spec(rng)
+            sta = sta_of_spec(spec)
+            table = sta.dense_delta()
+            n, m = spec['n'], spec['m']
+            for l in range(n + 1):
+                for r in range(n + 1):
+                    for s in range(m):
+                        want = spec['exc'].get((l, r, s))
+                        if want is None:
+                            want = spec['pd'].get((l, r), spec['default'])
+                        assert table[l, r, s] == want, (trial, l, r, s)
+
+    def test_equal_transition_functions_share_a_diagram(self):
+        """Hash-consing: two states with the same behavior on a child pair
+        resolve to the same node."""
+        alpha = {0, 1, 2}
+        sta = SparseTreeAutomaton(
+            3, 0,
+            exc_left=[3, 3, 3, 3], exc_right=[3, 3, 3, 3],
+            exc_symbol=[0, 1, 0, 1], exc_target=[1, 2, 1, 2],
+            is_accepting=[False, True, True], base_alphabet=alpha,
+            pd_left=[3], pd_right=[3], pd_target=[0])
+        two = SparseTreeAutomaton(
+            3, 0,
+            exc_left=[3, 3], exc_right=[3, 3],
+            exc_symbol=[0, 1], exc_target=[1, 2],
+            is_accepting=[False, True, True], base_alphabet=alpha)
+        assert list(sta.pair_nodes) == list(two.pair_nodes)
+
+
 class TestRunAgainstReference:
     def test_random_trees(self):
         rng = random.Random(0)
@@ -181,8 +243,9 @@ class TestBooleanOperations:
                 assert comp.accepts(t) == (not ra), (trial, t)
 
     def test_product_is_sparse(self):
-        """Default x default composes: the product of two automata with few
-        exceptions has few exceptions."""
+        """Default x default composes: only child pairs whose factors both
+        deviate from their defaults enter the product's pair table, and the
+        product's diagrams stay within the apply bound."""
         rng = random.Random(3)
         A = random_sta(rng, max_states=4, max_symbols=3, max_exc=6, max_pd=0)
         B = random_sta(rng, max_states=4, max_symbols=3, max_exc=6, max_pd=0)
@@ -190,7 +253,8 @@ class TestBooleanOperations:
             B = random_sta(rng, max_states=4, max_symbols=3, max_exc=6,
                            max_pd=0)
         prod = A.intersection(B)
-        assert len(prod.exc_target) <= 4 * (len(A.exc_target) + len(B.exc_target)) + 16
+        assert prod.num_nodes <= A.num_nodes * B.num_nodes
+        assert len(prod.pair_keys) <= (prod.num_states + 1) ** 2
 
 
 class TestEmptiness:

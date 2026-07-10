@@ -186,9 +186,8 @@ class TestSentences:
             assert not sta.accepts(grp.advice(spine2))
 
     def test_functionality(self, grp):
-        if grp.p > 2:
-            pytest.skip("5 tapes over 14 letters: beyond the flat-symbol "
-                        "envelope (see autstr.tree_graphs docstring)")
+        """Arity 5: p = 3 means 14**5 = 537824 flat symbols, but a diagram
+        only tests the digits its transition depends on."""
         sta, _ = grp.evaluate(FUNCTIONAL)
         assert sta.accepts(grp.advice(TreeExtraspecialGroups.spine(2)))
         assert sta.accepts(grp.advice(Tree('s', Tree('s'), Tree('s'))))

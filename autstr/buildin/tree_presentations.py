@@ -150,10 +150,11 @@ class SkolemArithmetic(TreeAutomaticPresentation):
         chain = from_string_dfa(cls._addition_dfa())
         n = chain.num_states
         S_OK, BOT = n, n + 1
-        left = np.where(chain.exc_left == n, BOT, chain.exc_left)
-        right = np.where(chain.exc_right == n, BOT, chain.exc_right)
+        cl, cr, cs, ct = chain.exceptions()
+        left = np.where(cl == n, BOT, cl)
+        right = np.where(cr == n, BOT, cr)
         exc = list(zip(left.tolist(), right.tolist(),
-                       chain.exc_symbol.tolist(), chain.exc_target.tolist()))
+                       cs.tolist(), ct.tolist()))
 
         good_chain = np.flatnonzero(chain.is_accepting).tolist()
         spine_syms = [cls._enc(t) for t in iter_product(('p', '*'), repeat=3)

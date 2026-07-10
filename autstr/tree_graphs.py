@@ -5,17 +5,17 @@ first-order logic over the presentation is monadic second-order logic over
 the graph — evaluating an MSO query once yields a tree automaton that decides
 it on every member graph in linear time (Courcelle's theorem).
 
-**Practical envelope (current engine).** Query compilation works on flat
-convolution symbols, so intermediate automata carry one exception per
-(child pair, symbol); with the alphabet of TreeWidthClass(w) — (w+1)·2^w
-register letters plus '0'/'1'/'n'/'*' — a query with q simultaneously free
-tapes lives on |Σ|^(1+q) symbols. Element (path) quantifiers project onto
-small subset automata and are cheap; *set* quantifiers determinize densely,
-and their projections currently exceed laptop memory beyond w = 1 with
-shallow nesting. Deciding a compiled automaton on a graph is always linear
-and fast — compilation is the bottleneck. The planned fix is a factored
-transition representation (symbol blocks/BDD labels à la MONA), which
-collapses the per-digit cartesian structure these tables consist of.
+**Practical envelope.** Transitions are decision diagrams over the symbol's
+digits (`autstr.mtbdd`), so the *width* of the convolution alphabet no longer
+drives the cost: a query with several free tapes is as cheap as the digits its
+transitions actually test. What remains is the subset explosion of
+determinizing an existential quantifier. Element (path) quantifiers project
+onto small subset automata and are cheap; *set* quantifiers (MSO proper)
+determinize over subsets of the intermediate automaton's states, and each such
+subset carries its own diagram. Two-colourability compiles at w = 1; deeper
+set-quantifier nesting is bounded by memory, not by the alphabet. Deciding a
+compiled automaton on a graph is always linear and fast — compilation is the
+bottleneck.
 
 The signature is shared with the string graph classes:
 

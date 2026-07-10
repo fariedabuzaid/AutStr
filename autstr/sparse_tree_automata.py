@@ -10,38 +10,22 @@ covers leaves (both children absent), unary and binary nodes:
 
     state(node) = delta(state(left) or BOT, state(right) or BOT, label(node)).
 
-**Sparsity (two levels).** Transition lookup resolves in three tiers:
-
-    delta(l, r, s) = exception(l, r, s)  ??  pair_default(l, r)  ??  default
-
-Exceptions are parallel arrays ``(left, right, symbol) -> target`` kept
-sorted by the packed integer key ``(left*(num_states+1) + right)*S + symbol``
-(S = symbol-space size), so a batch of transitions is one
-``np.searchsorted``; *pair defaults* are a sparse sorted table
-``(left, right) -> target`` consulted on exception misses, and the global
-``default_state`` (typically a rejecting sink) catches the rest.
-
-Pair defaults are what keeps boolean combinations sparse: complementation
-turns the rejecting sink into an accepting loop, and states that loop to
-themselves on almost every symbol would otherwise need one exception per
-symbol — fatal over large convolution alphabets. The representation is
-closed under product on both levels: default x default = default, and the
-pair default of a product pair is the pair of the factors' pair defaults, so
-a product transition deviates from its pair default exactly where one of the
-factors has a symbol exception — candidate enumeration stays exception-
-driven. (This is the tree analog of the string engine's per-state
-``default_states``.)
-
-**Trees.** The convenience `Tree` class holds labelled binary trees; the
-computational format is the *array tree*: post-order numpy arrays
-``(labels, lefts, rights)`` with -1 for an absent child and encoded integer
-labels. Conversions are iterative (no recursion limits).
+**Sparsity.** Transitions are stored as a sorted table from the child pair
+``(left, right)`` to a *shared multi-terminal BDD* over the binary digits of
+the symbol (see `autstr.mtbdd`); pairs absent from the table map every symbol
+to the global ``default_state``. Nothing in the pipeline ever enumerates the
+convolution alphabet: a symbol is a variable assignment, so a transition that
+ignores a tape simply does not test that tape's variables. Boolean
+combinations are pairwise `apply` on the diagrams, complementation relabels
+acceptance and touches no diagram at all, and hash-consing makes two states
+with the same transition function share one node.
 """
-from typing import List, Optional, Sequence, Set, Tuple
+from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 import numpy as np
 
-from autstr.utils.misc import decode_symbol, encode_symbol
+from autstr.mtbdd import NONE, STORE, num_bits, var_tables
+from autstr.utils.misc import encode_symbol
 
 
 # ====================================================================
@@ -148,7 +132,12 @@ def convolve_trees(trees: Sequence[Tree], base_alphabet: Set,
 # ====================================================================
 
 class SparseTreeAutomaton:
-    """Deterministic bottom-up tree automaton with sparse transitions.
+    """Deterministic bottom-up tree automaton with MTBDD transitions.
+
+    The constructor takes the transition function in the flat form that is
+    convenient to write down by hand — a global default, optional per-pair
+    defaults, and ``(left, right, symbol) -> target`` exceptions — and
+    compiles it into one decision diagram per child pair.
 
     :param num_states: number of real states (0..num_states-1); the virtual
         absent-child state is ``BOT = num_states``.
@@ -160,43 +149,92 @@ class SparseTreeAutomaton:
         checked at the root).
     :param pd_left, pd_right, pd_target: parallel arrays of pair defaults
         delta(pd_left, pd_right, *) = pd_target for symbols without an
-        exception. Children may be BOT; targets are real states. Pairs not
-        listed fall back to the global default.
+        exception. Pairs not listed fall back to the global default.
+    :param pair_keys, pair_nodes: the compiled form (sorted packed pair keys
+        and their diagram roots); passed by the pipeline instead of the flat
+        arrays.
     """
 
     def __init__(self, num_states: int, default_state: int,
-                 exc_left, exc_right, exc_symbol, exc_target,
-                 is_accepting, symbol_arity: int = 1,
+                 exc_left=(), exc_right=(), exc_symbol=(), exc_target=(),
+                 is_accepting=(), symbol_arity: int = 1,
                  base_alphabet: Optional[Set] = None,
-                 pd_left=(), pd_right=(), pd_target=()):
+                 pd_left=(), pd_right=(), pd_target=(),
+                 pair_keys=None, pair_nodes=None):
         self.num_states = int(num_states)
         self.default_state = int(default_state)
         self.is_accepting = np.asarray(is_accepting, dtype=bool)
-        self.symbol_arity = symbol_arity
+        self.symbol_arity = int(symbol_arity)
         self.base_alphabet = base_alphabet or {0}
         self.base_alphabet_frozen = frozenset(self.base_alphabet)
 
-        left = np.asarray(exc_left, dtype=np.int64)
-        right = np.asarray(exc_right, dtype=np.int64)
-        symbol = np.asarray(exc_symbol, dtype=np.int64)
-        target = np.asarray(exc_target, dtype=np.int64)
+        self.store = STORE
+        self.m = len(self.base_alphabet_frozen)
+        self.bits = num_bits(self.m)
+        self.nvars = self.symbol_arity * self.bits
+        self.default_node = self.store.const(self.default_state,
+                                             self.symbol_arity, self.m,
+                                             self.bits)
+        if pair_keys is not None:
+            order = np.argsort(np.asarray(pair_keys, dtype=np.int64),
+                               kind="stable")
+            self.pair_keys = np.asarray(pair_keys, dtype=np.int64)[order]
+            self.pair_nodes = np.asarray(pair_nodes, dtype=np.int64)[order]
+        else:
+            self._compile(exc_left, exc_right, exc_symbol, exc_target,
+                          pd_left, pd_right, pd_target)
+        self._run_cache: Dict[int, int] = {}
 
-        order = np.argsort(self._keys(left, right, symbol), kind="stable")
-        self.exc_left = left[order]
-        self.exc_right = right[order]
-        self.exc_symbol = symbol[order]
-        self.exc_target = target[order]
-        self._sorted_keys = self._keys(self.exc_left, self.exc_right,
-                                       self.exc_symbol)
+    # ---------------- compilation of the flat form ----------------
 
-        pdl = np.asarray(pd_left, dtype=np.int64)
-        pdr = np.asarray(pd_right, dtype=np.int64)
-        pdt = np.asarray(pd_target, dtype=np.int64)
-        order = np.argsort(pdl * (self.num_states + 1) + pdr, kind="stable")
-        self.pd_left = pdl[order]
-        self.pd_right = pdr[order]
-        self.pd_target = pdt[order]
-        self._pd_keys = self.pd_left * (self.num_states + 1) + self.pd_right
+    def _compile(self, exc_left, exc_right, exc_symbol, exc_target,
+                 pd_left, pd_right, pd_target) -> None:
+        base = self.num_states + 1
+        left = np.asarray(exc_left, dtype=np.int64).reshape(-1)
+        right = np.asarray(exc_right, dtype=np.int64).reshape(-1)
+        symbol = np.asarray(exc_symbol, dtype=np.int64).reshape(-1)
+        target = np.asarray(exc_target, dtype=np.int64).reshape(-1)
+        pdl = np.asarray(pd_left, dtype=np.int64).reshape(-1)
+        pdr = np.asarray(pd_right, dtype=np.int64).reshape(-1)
+        pdt = np.asarray(pd_target, dtype=np.int64).reshape(-1)
+
+        # a pair's base value is its pair default, the global default otherwise
+        pd_keys = pdl * base + pdr
+        order = np.argsort(pd_keys, kind="stable")
+        pd_keys, pdt = pd_keys[order], pdt[order]
+
+        exc_keys = left * base + right
+        # the first row of a duplicated (pair, symbol) wins, as with the
+        # leftmost binary search the flat representation used
+        order = np.lexsort((symbol, exc_keys))
+        exc_keys, symbol, target = exc_keys[order], symbol[order], target[order]
+        if len(exc_keys):
+            packed = exc_keys * self.num_symbols + symbol
+            _, first = np.unique(packed, return_index=True)
+            exc_keys, symbol, target = exc_keys[first], symbol[first], target[first]
+
+        pairs = np.union1d(exc_keys, pd_keys).astype(np.int64)
+        starts = np.searchsorted(exc_keys, pairs, 'left')
+        ends = np.searchsorted(exc_keys, pairs, 'right')
+        if len(pd_keys):
+            pd_pos = np.minimum(np.searchsorted(pd_keys, pairs),
+                                len(pd_keys) - 1)
+            pd_hit = pd_keys[pd_pos] == pairs
+        else:
+            pd_pos = np.zeros(len(pairs), dtype=np.int64)
+            pd_hit = np.zeros(len(pairs), dtype=bool)
+
+        keys, nodes = [], []
+        for i, key in enumerate(pairs.tolist()):
+            value = int(pdt[pd_pos[i]]) if pd_hit[i] else self.default_state
+            node = self.store.build_rows(
+                symbol[starts[i]:ends[i]], target[starts[i]:ends[i]],
+                value, self.symbol_arity, self.m, self.bits)
+            if node != self.default_node:
+                keys.append(key)
+                nodes.append(node)
+        self.pair_keys = np.array(keys, dtype=np.int64)
+        self.pair_nodes = np.array(nodes, dtype=np.int64)
 
     # ---------------- basics ----------------
 
@@ -206,38 +244,49 @@ class SparseTreeAutomaton:
 
     @property
     def num_symbols(self) -> int:
-        return len(self.base_alphabet_frozen) ** self.symbol_arity
+        return self.m ** self.symbol_arity
 
-    def _keys(self, left, right, symbol):
-        base = self.num_states + 1
-        return (left * base + right) * self.num_symbols + symbol
+    @property
+    def num_nodes(self) -> int:
+        """Distinct diagram nodes carrying this automaton's transitions."""
+        return self.store.size(self.pair_nodes.tolist() + [self.default_node])
 
-    def pair_defaults(self, left, right) -> np.ndarray:
-        """Batched pair-default lookup (global default on misses)."""
-        left = np.asarray(left, dtype=np.int64)
-        right = np.asarray(right, dtype=np.int64)
-        keys = left * (self.num_states + 1) + right
-        if len(self._pd_keys) == 0:
-            return np.full(keys.shape, self.default_state, dtype=np.int64)
-        pos = np.minimum(np.searchsorted(self._pd_keys, keys),
-                         len(self._pd_keys) - 1)
-        hit = self._pd_keys[pos] == keys
-        return np.where(hit, self.pd_target[pos], self.default_state)
+    def pair_node(self, left, right) -> np.ndarray:
+        """Batched lookup of the diagram of each child pair."""
+        keys = np.asarray(left, dtype=np.int64) * (self.num_states + 1) + \
+            np.asarray(right, dtype=np.int64)
+        if len(self.pair_keys) == 0:
+            return np.full(keys.shape, self.default_node, dtype=np.int64)
+        pos = np.minimum(np.searchsorted(self.pair_keys, keys),
+                         len(self.pair_keys) - 1)
+        hit = self.pair_keys[pos] == keys
+        return np.where(hit, self.pair_nodes[pos], self.default_node)
 
     def transitions(self, left, right, symbol) -> np.ndarray:
-        """Batched transition lookup (binary search over exception keys,
-        pair defaults on misses)."""
-        left = np.asarray(left, dtype=np.int64)
-        right = np.asarray(right, dtype=np.int64)
+        """Batched transition lookup: find each pair's diagram, then descend
+        it along the symbol's digits."""
         symbol = np.asarray(symbol, dtype=np.int64)
-        fallback = self.pair_defaults(left, right)
-        if len(self._sorted_keys) == 0:
-            return fallback
-        keys = self._keys(left, right, symbol)
-        pos = np.minimum(np.searchsorted(self._sorted_keys, keys),
-                         len(self._sorted_keys) - 1)
-        hit = self._sorted_keys[pos] == keys
-        return np.where(hit, self.exc_target[pos], fallback)
+        nodes = self.pair_node(left, right)
+        return self.store.eval_batch(nodes, symbol, self.symbol_arity,
+                                     self.m, self.bits)
+
+    def dense_delta(self, max_entries: int = 10 ** 7) -> np.ndarray:
+        """The full transition table ``(BOT+1, BOT+1, num_symbols)``. For
+        inspection and for reference oracles on small automata."""
+        n, S = self.num_states, self.num_symbols
+        if (n + 1) ** 2 * S > max_entries:
+            raise ValueError("transition table too large to materialize")
+        left, right, symbol = np.meshgrid(np.arange(n + 1), np.arange(n + 1),
+                                          np.arange(S), indexing='ij')
+        return self.transitions(left.ravel(), right.ravel(), symbol.ravel()
+                                ).reshape(n + 1, n + 1, S)
+
+    def exceptions(self, max_entries: int = 10 ** 7):
+        """The transitions that differ from the global default, as flat
+        ``(left, right, symbol, target)`` arrays (inspection only)."""
+        table = self.dense_delta(max_entries)
+        left, right, symbol = np.nonzero(table != self.default_state)
+        return left, right, symbol, table[left, right, symbol]
 
     # ---------------- running trees ----------------
 
@@ -280,32 +329,46 @@ class SparseTreeAutomaton:
         return int(states[n - 1])
 
     def _run_scalar(self, labels, child_l, child_r, states, pending):
-        """Finish the remaining pending nodes with a plain post-order sweep
-        (valid because children precede parents in the arrays)."""
+        """Finish the remaining pending nodes with a plain post-order sweep.
+
+        A diagram descent costs one step per variable, which is more than the
+        single table probe of the flat representation, so results are memoized
+        per (child pair, symbol): the chains this path exists for reuse the
+        same few transitions over and over."""
         from bisect import bisect_left
-        keys = self._sorted_keys.tolist()
-        targets = self.exc_target.tolist()
-        pd_keys = self._pd_keys.tolist()
-        pd_targets = self.pd_target.tolist()
-        n_keys = len(keys)
-        n_pd = len(pd_keys)
-        default = self.default_state
+        from autstr.mtbdd import TOP
+        store = self.store
+        var, lo, hi, term = store.var, store.lo, store.hi, store.term
+        div, shift = var_tables(self.symbol_arity, self.m, self.bits)
+        div, shift = div.tolist(), shift.tolist()
+        pair_keys = self.pair_keys.tolist()
+        pair_nodes = self.pair_nodes.tolist()
+        num_pairs = len(pair_keys)
+        default_node = self.default_node
+        cache = self._run_cache
         base = self.num_states + 1
         S = self.num_symbols
+        m = self.m
+
         st = states.tolist()
         lab = labels.tolist()
         cl = child_l.tolist()
         cr = child_r.tolist()
         for i in np.flatnonzero(pending).tolist():
             pair = st[cl[i]] * base + st[cr[i]]
-            key = pair * S + lab[i]
-            pos = bisect_left(keys, key)
-            if pos < n_keys and keys[pos] == key:
-                st[i] = targets[pos]
-            else:
-                pos = bisect_left(pd_keys, pair)
-                st[i] = pd_targets[pos] if pos < n_pd and pd_keys[pos] == pair \
-                    else default
+            symbol = lab[i]
+            key = pair * S + symbol
+            target = cache.get(key)
+            if target is None:
+                pos = bisect_left(pair_keys, pair)
+                node = pair_nodes[pos] if pos < num_pairs and \
+                    pair_keys[pos] == pair else default_node
+                while var[node] != TOP:
+                    v = var[node]
+                    node = hi[node] if (symbol // div[v]) % m >> shift[v] & 1 \
+                        else lo[node]
+                target = cache[key] = term[node]
+            st[i] = target
         states[:] = st
 
     def accepts(self, *trees) -> bool:
@@ -326,11 +389,12 @@ class SparseTreeAutomaton:
     # ---------------- boolean operations ----------------
 
     def complement(self) -> "SparseTreeAutomaton":
+        """Flip acceptance — the transition diagrams are untouched."""
         return SparseTreeAutomaton(
             self.num_states, self.default_state,
-            self.exc_left, self.exc_right, self.exc_symbol, self.exc_target,
-            ~self.is_accepting, self.symbol_arity, self.base_alphabet,
-            self.pd_left, self.pd_right, self.pd_target)
+            is_accepting=~self.is_accepting, symbol_arity=self.symbol_arity,
+            base_alphabet=self.base_alphabet,
+            pair_keys=self.pair_keys, pair_nodes=self.pair_nodes)
 
     def intersection(self, other) -> "SparseTreeAutomaton":
         return self._product(other, np.logical_and)
@@ -338,200 +402,129 @@ class SparseTreeAutomaton:
     def union(self, other) -> "SparseTreeAutomaton":
         return self._product(other, np.logical_or)
 
-    def _exception_groups(self):
-        """Group the (sorted) exception table by (left, right): returns the
-        group keys ``left*(n+1)+right`` (sorted, unique) and the start/end
-        offsets of each group in the exception arrays."""
-        base = self.num_states + 1
-        pair_keys = self.exc_left * base + self.exc_right
-        starts = np.flatnonzero(np.r_[True, pair_keys[1:] != pair_keys[:-1]]) \
-            if len(pair_keys) else np.array([], dtype=np.int64)
-        ends = np.r_[starts[1:], len(pair_keys)] if len(starts) else starts
-        return pair_keys[starts] if len(starts) else pair_keys, starts, ends
-
-    def _product(self, other: "SparseTreeAutomaton", combine) -> "SparseTreeAutomaton":
+    def _product(self, other: "SparseTreeAutomaton", combine
+                 ) -> "SparseTreeAutomaton":
         if self.symbol_arity != other.symbol_arity:
             raise ValueError("product requires the same symbol arity")
         if self.base_alphabet_frozen != other.base_alphabet_frozen:
             raise ValueError("product requires the same base alphabet")
 
-        # Product states are pairs (a, b) of real states; the product BOT is
-        # (BOT_a, BOT_b), the product default is (default_a, default_b) and
-        # the pair default of a product pair is the pair of the factors' pair
-        # defaults: unlisted transitions resolve tier by tier in both factors,
-        # so the representation is closed on all levels. Discovery is a
-        # bottom-up reachability fixpoint: child slots range over discovered
-        # pairs plus the BOT pair, and a product transition deviates from its
-        # combo's pair default only where some factor has a symbol exception.
+        # Product states are pairs of states; the transition diagram of a
+        # product pair is the pairwise `apply` of the factors' diagrams, whose
+        # terminal operation allocates product state ids on demand. Discovery
+        # is a bottom-up reachability fixpoint over child options (discovered
+        # pairs plus the BOT pair): the targets of a combo are exactly the
+        # terminals of its diagram.
+        store = self.store
         nb = other.num_states
-        BOT_pair_key = self.BOT * (nb + 1) + other.BOT
-
-        def pair_key(a, b):
-            return a * (nb + 1) + b
-
-        keys_a, starts_a, ends_a = self._exception_groups()
-        keys_b, starts_b, ends_b = other._exception_groups()
-
-        state_ids = {}
+        state_ids: Dict[int, int] = {}
         pairs_a: List[int] = []
         pairs_b: List[int] = []
+        pending: List[int] = []
 
-        def get_id(a, b):
-            key = pair_key(int(a), int(b))
+        def get_id(a: int, b: int) -> int:
+            key = a * (nb + 1) + b
             idx = state_ids.get(key)
             if idx is None:
                 idx = state_ids[key] = len(pairs_a)
-                pairs_a.append(int(a))
-                pairs_b.append(int(b))
+                pairs_a.append(a)
+                pairs_b.append(b)
+                pending.append(idx)
             return idx
 
+        def op(ta: int, tb: int) -> int:
+            if ta == NONE or tb == NONE:
+                return NONE
+            return get_id(ta, tb)
+
         default_id = get_id(self.default_state, other.default_state)
+        pending.clear()                            # the default is not a child
+        default_node = store.const(default_id, self.symbol_arity, self.m,
+                                   self.bits)
+        cache: Dict[int, int] = {}
 
-        # exception/pair-default output, accumulated as numpy chunks (python
-        # lists of ints would dominate memory on million-row tables)
-        exc_chunks: List[np.ndarray] = []
-        pd_l: List[int] = []
-        pd_r: List[int] = []
-        pd_t: List[int] = []
+        keys: List[Tuple[int, int]] = []
+        nodes: List[int] = []
+        new_options = [-1, default_id]             # -1 encodes the BOT pair
+        all_options: List[int] = []
 
-        # child options: product ids, or -1 encoding the BOT pair
-        new_options = [-1, default_id]
-        all_options = []
-
-        def component_states(option_ids):
-            ids = np.asarray(option_ids, dtype=np.int64)
-            a = np.where(ids < 0, self.BOT, np.array(pairs_a, dtype=np.int64)[
-                np.maximum(ids, 0)])
-            b = np.where(ids < 0, other.BOT, np.array(pairs_b, dtype=np.int64)[
-                np.maximum(ids, 0)])
+        def components(options: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+            absent = options < 0
+            safe = np.maximum(options, 0)
+            a = np.where(absent, self.BOT,
+                         np.array(pairs_a, dtype=np.int64)[safe])
+            b = np.where(absent, other.BOT,
+                         np.array(pairs_b, dtype=np.int64)[safe])
             return a, b
 
         while new_options:
-            # each combo enumerated exactly once, in the round where its later
-            # member was discovered (no quadratic dedup set)
+            # each combo is enumerated exactly once, in the round where its
+            # later member was discovered (no quadratic dedup set)
             round_new = new_options
-            new_options = []
             combos = [(x, y) for x in round_new for y in all_options]
             combos += [(y, x) for x in round_new for y in all_options]
             combos += [(x, y) for x in round_new for y in round_new]
             all_options.extend(round_new)
+            pending.clear()
             if not combos:
                 break
 
             cl = np.array([c[0] for c in combos], dtype=np.int64)
             cr = np.array([c[1] for c in combos], dtype=np.int64)
-            la, lb = component_states(cl)
-            ra, rb = component_states(cr)
+            la, lb = components(cl)
+            ra, rb = components(cr)
+            nodes_a = self.pair_node(la, ra).tolist()
+            nodes_b = other.pair_node(lb, rb).tolist()
 
-            pda = self.pair_defaults(la, ra)
-            pdb = other.pair_defaults(lb, rb)
-            # symbols with an exception in either factor, per combo
-            ga = np.searchsorted(keys_a, la * (self.num_states + 1) + ra)
-            gb = np.searchsorted(keys_b, lb * (other.num_states + 1) + rb)
-            for i in range(len(combos)):
-                before = len(pairs_a)
-                pd_id = get_id(pda[i], pdb[i])
-                if len(pairs_a) > before:
-                    new_options.append(pd_id)
-                if pd_id != default_id:
-                    pd_l.append(int(cl[i]))     # -1 encodes the BOT pair
-                    pd_r.append(int(cr[i]))
-                    pd_t.append(pd_id)
-
-                syms = []
-                if ga[i] < len(keys_a) and keys_a[ga[i]] == la[i] * (self.num_states + 1) + ra[i]:
-                    syms.append(self.exc_symbol[starts_a[ga[i]]:ends_a[ga[i]]])
-                if gb[i] < len(keys_b) and keys_b[gb[i]] == lb[i] * (other.num_states + 1) + rb[i]:
-                    syms.append(other.exc_symbol[starts_b[gb[i]]:ends_b[gb[i]]])
-                if not syms:
-                    continue
-                symbols = np.unique(np.concatenate(syms))
-                ta = self.transitions(np.full(len(symbols), la[i]),
-                                      np.full(len(symbols), ra[i]), symbols)
-                tb = other.transitions(np.full(len(symbols), lb[i]),
-                                       np.full(len(symbols), rb[i]), symbols)
-                deviates = (ta != pda[i]) | (tb != pdb[i])
-                if not deviates.any():
-                    continue
-                sel_syms = symbols[deviates]
-                keys = ta[deviates] * (nb + 1) + tb[deviates]
-                # bulk target-id assignment: python only per distinct new pair
-                uniq, inverse = np.unique(keys, return_inverse=True)
-                uids = np.empty(len(uniq), dtype=np.int64)
-                for j, key in enumerate(uniq.tolist()):
-                    idx = state_ids.get(key)
-                    if idx is None:
-                        idx = state_ids[key] = len(pairs_a)
-                        pairs_a.append(key // (nb + 1))
-                        pairs_b.append(key % (nb + 1))
-                        new_options.append(idx)
-                    uids[j] = idx
-                chunk = np.empty((4, len(sel_syms)), dtype=np.int64)
-                chunk[0] = cl[i]                # -1 encodes the BOT pair
-                chunk[1] = cr[i]
-                chunk[2] = sel_syms
-                chunk[3] = uids[inverse]
-                exc_chunks.append(chunk)
+            for i, (fa, fb) in enumerate(zip(nodes_a, nodes_b)):
+                node = store.apply2(fa, fb, op, cache)
+                if node != default_node:
+                    keys.append(combos[i])
+                    nodes.append(node)
+            new_options = list(pending)
 
         num_states = len(pairs_a)
-        exc = np.concatenate(exc_chunks, axis=1) if exc_chunks else \
-            np.empty((4, 0), dtype=np.int64)
-        # rewrite the -1 BOT sentinels now that the state count is known
-        exc_l_arr = np.where(exc[0] < 0, num_states, exc[0])
-        exc_r_arr = np.where(exc[1] < 0, num_states, exc[1])
-        pd_l_arr = np.where(np.array(pd_l, dtype=np.int64) < 0,
-                            num_states, np.array(pd_l, dtype=np.int64))
-        pd_r_arr = np.where(np.array(pd_r, dtype=np.int64) < 0,
-                            num_states, np.array(pd_r, dtype=np.int64))
-
-        acc = combine(self.is_accepting[np.array(pairs_a)],
-                      other.is_accepting[np.array(pairs_b)])
+        packed = [(num_states if l < 0 else l) * (num_states + 1) +
+                  (num_states if r < 0 else r) for l, r in keys]
+        acc = combine(self.is_accepting[np.array(pairs_a, dtype=np.int64)],
+                      other.is_accepting[np.array(pairs_b, dtype=np.int64)])
         return SparseTreeAutomaton(
-            num_states, default_id, exc_l_arr, exc_r_arr,
-            exc[2], exc[3],
-            acc, self.symbol_arity, self.base_alphabet,
-            pd_l_arr, pd_r_arr, np.array(pd_t, dtype=np.int64))
+            num_states, default_id, is_accepting=acc,
+            symbol_arity=self.symbol_arity, base_alphabet=self.base_alphabet,
+            pair_keys=np.array(packed, dtype=np.int64),
+            pair_nodes=np.array(nodes, dtype=np.int64))
 
     # ---------------- emptiness ----------------
 
     def reachable_states(self) -> np.ndarray:
         """Boolean mask of states reachable by some tree (bottom-up fixpoint).
-        Sparse-aware: a pair default (or the global default) is reachable as
-        soon as some available child pair leaves a symbol un-excepted. Pair
-        defaults are examined once per pair, in the round where the pair's
-        later member became available."""
-        available = np.zeros(self.num_states + 1, dtype=bool)
-        available[self.BOT] = True
-        keys, starts, ends = self._exception_groups()
-        counts = ends - starts if len(starts) else np.array([], dtype=np.int64)
+        The targets of an available child pair are the terminals of its
+        diagram; the global default joins as soon as some available pair is
+        absent from the table."""
         base = self.num_states + 1
-
-        frontier = np.array([self.BOT], dtype=np.int64)
-        while len(frontier):
-            av = np.flatnonzero(available)
-            new = frontier
-            pl = np.concatenate([np.repeat(new, len(av)),
-                                 np.tile(av, len(new))])
-            pr = np.concatenate([np.tile(av, len(new)),
-                                 np.repeat(new, len(av))])
-            pk = pl * base + pr
-            covered = np.zeros(len(pk), dtype=np.int64)
-            if len(keys):
-                pos = np.searchsorted(keys, pk)
-                valid = pos < len(keys)
-                match = valid.copy()
-                match[valid] = keys[pos[valid]] == pk[valid]
-                covered[match] = counts[pos[match]]
-            cand = self.pair_defaults(pl, pr)[covered < self.num_symbols]
-            newly = np.unique(cand[~available[cand]]) if len(cand) else cand
-            # exception targets with available children
-            mask = available[self.exc_left] & available[self.exc_right] & \
-                ~available[self.exc_target]
-            if mask.any():
-                newly = np.unique(np.concatenate(
-                    [newly, self.exc_target[mask]]))
-            available[newly] = True
-            frontier = newly
+        available = np.zeros(base, dtype=bool)
+        available[self.BOT] = True
+        left = self.pair_keys // base
+        right = self.pair_keys % base
+        default_seen = False
+        while True:
+            usable = available[left] & available[right]
+            targets = [np.asarray(self.store.terminals(int(node)),
+                                  dtype=np.int64)
+                       for node in self.pair_nodes[usable]]
+            targets = [t for t in targets if len(t)]
+            new = np.zeros(base, dtype=bool)
+            if targets:
+                new[np.concatenate(targets)] = True
+            if not default_seen:
+                count = int(available.sum())
+                if count * count > int(usable.sum()):
+                    default_seen = True             # some pair is unlisted
+                    new[self.default_state] = True
+            new &= ~available
+            if not new.any():
+                break
+            available |= new
         return available[:self.num_states]
 
     def is_empty(self) -> bool:
@@ -540,6 +533,5 @@ class SparseTreeAutomaton:
 
     def __repr__(self):
         return (f"SparseTreeAutomaton({self.num_states} states, "
-                f"{len(self.exc_target)} exceptions, "
-                f"{len(self.pd_target)} pair defaults, "
+                f"{len(self.pair_keys)} pairs, {self.num_nodes} nodes, "
                 f"default={self.default_state})")
