@@ -397,15 +397,8 @@ def from_string_dfa(dfa) -> SparseTreeAutomaton:
     with pre-images over a dense next-state table (validation-scale sizes).
     The root accepts iff the DFA's start state lies in the set."""
     n = dfa.num_states
-    S = len(dfa.base_alphabet_frozen) ** dfa.symbol_arity
-
-    # dense next-state table (n, S)
-    table = np.tile(np.asarray(dfa.default_states, dtype=np.int64)[:, None],
-                    (1, S))
-    for q in range(n):
-        for s, t in zip(dfa.exception_symbols[q], dfa.exception_states[q]):
-            if s >= 0:
-                table[q, int(s)] = int(t)
+    S = dfa.num_symbols
+    table = dfa.dense_next()                     # validation-scale sizes
 
     accepting = np.asarray(dfa.is_accepting, dtype=bool)
 

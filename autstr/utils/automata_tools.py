@@ -1,12 +1,11 @@
 import heapq
 import numpy as np
-from collections import deque, defaultdict, Counter
-from functools import partial
-from typing import Generator, Optional, Callable, Dict, List, Set, Union
+from collections import deque
+from typing import Callable, Dict, Generator, List, Set
 import itertools as it
 
-from autstr.utils.logic import get_free_elementary_vars
-from autstr.sparse_automata import SparseDFA, SparseNFA, _sort_exception_rows, _sorted_row_lookup
+from autstr.mtbdd import NONE, bits_of, var_tables
+from autstr.sparse_automata import SparseDFA, SparseNFA
 from autstr.buildin.automata import one
 from autstr.utils.misc import decode_symbol, encode_symbol, complement
 
@@ -14,149 +13,99 @@ from autstr.utils.misc import decode_symbol, encode_symbol, complement
 
 
 # ====== Helper Functions ======
+def _symbol_assignment(symbol: int, arity: int, m: int, bits: int) -> List[int]:
+    """The binary variable assignment of a convolution symbol."""
+    div, shift = var_tables(arity, m, bits)
+    return [int((symbol // div[v]) % m) >> int(shift[v]) & 1
+            for v in range(arity * bits)]
+
+
 def pad(dfa: SparseDFA, padding_symbol: int = -1) -> SparseDFA:
-    """Pad the automaton to accept trailing padding symbols by:
-    1. Creating a new sub-automaton for (pad_tuple)*
-    2. Connecting original accepting states to the new sub-automaton
-    3. Determinizing and minimizing the result
+    """Accept the language followed by any number of padding symbols.
+
+    An accepting state may already have a transition on the padding symbol, so
+    adding the padding loop makes the automaton nondeterministic: the padding
+    symbol now leads both to the original target and into the padding loop.
+    Only that one symbol changes, which on the diagrams is a single path
+    rewrite; the subset construction then restores determinism.
     """
     arity = dfa.symbol_arity
     base_alphabet = dfa.base_alphabet
     if padding_symbol == -1:
-        padding_symbol = sorted(base_alphabet)[0]  # Default to first symbol
-    pad_tuple = (padding_symbol,) * arity
-    pad_enc = encode_symbol(pad_tuple, base_alphabet)
-    
-    # If automaton is empty, return it immediately
+        padding_symbol = sorted(base_alphabet)[0]
+    pad_enc = encode_symbol((padding_symbol,) * arity, base_alphabet)
+
     if dfa.is_empty():
         return dfa
 
-    # Convert JAX arrays to native Python types
-    default_states_np = np.array(dfa.default_states)
-    exception_symbols_np = np.array(dfa.exception_symbols)
-    exception_states_np = np.array(dfa.exception_states)
-    is_accepting_np = np.array(dfa.is_accepting)
-    
-    # Step 1: Build NFA components
-    n_orig = dfa.num_states
-    n_pad = n_orig  # State for padding loop
-    n_dead = n_orig + 1  # Dead state
-    num_states = n_orig + 2
+    store = dfa.store
+    m, bits = dfa.m, dfa.bits
+    n = dfa.num_states
+    PAD, DEAD = n, n + 1
+    pad_assignment = _symbol_assignment(pad_enc, arity, m, bits)
 
-    # Base state array (using native Python types)
-    base_state_arr = default_states_np.tolist() + [n_dead, n_dead]
+    subsets: List[int] = []                        # sets of states, as bitsets
+    subset_ids: Dict[int, int] = {}
 
-    # Acceptance array (original acceptors + pad state)
-    is_accepting_arr = is_accepting_np.tolist() + [True, False]
+    def subset_id(mask: int) -> int:
+        idx = subset_ids.get(mask)
+        if idx is None:
+            idx = subset_ids[mask] = len(subsets)
+            subsets.append(mask)
+        return idx
 
-    # Calculate needed exception slots
-    extra_slots = 1  # For new pad transitions
-    new_max_exceptions = dfa.max_exceptions + extra_slots
+    def singleton(target: int) -> int:
+        return subset_id(1 << target)
 
-    # Initialize exception arrays
-    exception_symbols_arr = np.full((num_states, new_max_exceptions), -1, dtype=np.int32)
-    exception_states_arr = np.full((num_states, new_max_exceptions), -1, dtype=np.int32)
+    singleton_cache: Dict[int, int] = {}
+    nodes = []
+    for q in range(n):
+        node = store.apply1(int(dfa.nodes[q]), singleton, singleton_cache)
+        if dfa.is_accepting[q]:
+            current = int(store.eval_batch(np.array([node]),
+                                           np.array([pad_enc], dtype=np.int64),
+                                           arity, m, bits)[0])
+            node = store.set_path(node, pad_assignment,
+                                  subset_id(subsets[current] | (1 << PAD)))
+        nodes.append(node)
 
-    # Copy original exceptions
-    valid = exception_symbols_np != -1
-    exception_symbols_arr[:n_orig, :dfa.max_exceptions] = np.where(valid, exception_symbols_np, -1)
-    exception_states_arr[:n_orig, :dfa.max_exceptions] = np.where(valid, exception_states_np, -1)
+    dead = store.const(singleton(DEAD), arity, m, bits)
+    nodes.append(store.set_path(dead, pad_assignment, singleton(PAD)))
+    nodes.append(dead)
 
-    # Add new transitions:
-    # 1. From original accepting states to pad state on padding symbol,
-    #    in the first free slot (the extra slot guarantees one exists)
-    accepting_rows = np.flatnonzero(is_accepting_np[:n_orig])
-    free_slot = (exception_symbols_arr[accepting_rows] == -1).argmax(axis=1)
-    exception_symbols_arr[accepting_rows, free_slot] = pad_enc
-    exception_states_arr[accepting_rows, free_slot] = n_pad
-
-    # 2. From pad state to itself on padding symbol
-    exception_symbols_arr[n_pad, 0] = pad_enc
-    exception_states_arr[n_pad, 0] = n_pad
-
-    # Build NFA using native Python types
     nfa = SparseNFA(
-        num_states=num_states,
-        base_state=base_state_arr,
-        exception_symbols=exception_symbols_arr,
-        exception_states=exception_states_arr,
-        is_accepting=is_accepting_arr,
-        start_state=dfa.start_state,
-        symbol_arity=arity,
-        base_alphabet=base_alphabet
-    )
+        n + 2, is_accepting=np.r_[dfa.is_accepting, True, False],
+        start_state=dfa.start_state, symbol_arity=arity,
+        base_alphabet=base_alphabet,
+        nodes=np.array(nodes, dtype=np.int64), subsets=subsets)
+    return nfa.determinize()
 
-    # Convert to DFA and minimize
-    return nfa.determinize()#.minimize()
-
-def unpad(dfa: SparseDFA, padding_symbol: int = -1, remove_blank: bool = False) -> SparseDFA:
-    """Remove trailing padding symbols from accepted words."""
+def unpad(dfa: SparseDFA, padding_symbol: int = -1) -> SparseDFA:
+    """Remove trailing padding symbols from accepted words: a state becomes
+    accepting iff reading padding from it can reach an accepting state. The
+    padding successor is a function, so its orbit is closed by iterative
+    doubling; the transition diagrams are untouched."""
     arity = dfa.symbol_arity
     base_alphabet = dfa.base_alphabet
     if padding_symbol == -1:
-        padding_symbol = sorted(base_alphabet)[0]  # Default to first symbol
-    pad_tuple = (padding_symbol,) * arity
-    pad_tuple_enc = encode_symbol(pad_tuple, base_alphabet)
+        padding_symbol = sorted(base_alphabet)[0]
+    pad_enc = encode_symbol((padding_symbol,) * arity, base_alphabet)
 
-    defaults = np.asarray(dfa.default_states, dtype=np.int64)
-    ex_symbols = np.asarray(dfa.exception_symbols, dtype=np.int64)
-    ex_states = np.asarray(dfa.exception_states, dtype=np.int64)
-    accepting = np.asarray(dfa.is_accepting, dtype=bool)
+    pad_next = dfa.store.eval_batch(
+        dfa.nodes, np.full(dfa.num_states, pad_enc, dtype=np.int64),
+        arity, dfa.m, dfa.bits)
 
-    # The padding successor of each state (a deterministic function)
-    if ex_symbols.shape[1] > 0:
-        is_pad = ex_symbols == pad_tuple_enc
-        hit = is_pad.any(axis=1)
-        first = is_pad.argmax(axis=1)
-        pad_next = np.where(
-            hit,
-            np.take_along_axis(ex_states, first[:, None], axis=1)[:, 0],
-            defaults
-        )
-    else:
-        pad_next = defaults
-
-    # New acceptance: states that can reach a final state via padding.
-    # OR of acceptance over each state's forward orbit by iterative doubling.
-    new_accepting = accepting.copy()
+    new_accepting = np.asarray(dfa.is_accepting, dtype=bool).copy()
     steps = 1
     while steps < dfa.num_states:
         new_accepting |= new_accepting[pad_next]
         pad_next = pad_next[pad_next]
         steps *= 2
 
-    # Create new automaton
-    if remove_blank:
-        # Remove padding symbol from input symbols
-        new_base_alphabet = base_alphabet - {padding_symbol}
-        # Filter out padding transitions and left-compact the rows
-        keep = (ex_symbols != pad_tuple_enc) & (ex_symbols != -1)
-        order = np.argsort(~keep, axis=1, kind='stable')
-        keep_sorted = np.take_along_axis(keep, order, axis=1)
-        new_exception_symbols = np.where(keep_sorted, np.take_along_axis(ex_symbols, order, axis=1), -1)
-        new_exception_states = np.where(keep_sorted, np.take_along_axis(ex_states, order, axis=1), -1)
-
-        return SparseDFA(
-            num_states=dfa.num_states,
-            default_states=dfa.default_states,
-            exception_symbols=new_exception_symbols,
-            exception_states=new_exception_states,
-            is_accepting=new_accepting,
-            start_state=dfa.start_state,
-            symbol_arity=arity,
-            base_alphabet=new_base_alphabet
-        ).minimize()
-    else:
-        return SparseDFA(
-            num_states=dfa.num_states,
-            default_states=dfa.default_states,
-            exception_symbols=dfa.exception_symbols,
-            exception_states=dfa.exception_states,
-            is_accepting=new_accepting,
-            start_state=dfa.start_state,
-            symbol_arity=arity,
-            base_alphabet=base_alphabet
-        ).minimize()
+    return SparseDFA(
+        dfa.num_states, is_accepting=new_accepting,
+        start_state=dfa.start_state, symbol_arity=arity,
+        base_alphabet=base_alphabet, nodes=dfa.nodes).minimize()
 
 def product(dfa: SparseDFA, n: int) -> SparseDFA:
     """Create the n-fold Cartesian product of the automaton's language."""
@@ -328,182 +277,115 @@ def stack(dfa1: SparseDFA, dfa2: SparseDFA) -> SparseDFA:
     )
 
 def projection(dfa: SparseDFA, i: int) -> SparseDFA:
-    """Project the automaton by existentially quantifying the i-th position.
+    """Existentially quantify tape i.
 
-    Sparse subset construction: for a subset S, only projected symbols whose
-    insertions hit an exception of some member of S can lead anywhere other
-    than the subset of member defaults. Candidates are therefore derived from
-    the members' exception tables instead of enumerating the full projected
-    alphabet, and all transitions of a subset are resolved in one batched
-    numpy lookup.
+    The projected transition of a state is the union of the m cofactors of its
+    diagram on tape i's variable block — a diagram over *sets* of states — and
+    the subset construction then folds those over the members of each subset.
+    Neither the source nor the projected alphabet is ever enumerated.
     """
     arity = dfa.symbol_arity
-    base_alphabet = dfa.base_alphabet
-    m = len(base_alphabet)
+    if arity < 2:
+        raise ValueError("cannot project the only tape")
+    store = dfa.store
+    m, bits = dfa.m, dfa.bits
     new_arity = arity - 1
-    n_proj_symbols = m ** new_arity
 
-    defaults = np.asarray(dfa.default_states, dtype=np.int64)
-    ex_syms = np.asarray(dfa.exception_symbols, dtype=np.int64)
-    ex_states = np.asarray(dfa.exception_states, dtype=np.int64)
-    sorted_syms, sorted_targets = _sort_exception_rows(ex_syms, ex_states)
-    acc = np.asarray(dfa.is_accepting, dtype=bool)
-    max_ex = ex_syms.shape[1]
+    subsets: List[int] = []                        # sets of states, as bitsets
+    subset_ids: Dict[int, int] = {}
 
-    # Weight of the projected-out digit: enc = (high*m + digit_i)*p + low
-    p = m ** (arity - 1 - i)
-    insert_offsets = np.arange(m, dtype=np.int64) * p
-
-    state_to_id = {}
-    id_to_set = []
-    new_accepting = []
-
-    def get_id(key):
-        idx = state_to_id.get(key)
+    def subset_id(mask: int) -> int:
+        idx = subset_ids.get(mask)
         if idx is None:
-            idx = state_to_id[key] = len(id_to_set)
-            members = np.array(key, dtype=np.int64)
-            id_to_set.append(members)
-            new_accepting.append(bool(acc[members].any()))
+            idx = subset_ids[mask] = len(subsets)
+            subsets.append(mask)
         return idx
 
-    get_id((int(dfa.start_state),))
+    def singleton(target: int) -> int:
+        return subset_id(1 << target)
 
-    new_default_states = []
-    new_exception_symbols = []
-    new_exception_states = []
+    def union(a: int, b: int) -> int:
+        if a == NONE or b == NONE:
+            return NONE
+        return subset_id(subsets[a] | subsets[b])
 
-    next_unprocessed = 0
-    while next_unprocessed < len(id_to_set):
-        members = id_to_set[next_unprocessed]
-        next_unprocessed += 1
+    # drop tape i's variable block; the tapes below it move up one block
+    varmap = [(v // bits - (1 if v // bits > i else 0)) * bits + v % bits
+              for v in range(arity * bits)]
+    singleton_cache: Dict[int, int] = {}
+    union_cache: Dict[int, int] = {}
+    rename_cache: Dict[int, int] = {}
 
-        # Candidate projected symbols: projections of members' exceptions
-        member_syms = ex_syms[members]
-        valid_syms = member_syms[member_syms != -1]
-        cand = np.unique(valid_syms // (p * m) * p + valid_syms % p)
+    set_nodes = np.empty(dfa.num_states, dtype=np.int64)
+    for q in range(dfa.num_states):
+        node = store.apply1(int(dfa.nodes[q]), singleton, singleton_cache)
+        node = store.quantify_letter(node, i, m, bits, union, union_cache)
+        set_nodes[q] = store.rename(node, varmap, rename_cache)
 
-        default_key = tuple(np.unique(defaults[members]).tolist())
+    new_subsets: List[int] = []
+    new_ids: Dict[int, int] = {}
 
-        exceptions = []
-        if cand.size > 0:
-            # All insertions of the candidates: (n_cand, m)
-            full = (cand[:, None] // p) * (p * m) + insert_offsets + cand[:, None] % p
+    def state_of(sid: int) -> int:
+        mask = subsets[sid]
+        idx = new_ids.get(mask)
+        if idx is None:
+            idx = new_ids[mask] = len(new_subsets)
+            new_subsets.append(mask)
+        return idx
 
-            # Batched transition lookup via binary search: (n_members, n_cand, m)
-            n_members, n_cand = members.shape[0], cand.shape[0]
-            flat_cands = np.broadcast_to(full.reshape(-1), (n_members, n_cand * m))
-            next_states = _sorted_row_lookup(
-                sorted_syms[members], sorted_targets[members],
-                defaults[members], flat_cands
-            ).reshape(n_members, n_cand, m)
+    state_cache: Dict[int, int] = {}
+    state_of(singleton(int(dfa.start_state)))
+    nodes: List[int] = []
+    index = 0
+    while index < len(new_subsets):                # grows inside apply1
+        members = bits_of(new_subsets[index])
+        index += 1
+        node = int(set_nodes[members[0]])
+        for q in members[1:]:
+            node = store.apply2(node, int(set_nodes[q]), union, union_cache)
+        nodes.append(store.apply1(node, state_of, state_cache))
 
-            for j in range(n_cand):
-                key = tuple(np.unique(next_states[:, j, :]).tolist())
-                if key != default_key:
-                    exceptions.append((int(cand[j]), key))
+    accepting_mask = 0
+    for q in np.flatnonzero(dfa.is_accepting).tolist():
+        accepting_mask |= 1 << q
+    accepting = np.array([bool(mask & accepting_mask) for mask in new_subsets],
+                         dtype=bool)
+    return SparseDFA(len(new_subsets), is_accepting=accepting, start_state=0,
+                     symbol_arity=new_arity, base_alphabet=dfa.base_alphabet,
+                     nodes=np.array(nodes, dtype=np.int64))
 
-            if len(exceptions) == n_proj_symbols:
-                # Every projected symbol is an exception, so the all-defaults
-                # target can never be reached; make the most common target the
-                # default instead of introducing a spurious state.
-                counts = Counter(key for _, key in exceptions)
-                default_key = counts.most_common(1)[0][0]
-                exceptions = [(sym, key) for sym, key in exceptions if key != default_key]
 
-        new_default_states.append(get_id(default_key))
-        new_exception_symbols.append([sym for sym, _ in exceptions])
-        new_exception_states.append([get_id(key) for _, key in exceptions])
-
-    # Pad exceptions
-    num_new_states = len(id_to_set)
-    max_new_ex = max(len(ex) for ex in new_exception_symbols) if new_exception_symbols else 0
-    padded_ex_syms = np.full((num_new_states, max_new_ex), -1, dtype=np.int32)
-    padded_ex_states = np.full((num_new_states, max_new_ex), -1, dtype=np.int32)
-
-    for idx, (syms, states) in enumerate(zip(new_exception_symbols, new_exception_states)):
-        if syms:
-            padded_ex_syms[idx, :len(syms)] = syms
-            padded_ex_states[idx, :len(states)] = states
-
-    return SparseDFA(
-        num_states=num_new_states,
-        default_states=np.array(new_default_states, dtype=np.int32),
-        exception_symbols=padded_ex_syms,
-        exception_states=padded_ex_states,
-        is_accepting=np.array(new_accepting, dtype=bool),
-        start_state=0,
-        symbol_arity=new_arity,
-        base_alphabet=base_alphabet
-    )
-
-def expand(dfa, new_arity: int, pos: List[int]):
+def expand(dfa, new_arity: int, pos: List[int]) -> SparseDFA:
     """Expand a DFA of arity k to new_arity by placing original tape t at new
-    position pos[t]; the remaining positions accept any symbol. Every expanded
-    exception is a closed-form function of an original exception, so the whole
-    construction is computed as one batched numpy operation over all exceptions.
+    position pos[t]; the remaining positions accept any symbol.
+
+    This is a variable renaming on the transition diagrams: the new tapes'
+    variables simply do not occur. Repeated entries in `pos` identify tapes,
+    which restricts the relation to their diagonal.
     """
-    original_arity = dfa.symbol_arity
-    base_alphabet = dfa.base_alphabet
-    m = len(base_alphabet)
-    num_states = dfa.num_states
+    store = dfa.store
+    m, bits = dfa.m, dfa.bits
+    varmap = [pos[v // bits] * bits + v % bits
+              for v in range(dfa.symbol_arity * bits)]
+    valid = store.const(0, new_arity, m, bits)
 
-    ex_syms = np.asarray(dfa.exception_symbols, dtype=np.int64)
-    ex_states = np.asarray(dfa.exception_states, dtype=np.int64)
-    max_ex = ex_syms.shape[1]
+    def keep_valid(target: int, ok: int) -> int:
+        # the new tapes are unconstrained by the source, so their invalid
+        # binary codes must be excluded explicitly
+        return NONE if (target == NONE or ok == NONE) else target
 
-    # Digit representation of all exception symbols: (num_states, max_ex, k)
-    powers_orig = m ** np.arange(original_arity - 1, -1, -1, dtype=np.int64)
-    digits = (ex_syms[:, :, None] // powers_orig) % m
-
-    powers_new = m ** np.arange(new_arity - 1, -1, -1, dtype=np.int64)
-
-    # Fixed part of the expanded encoding, plus consistency check for
-    # duplicate positions (all original tapes mapped to the same new position
-    # must carry the same value; otherwise the exception has no expansion).
-    valid = ex_syms != -1
-    fixed_enc = np.zeros((num_states, max_ex), dtype=np.int64)
-    first_at = {}
-    for orig_idx, new_idx in enumerate(pos):
-        if new_idx in first_at:
-            valid &= digits[:, :, orig_idx] == digits[:, :, first_at[new_idx]]
-        else:
-            first_at[new_idx] = orig_idx
-            fixed_enc += digits[:, :, orig_idx] * powers_new[new_idx]
-
-    # Encodings of all combinations at the free positions: (K,)
-    free_pos = [p for p in range(new_arity) if p not in first_at]
-    free_count = len(free_pos)
-    if free_count > 0:
-        grid = np.indices((m,) * free_count).reshape(free_count, -1).T  # (K, free_count)
-        free_enc = grid @ powers_new[free_pos]
-    else:
-        free_enc = np.zeros(1, dtype=np.int64)
-    K = free_enc.shape[0]
-
-    # Expanded exceptions: each original exception becomes a block of K
-    # symbols with the same target. Flattened per state, blocks keep the
-    # original exception order.
-    exp_syms = (fixed_enc[:, :, None] + free_enc).reshape(num_states, max_ex * K)
-    exp_states = np.broadcast_to(ex_states[:, :, None], (num_states, max_ex, K)).reshape(num_states, max_ex * K)
-    exp_valid = np.broadcast_to(valid[:, :, None], (num_states, max_ex, K)).reshape(num_states, max_ex * K)
-
-    # Left-compact valid entries within each row, pad with -1
-    order = np.argsort(~exp_valid, axis=1, kind='stable')
-    exp_valid_sorted = np.take_along_axis(exp_valid, order, axis=1)
-    new_exception_symbols = np.where(exp_valid_sorted, np.take_along_axis(exp_syms, order, axis=1), -1)
-    new_exception_states = np.where(exp_valid_sorted, np.take_along_axis(exp_states, order, axis=1), -1)
+    rename_cache: Dict[int, int] = {}
+    mask_cache: Dict[int, int] = {}
+    nodes = [store.apply2(store.rename(int(node), varmap, rename_cache),
+                          valid, keep_valid, mask_cache)
+             for node in dfa.nodes.tolist()]
 
     return SparseDFA(
-        num_states=num_states,
-        default_states=dfa.default_states,
-        exception_symbols=new_exception_symbols,
-        exception_states=new_exception_states,
-        is_accepting=dfa.is_accepting,
-        start_state=dfa.start_state,
-        symbol_arity=new_arity,
-        base_alphabet=base_alphabet
-    )
+        dfa.num_states, is_accepting=dfa.is_accepting,
+        start_state=dfa.start_state, symbol_arity=new_arity,
+        base_alphabet=dfa.base_alphabet,
+        nodes=np.array(nodes, dtype=np.int64))
+
 
 # We'll define a custom heap structure for length-lexicographic ordering
 class LengthLexHeap:
@@ -629,25 +511,23 @@ def iterate_language(dfa: SparseDFA, decoder: Callable = None,
 
 def permute_tapes(dfa: SparseDFA, perm: List[int]) -> SparseDFA:
     """Reorder the tapes of a multi-tape automaton: tape t of the result is
-    tape perm[t] of the input. Only the symbol encodings change."""
-    if sorted(perm) != list(range(dfa.symbol_arity)):
-        raise ValueError(f"perm must be a permutation of range({dfa.symbol_arity})")
-    m = len(dfa.base_alphabet)
-    powers = m ** np.arange(dfa.symbol_arity - 1, -1, -1, dtype=np.int64)
-    symbols = dfa.exception_symbols.astype(np.int64)
-    digits = (symbols[:, :, None] // powers) % m
-    new_symbols = (digits[:, :, perm] * powers).sum(axis=2)
-    new_symbols = np.where(dfa.exception_symbols == -1, -1, new_symbols).astype(np.int32)
+    tape perm[t] of the input — a permutation of the variable blocks."""
+    k = dfa.symbol_arity
+    if sorted(perm) != list(range(k)):
+        raise ValueError(f"perm must be a permutation of range({k})")
+    inverse = [0] * k
+    for new_tape, old_tape in enumerate(perm):
+        inverse[old_tape] = new_tape
+    bits = dfa.bits
+    varmap = [inverse[v // bits] * bits + v % bits for v in range(k * bits)]
+    cache: Dict[int, int] = {}
+    nodes = [dfa.store.rename(int(node), varmap, cache)
+             for node in dfa.nodes.tolist()]
     return SparseDFA(
-        num_states=dfa.num_states,
-        default_states=dfa.default_states,
-        exception_symbols=new_symbols,
-        exception_states=dfa.exception_states,
-        is_accepting=dfa.is_accepting,
-        start_state=dfa.start_state,
-        symbol_arity=dfa.symbol_arity,
-        base_alphabet=dfa.base_alphabet
-    )
+        dfa.num_states, is_accepting=dfa.is_accepting,
+        start_state=dfa.start_state, symbol_arity=k,
+        base_alphabet=dfa.base_alphabet,
+        nodes=np.array(nodes, dtype=np.int64))
 
 
 def word_automaton(word: List, base_alphabet: Set, padding_symbol=None) -> SparseDFA:
