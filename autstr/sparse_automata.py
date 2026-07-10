@@ -30,7 +30,7 @@ import zlib
 
 
 from autstr.mtbdd import (
-    NONE, STORE, TOP, ComputedTable, bits_of, num_bits, var_tables,
+    NONE, STORE, TOP, ComputedTable, NodeStore, bits_of, num_bits, var_tables,
 )
 from autstr.utils.misc import decode_symbol, encode_symbol
 
@@ -960,8 +960,27 @@ def reduce_set_nfa(store, nodes, subsets, is_accepting, start: int,
 
 def _determinize_set_nfa(store, nodes, subsets, subset_ids, is_accepting,
                          start: int, arity: int, m: int, bits: int,
-                         base_alphabet) -> 'SparseDFA':
-    """Subset construction over a (reduced) set-valued NFA."""
+                         base_alphabet, gc_threshold: int = 1 << 21
+                         ) -> 'SparseDFA':
+    """Subset construction over a (reduced) set-valued NFA.
+
+    The construction runs in its own `NodeStore`. A subset's set-valued
+    diagram is dead the moment `apply1` has relabelled it into the new
+    automaton's diagram, but hash-consing keeps it alive for good — on a
+    determinization of any size that garbage is the bulk of the store. A
+    scratch store can be mark-swept: when it outgrows `gc_threshold`, keep
+    only the NFA's diagrams and the finished states' diagrams, and drop the
+    memos (which map node ids to node ids, so they cannot survive a
+    renumbering). The threshold then doubles past the live set, which makes
+    the sweeps amortized-linear.
+
+    Only the finished automaton is re-interned into the shared store, so a
+    projection no longer leaks its intermediates there either.
+    """
+    scratch = NodeStore()
+    nfa_nodes = scratch.import_nodes(*store.export([int(n) for n in nodes]))
+    floor = gc_threshold
+
     def subset_id(mask: int) -> int:
         idx = subset_ids.get(mask)
         if idx is None:
@@ -985,8 +1004,6 @@ def _determinize_set_nfa(store, nodes, subsets, subset_ids, is_accepting,
             dfa_subsets.append(mask)
         return idx
 
-    # the fold's memo is by far the largest structure a determinization
-    # builds, so it is the one that must not grow without bound
     union_cache = ComputedTable()
     state_cache: Dict[int, int] = {}
     state_of(subset_id(1 << start))
@@ -1000,19 +1017,39 @@ def _determinize_set_nfa(store, nodes, subsets, subset_ids, is_accepting,
         if not members:
             # pruning dead states lets a transition land on the empty set of
             # states, which is the rejecting sink
-            dfa_nodes.append(store.const(self_id, arity, m, bits))
+            dfa_nodes.append(scratch.const(self_id, arity, m, bits))
             continue
-        node = int(nodes[members[0]])
+        node = int(nfa_nodes[members[0]])
         for q in members[1:]:
-            node = store.apply2(node, int(nodes[q]), union, union_cache)
-        dfa_nodes.append(store.apply1(node, state_of, state_cache))
+            node = scratch.apply2(node, int(nfa_nodes[q]), union, union_cache)
+        dfa_nodes.append(scratch.apply1(node, state_of, state_cache))
+
+        if len(scratch.var) > gc_threshold:
+            split = len(nfa_nodes)
+            live, renumber = scratch.collect(list(nfa_nodes) + dfa_nodes)
+            nfa_nodes, dfa_nodes = live[:split], live[split:].tolist()
+            # the memos map node ids to node ids, and a sweep renumbers them;
+            # translating is far cheaper than re-deriving every fold
+            union_cache = union_cache.remap(renumber)
+            # apply1 memoizes node -> *node*, so both sides are renumbered
+            state_cache = {renumber[source]: renumber[target]
+                           for source, target in state_cache.items()
+                           if source in renumber and target in renumber}
+            # the live set grows with the automaton being built, so schedule
+            # the next sweep relative to it instead of monotonically: peak
+            # memory then stays a small factor above what is actually live
+            gc_threshold = max(floor, (3 * len(scratch.var)) // 2)
 
     accepting_mask = _mask(np.flatnonzero(is_accepting).tolist())
     accepting = np.array([bool(mask & accepting_mask) for mask in dfa_subsets],
                          dtype=bool)
+    # drop the scratch store before re-interning, or both copies of the live
+    # diagrams are resident at once
+    exported = scratch.export(dfa_nodes)
+    del scratch, nfa_nodes, dfa_nodes, union_cache, state_cache
     return SparseDFA(len(dfa_subsets), is_accepting=accepting, start_state=0,
                      symbol_arity=arity, base_alphabet=base_alphabet,
-                     nodes=np.array(dfa_nodes, dtype=np.int64))
+                     nodes=store.import_nodes(*exported))
 
 
 class SparseNFA:

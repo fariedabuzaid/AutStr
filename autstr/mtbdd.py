@@ -112,6 +112,27 @@ class ComputedTable:
         self.keys[slot] = key
         self.vals[slot] = value
 
+    def _entries(self):
+        if self._dict is not None:
+            return self._dict.items()
+        return ((key, self.vals[slot])
+                for slot, key in enumerate(self.keys) if key != self._EMPTY)
+
+    def remap(self, mapping: Dict[int, int]) -> "ComputedTable":
+        """A copy of this memo with every node id renumbered, dropping the
+        entries whose operands or result did not survive a sweep."""
+        fresh = ComputedTable()
+        fresh._limit = self._limit
+        fresh.mask, fresh.shift = self.mask, self.shift
+        for key, value in self._entries():
+            left = mapping.get(key >> 32)
+            right = mapping.get(key & 0xFFFFFFFF)
+            result = mapping.get(value)
+            if left is None or right is None or result is None:
+                continue
+            fresh[(left << 32) | right] = result
+        return fresh
+
 
 def bits_of(mask: int) -> List[int]:
     """The set bit positions of an integer bitset, ascending.
@@ -400,6 +421,39 @@ class NodeStore:
             stack.pop()
         return memo[node]
 
+    def reset(self) -> None:
+        """Drop every node and memo. Only valid on a scratch store: node ids
+        are indices, so any surviving holder of one is left dangling."""
+        self.var = array('q')
+        self.lo = array('q')
+        self.hi = array('q')
+        self.term = array('q')
+        self._terminal_ids = {}
+        self._node_ids = {}
+        self._cofactor = {}
+        self._mux = {}
+        self._terminals = {}
+        self._const = {}
+        self._arrays = None
+
+    def collect(self, roots):
+        """Mark-sweep this store down to the sub-DAG below `roots`. A subset
+        construction abandons the set-valued diagram of every subset as soon as
+        it has been relabelled, but hash-consing keeps it forever; on a scratch
+        store those nodes can be reclaimed.
+
+        Node ids are indices, so a sweep renumbers everything. Returns the
+        roots' new ids together with the old -> new map of every surviving
+        node, which the caller needs to translate its `apply` memos (they map
+        ids to ids, and dropping them instead makes the sweep cost more in
+        recomputation than it saves in memory).
+        """
+        var, lo, hi, term, local = self.export(roots)
+        old_ids = self._exported_order
+        self.reset()
+        renumbered = self._intern_all(var, lo, hi, term)
+        return renumbered[local], dict(zip(old_ids, renumbered.tolist()))
+
     def export(self, roots) -> Tuple[np.ndarray, np.ndarray, np.ndarray,
                                      np.ndarray, np.ndarray]:
         """Extract the sub-DAG below `roots` as standalone arrays, renumbered
@@ -428,12 +482,16 @@ class NodeStore:
                 lo.append(local[self.lo[node]])
                 hi.append(local[self.hi[node]])
                 term.append(_INTERNAL)
+        order = [0] * len(var)
+        for original, index in local.items():
+            order[index] = original
+        self._exported_order = order
         return (np.array(var, dtype=np.int64), np.array(lo, dtype=np.int64),
                 np.array(hi, dtype=np.int64), np.array(term, dtype=np.int64),
                 np.array([local[int(r)] for r in roots], dtype=np.int64))
 
-    def import_nodes(self, var, lo, hi, term, roots) -> np.ndarray:
-        """Re-intern an exported sub-DAG (children first) into this store."""
+    def _intern_all(self, var, lo, hi, term) -> np.ndarray:
+        """Intern an exported sub-DAG (children first); returns local -> id."""
         mapping = np.empty(len(var), dtype=np.int64)
         for i in range(len(var)):
             if var[i] == TOP:
@@ -441,7 +499,12 @@ class NodeStore:
             else:
                 mapping[i] = self.make(int(var[i]), int(mapping[lo[i]]),
                                        int(mapping[hi[i]]))
-        return mapping[np.asarray(roots, dtype=np.int64)]
+        return mapping
+
+    def import_nodes(self, var, lo, hi, term, roots) -> np.ndarray:
+        """Re-intern an exported sub-DAG (children first) into this store."""
+        return self._intern_all(var, lo, hi, term)[
+            np.asarray(roots, dtype=np.int64)]
 
     def size(self, roots) -> int:
         """Number of distinct nodes below the given roots."""

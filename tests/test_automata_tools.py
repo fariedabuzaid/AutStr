@@ -123,3 +123,35 @@ class TestPermuteTapes:
             for word in words(m * m, MAX_LENGTH):
                 original = [(s % m) * m + s // m for s in word]
                 assert run(swapped, word) == run(dfa, original), trial
+
+
+class TestScratchStoreCollection:
+    """The subset construction reclaims the set-valued diagrams it abandons.
+    Forcing a sweep after almost every state must not change the result."""
+
+    def _projection_with_threshold(self, dfa, tape, threshold):
+        import autstr.sparse_automata as sa
+        original = sa._determinize_set_nfa
+        import autstr.utils.automata_tools as tools
+
+        def patched(*args, **kwargs):
+            kwargs['gc_threshold'] = threshold
+            return original(*args, **kwargs)
+
+        tools._determinize_set_nfa = patched
+        try:
+            return projection(dfa, tape)
+        finally:
+            tools._determinize_set_nfa = original
+
+    def test_collection_preserves_the_language(self):
+        rng = random.Random(21)
+        for trial in range(TRIALS):
+            m = rng.randint(2, 3)
+            dfa = random_dfa(rng, rng.randint(2, 4), m, 2)
+            for tape in (0, 1):
+                swept = self._projection_with_threshold(dfa, tape, 8)
+                plain = projection(dfa, tape)
+                assert swept.num_states == plain.num_states, (trial, tape)
+                for word in words(m, MAX_LENGTH):
+                    assert run(swept, word) == run(plain, word), (trial, tape)
