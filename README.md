@@ -258,7 +258,9 @@ k-expression (bounded clique-width), and Skolem arithmetic (ℕ, ·) in
 [`autstr.buildin.tree_presentations`](autstr/buildin/tree_presentations.py),
 where a number is the tree of its prime exponents.
 
-The showcase notebooks in [`notebooks/`](notebooks/) walk through all of it.
+The showcase notebooks in [`notebooks/`](notebooks/) walk through all of it;
+[`tree_classes.ipynb`](notebooks/tree_classes.ipynb) is the tour of the
+tree-automatic side.
 
 ---
 
