@@ -51,6 +51,8 @@ class TreeExtraspecialGroups:
         self.leaf_letters = {f'l{c}': c for c in range(p)}
         self.sigma = {PAD, SHAPE} | set(self.inner_letters) \
             | set(self.leaf_letters)
+        self.advice_letters = {SHAPE}
+        self.element_letters = set(self.inner_letters) | set(self.leaf_letters)
 
         self.cls = UniformlyTreeAutomaticClass({
             'U': self._universe_automaton(),
@@ -71,7 +73,9 @@ class TreeExtraspecialGroups:
                 return 'ok' if x in self.leaf_letters else 'dead'
             return 'ok' if x in self.inner_letters else 'dead'
 
-        return sta_from_delta(self.sigma, ['ok', 'dead'], 2, delta, {'ok'})
+        return sta_from_delta(self.sigma, ['ok', 'dead'], 2, delta, {'ok'},
+                              tapes=[self.advice_letters,
+                                     self.element_letters])
 
     def _equality_automaton(self) -> SparseTreeAutomaton:
         def delta(lq, rq, sym):
@@ -82,7 +86,9 @@ class TreeExtraspecialGroups:
                 return 'ok' if x in self.leaf_letters else 'dead'
             return 'ok' if x in self.inner_letters else 'dead'
 
-        return sta_from_delta(self.sigma, ['ok', 'dead'], 3, delta, {'ok'})
+        return sta_from_delta(self.sigma, ['ok', 'dead'], 3, delta, {'ok'},
+                              tapes=[self.advice_letters] +
+                                    [self.element_letters] * 2)
 
     def _multiplication_automaton(self) -> SparseTreeAutomaton:
         """M(advice, x, y, z): z = x·y. The state is the deficit still owed
@@ -114,7 +120,9 @@ class TreeExtraspecialGroups:
             return (owed - ax * by) % p
 
         states = list(range(p)) + ['dead']
-        return sta_from_delta(self.sigma, states, 4, delta, {0})
+        return sta_from_delta(self.sigma, states, 4, delta, {0},
+                              tapes=[self.advice_letters] +
+                                    [self.element_letters] * 3)
 
     # ---------------- encodings ----------------
 

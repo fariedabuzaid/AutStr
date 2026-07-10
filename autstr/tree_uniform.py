@@ -31,30 +31,52 @@ from autstr.sparse_tree_automata import (
 from autstr.tree_presentations import TreeAutomaticPresentation, tree_one
 from autstr.uniform import UniformlyAutomaticClass
 from autstr.utils.logic import get_free_elementary_vars
+from autstr.utils.misc import encode_symbol
 from autstr.utils.tree_automata_tools import (
     attach_padding, expand, minimize, permute_tapes, project, tree_automaton,
 )
 
 
-def sta_from_delta(sigma, states, arity, delta, finals, dead='dead'
-                   ) -> SparseTreeAutomaton:
-    """Build a SparseTreeAutomaton from a bottom-up transition function over
-    the full symbol space sigma^arity. Convenience for constructing
-    presentation automata.
-
-    Each child pair's majority target becomes its pair default (ties prefer
-    the dead sink), and only deviations are stored as exceptions — states
-    that loop on most symbols stay cheap over large alphabets.
+def sta_from_delta(sigma, states, arity, delta, finals, dead='dead',
+                   tapes=None) -> SparseTreeAutomaton:
+    """Build a SparseTreeAutomaton from a bottom-up transition function.
 
     :param delta: delta(left_state, right_state, symbol_tuple) -> state,
         where an absent child is passed as None. `dead` names the sink
         (stored as the sparse global default); dead children are never
         enumerated, so delta need not handle them.
+    :param tapes: optional per-tape alphabets. A convolution tape usually
+        ranges over a small part of the base alphabet -- the advice tape reads
+        advice letters, an element tape reads element letters -- and every
+        mixed tuple is dead. Enumerating ``sigma^arity`` therefore spends
+        almost all of its time confirming that nonsense is dead: for
+        clique-width at k = 4 only 207 of 17576 triples are meaningful.
+        Naming the tapes' alphabets restricts the enumeration to their
+        product; every other symbol falls to the global default, which is the
+        dead sink. Defaults to `sigma` on every tape.
+
+    Each child pair's majority target becomes its pair default (ties prefer
+    the dead sink), and only deviations are stored as exceptions — states
+    that loop on most symbols stay cheap over large alphabets. With `tapes`
+    given, the unenumerated symbols already outnumber the rest, so the dead
+    sink is the majority everywhere and no pair defaults are emitted.
     """
     from collections import Counter
 
-    sigma_sorted = sorted(sigma)
-    symbols = list(enumerate(it.product(sigma_sorted, repeat=arity)))
+    sigma_frozen = frozenset(sigma)
+    full = len(sigma_frozen) ** arity
+    if tapes is None:
+        tapes = [sigma_frozen] * arity
+    if len(tapes) != arity:
+        raise ValueError(f"expected {arity} tape alphabets, got {len(tapes)}")
+    for tape in tapes:
+        if not set(tape) <= sigma_frozen:
+            raise ValueError("tape alphabets must be subsets of sigma")
+
+    symbols = [(encode_symbol(sym, sigma_frozen), sym)
+               for sym in it.product(*[sorted(t) for t in tapes])]
+    restricted = len(symbols) < full
+
     real = [q for q in states if q != dead]
     ids = {q: i for i, q in enumerate(real)}
     ids[dead] = len(real)
@@ -68,11 +90,18 @@ def sta_from_delta(sigma, states, arity, delta, finals, dead='dead'
         for rq, rid in options:
             row = [delta(lq, rq, sym) for _, sym in symbols]
             row = [dead if t is None else t for t in row]
+            if restricted:
+                # the symbols we did not enumerate are dead, and they are the
+                # majority, so the global default already serves them
+                for (code, _), t in zip(symbols, row):
+                    if t != dead:
+                        exc.append((lid, rid, code, ids[t]))
+                continue
             counts = Counter(row)
             majority = max(counts, key=lambda q: (counts[q], q == dead))
             if majority != dead:
                 pd.append((lid, rid, ids[majority]))
-            for code, t in enumerate(row):
+            for (code, _), t in zip(symbols, row):
                 if t != majority:
                     exc.append((lid, rid, code, ids[t]))
     exc.sort()

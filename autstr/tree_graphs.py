@@ -267,6 +267,8 @@ class TreeWidthClass:
                           for letter in self.letters}
         self.letter_of = {sym: letter for letter, sym in self.symbol_of.items()}
         self.sigma = {PAD, '0', '1', NOP} | set(self.symbol_of.values())
+        self.advice_letters = {NOP} | set(self.symbol_of.values())
+        self.marks = {PAD, '0', '1'}
 
         self.cls = UniformlyTreeAutomaticClass({
             'U': self._universe_automaton(),
@@ -321,7 +323,8 @@ class TreeWidthClass:
             return 'dead' if xs is None else (req, xs)
 
         finals = {(frozenset(), 'S'), (frozenset(), 'Z')}
-        return sta_from_delta(self.sigma, states, 2, delta, finals)
+        return sta_from_delta(self.sigma, states, 2, delta, finals,
+                              tapes=[self.advice_letters, self.marks])
 
     def _sing_automaton(self) -> SparseTreeAutomaton:
         """Sing(advice, X): exactly one mark, at the tip of the path."""
@@ -340,7 +343,8 @@ class TreeWidthClass:
                 return 'M' if marks == 1 else 'dead'
             return 'dead'
 
-        return sta_from_delta(self.sigma, states, 2, delta, {'M'})
+        return sta_from_delta(self.sigma, states, 2, delta, {'M'},
+                              tapes=[self.advice_letters, self.marks])
 
     def _subset_automaton(self) -> SparseTreeAutomaton:
         """Subset(advice, X, Y): positionwise X <= Y."""
@@ -353,7 +357,9 @@ class TreeWidthClass:
                 return 'dead'
             return 'ok'
 
-        return sta_from_delta(self.sigma, ['ok', 'dead'], 3, delta, {'ok'})
+        return sta_from_delta(self.sigma, ['ok', 'dead'], 3, delta, {'ok'},
+                              tapes=[self.advice_letters, self.marks,
+                                     self.marks])
 
     def _edge_automaton(self) -> SparseTreeAutomaton:
         """E(advice, X, Y): X = {u}, Y = {v}, u != v adjacent. Edges only
@@ -405,7 +411,9 @@ class TreeWidthClass:
                 return 'D' if carrier == 'D' else 'dead'
             return 'dead'
 
-        return sta_from_delta(self.sigma, states, 3, delta, {'D'})
+        return sta_from_delta(self.sigma, states, 3, delta, {'D'},
+                              tapes=[self.advice_letters, self.marks,
+                                     self.marks])
 
     # ---------------- class-level operations ----------------
 
@@ -680,6 +688,8 @@ class CliqueWidthClass:
                        for j in self.labels if i != j} |
                       {_join_symbol(i, j) for i in self.labels
                        for j in self.labels if i < j})
+        self.advice_letters = self.sigma - {PAD, '0', '1'}
+        self.marks = {PAD, '0', '1'}
 
         self.cls = UniformlyTreeAutomaticClass({
             'U': self._universe_automaton(),
@@ -740,7 +750,8 @@ class CliqueWidthClass:
             return 'dead' if xs is None else xs
 
         return sta_from_delta(self.sigma, ['A', 'S', 'Z', 'dead'], 2, delta,
-                              {'S', 'Z'})
+                              {'S', 'Z'},
+                              tapes=[self.advice_letters, self.marks])
 
     def _sing_automaton(self) -> SparseTreeAutomaton:
         """Sing(advice, X): exactly one mark, on a leaf."""
@@ -758,7 +769,8 @@ class CliqueWidthClass:
                 return 'M' if marks == 1 else 'dead'
             return 'dead'
 
-        return sta_from_delta(self.sigma, ['A', 'M', 'dead'], 2, delta, {'M'})
+        return sta_from_delta(self.sigma, ['A', 'M', 'dead'], 2, delta, {'M'},
+                              tapes=[self.advice_letters, self.marks])
 
     def _subset_automaton(self) -> SparseTreeAutomaton:
         """Subset(advice, X, Y): positionwise X <= Y."""
@@ -771,7 +783,9 @@ class CliqueWidthClass:
                 return 'dead'
             return 'ok'
 
-        return sta_from_delta(self.sigma, ['ok', 'dead'], 3, delta, {'ok'})
+        return sta_from_delta(self.sigma, ['ok', 'dead'], 3, delta, {'ok'},
+                              tapes=[self.advice_letters, self.marks,
+                                     self.marks])
 
     def _edge_automaton(self) -> SparseTreeAutomaton:
         """E(advice, X, Y): X = {u}, Y = {v}, u != v adjacent.
@@ -850,7 +864,9 @@ class CliqueWidthClass:
                     joined = True
             return state(hx, lx, hy, ly, joined)
 
-        return sta_from_delta(self.sigma, states, 3, delta, {'D'})
+        return sta_from_delta(self.sigma, states, 3, delta, {'D'},
+                              tapes=[self.advice_letters, self.marks,
+                                     self.marks])
 
     # ---------------- class-level operations ----------------
 
