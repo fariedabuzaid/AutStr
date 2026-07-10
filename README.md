@@ -267,7 +267,7 @@ tree-automatic side.
 ## 🧩 Composing presentations
 
 Automatic structures over a shared signature are closed under disjoint union and
-direct products; uniformly automatic classes are closed under union and under
+direct products; uniformly automatic classes of **finite** structures are closed under union and under
 taking all finite direct products of their members. `autstr.composition` builds
 the new presentation for you.
 
