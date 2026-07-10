@@ -75,30 +75,27 @@ def batch_gen(ab, block, rng):
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--max-exp", type=int, default=6)
-    ap.add_argument("--batch", type=int, default=50000)
-    ap.add_argument("--reps", type=int, default=5)
-    ap.add_argument("--out-dir", default=str(Path(__file__).resolve().parent))
-    ap.add_argument("--formats", default="svg,pdf")
+    ap = bench.parser(__doc__)
     args = ap.parse_args()
+    cfg = bench.settings(args)
 
     print("Finite abelian groups — property: even order (has an element of order 2)")
     ab = FiniteAbelianGroups()
     dfa = build_or_load(ab)
     enc = bench.encoder(dfa)
 
-    bench.run_scaling(dfa, enc, lambda n: scale(ab, n), args.max_exp,
+    bench.run_scaling(dfa, enc, lambda n: scale(ab, n), cfg['max_exp'],
                       "even order")
     bench.run_batch(dfa, enc, lambda b, rng: batch_gen(ab, b, rng),
-                    args.batch, "even order")
+                    cfg['batch'], "even order")
 
-    sizes = [n for n in SIZES if n <= 10 ** args.max_exp]
+    sizes = [n for n in SIZES if n <= 10 ** cfg['max_exp']]
     data = bench.run_curve(dfa, enc, lambda n: scale(ab, n), sizes,
-                           args.reps, "even order")
-    bench.draw({"even order": data}, Path(args.out_dir), args.formats.split(","),
-               "Deciding even order across all finite abelian groups",
-               "abelian_even_order_curve")
+                           cfg['reps'], "even order")
+    if cfg["plot"]:
+        bench.draw({"even order": data}, Path(args.out_dir), args.formats.split(","),
+                   "Deciding even order across all finite abelian groups",
+                   "abelian_even_order_curve")
 
 
 if __name__ == "__main__":

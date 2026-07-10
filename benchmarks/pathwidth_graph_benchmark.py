@@ -98,18 +98,14 @@ def build_or_load(pw, spec):
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--max-exp", type=int, default=6)
-    ap.add_argument("--batch", type=int, default=50000)
-    ap.add_argument("--reps", type=int, default=5)
-    ap.add_argument("--out-dir", default=str(Path(__file__).resolve().parent))
-    ap.add_argument("--formats", default="svg,pdf")
+    ap = bench.parser(__doc__)
     args = ap.parse_args()
+    cfg = bench.settings(args)
 
     print("Graphs of pathwidth <= 2 — properties: connectedness, 2-colourability")
     pw = PathWidthClass(2)
     S = pw.symbol_of
-    sizes = [n for n in SIZES if n <= 10 ** args.max_exp]
+    sizes = [n for n in SIZES if n <= 10 ** cfg['max_exp']]
     series = {}
 
     for key in ("connected", "2col"):
@@ -119,13 +115,14 @@ def main():
         scale = lambda n, spec=spec: [S[l] for l in spec["scale"](n)]
         batch = lambda b, rng, spec=spec: (
             lambda letters, ans: ([S[l] for l in letters], ans))(*spec["batch"](b, rng))
-        bench.run_scaling(dfa, enc, scale, args.max_exp, spec["label"])
-        bench.run_batch(dfa, enc, batch, args.batch, spec["label"])
+        bench.run_scaling(dfa, enc, scale, cfg['max_exp'], spec["label"])
+        bench.run_batch(dfa, enc, batch, cfg['batch'], spec["label"])
         series[spec["label"]] = bench.run_curve(dfa, enc, scale, sizes,
-                                                args.reps, spec["label"])
+                                                cfg['reps'], spec["label"])
 
-    bench.draw(series, Path(args.out_dir), args.formats.split(","),
-               "MSO query evaluation on PathWidthClass(2)", "pathwidth_curves")
+    if cfg["plot"]:
+        bench.draw(series, Path(args.out_dir), args.formats.split(","),
+                   "MSO query evaluation on PathWidthClass(2)", "pathwidth_curves")
 
 
 if __name__ == "__main__":

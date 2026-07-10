@@ -104,14 +104,10 @@ def batch_gen(heis, p, block, rng):
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--max-exp", type=int, default=6)
-    ap.add_argument("--batch", type=int, default=50000)
-    ap.add_argument("--reps", type=int, default=5)
+    ap = bench.parser(__doc__)
     ap.add_argument("-p", type=int, default=3, help="the prime (default 3)")
-    ap.add_argument("--out-dir", default=str(Path(__file__).resolve().parent))
-    ap.add_argument("--formats", default="svg,pdf")
     args = ap.parse_args()
+    cfg = bench.settings(args)
 
     print(f"Extraspecial {args.p}-groups — property: do two elements commute?")
     heis = ExtraspecialGroups(args.p)
@@ -119,15 +115,16 @@ def main():
     enc = multitape_encoder(dfa, variables)
 
     label = "commutativity"
-    bench.run_scaling(dfa, enc, lambda n: scale(heis, n), args.max_exp, label)
+    bench.run_scaling(dfa, enc, lambda n: scale(heis, n), cfg['max_exp'], label)
     bench.run_batch(dfa, enc, lambda b, rng: batch_gen(heis, args.p, b, rng),
-                    args.batch, label)
-    sizes = [n for n in SIZES if n <= 10 ** args.max_exp]
+                    cfg['batch'], label)
+    sizes = [n for n in SIZES if n <= 10 ** cfg['max_exp']]
     data = bench.run_curve(dfa, enc, lambda n: scale(heis, n), sizes,
-                           args.reps, label)
-    bench.draw({label: data}, Path(args.out_dir), args.formats.split(","),
-               f"Deciding commutativity in extraspecial {args.p}-groups",
-               "extraspecial_commute_curve")
+                           cfg['reps'], label)
+    if cfg["plot"]:
+        bench.draw({label: data}, Path(args.out_dir), args.formats.split(","),
+                   f"Deciding commutativity in extraspecial {args.p}-groups",
+                   "extraspecial_commute_curve")
 
 
 if __name__ == "__main__":

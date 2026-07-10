@@ -27,8 +27,12 @@ directory) so repeated runs skip compilation.
 """
 import argparse
 import os
+import sys
 import time
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _bench_common as bench
 
 from autstr.graphs import TreeDepthClass
 from autstr.sparse_automata import SparseDFA
@@ -246,30 +250,35 @@ def run_batch(cls, dfa, spec, batch, block=200):
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--max-exp", type=int, default=6)
-    ap.add_argument("--batch", type=int, default=50000)
+    ap = bench.parser(__doc__)
     args = ap.parse_args()
+    cfg = bench.settings(args)
 
     print("Query automata for TreeDepthClass(4):")
     cls = TreeDepthClass(4)
-    feasible = [build_or_load(cls, QUERIES[q]) for q in ("connected", "2col")]
 
-    for dfa, key in zip(feasible, ("connected", "2col")):
+    keys = ("connected", "2col") if cfg["heavy"] else ("connected",)
+    for key in keys:
         spec = QUERIES[key]
-        run_single_scaling(cls, dfa, spec, args.max_exp)
-        run_batch(cls, dfa, spec, args.batch)
+        dfa = build_or_load(cls, spec)
+        run_single_scaling(cls, dfa, spec, cfg['max_exp'])
+        run_batch(cls, dfa, spec, cfg['batch'])
+
+    if not cfg["heavy"]:
+        print("\n== 2-colourability ==")
+        print("  Skipped: a one-time compile of a few seconds. --profile heavy runs it.")
+        return
 
     three = build_or_load(cls, QUERIES["3col"], allow_compile=False)
     print("\n== 3-colourability ==")
     if three is not None:
-        run_single_scaling(cls, three, QUERIES["3col"], args.max_exp)
-        run_batch(cls, three, QUERIES["3col"], args.batch)
+        run_single_scaling(cls, three, QUERIES["3col"], cfg['max_exp'])
+        run_batch(cls, three, QUERIES["3col"], cfg['batch'])
     else:
-        print("  The 3-col automaton is a large one-time compile (>6 GB peak) and")
-        print(f"  is not cached at {CACHE/'3col_td4.sdfa'}. Build it once on a")
-        print("  larger machine (see benchmarks/README.md) and drop the file in;")
-        print("  deciding 3-colourability on huge graphs is then as cheap as above.")
+        print("  The 3-col automaton has never compiled here: its intermediate")
+        print("  subset construction converges but needs more memory than we have")
+        print(f"  (see benchmarks/README.md). Not cached at {CACHE/'3col_td4.sdfa'};")
+        print("  drop the file in and deciding it is as cheap as the queries above.")
 
 
 if __name__ == "__main__":

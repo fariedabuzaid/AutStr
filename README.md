@@ -240,12 +240,25 @@ Built-in classes include:
 | `autstr.graphs`  | bounded **tree-depth**, bounded **pathwidth** | full MSO over vertex sets (`Sing`, `Subset`, `E`) |
 | `autstr.algebra` | finite **Boolean algebras**, finite **abelian groups**, **ℤ[1/p]** | `Meet`/`Join`/`Compl`/`Leq`/`Atom`; `+` |
 | `autstr.groups`  | **index-≤2 cyclic** groups (dihedral, quaternion, semidihedral, modular), **extraspecial** p-groups | multiplication `M` |
+| `autstr.tree_graphs` | bounded **tree-width**, bounded **clique-width** | full MSO over vertex sets (`Sing`, `Subset`, `E`) |
+| `autstr.tree_groups` | **tree-indexed extraspecial** p-groups | multiplication `M` |
 
 The generic machinery in [`autstr.uniform`](autstr/uniform.py) turns *any*
 advice-indexed family of automata into a class with relativized query evaluation,
 sentence checking, member instantiation (`get_structure`), and a first-order
-`define` for bootstrapping complex relations from primitives. The three showcase
-notebooks in [`notebooks/`](notebooks/) walk through all of it.
+`define` for bootstrapping complex relations from primitives.
+
+The same machinery runs over **trees** rather than words. Where an automatic
+presentation encodes elements as strings and a word automaton reads them, a
+*tree-automatic* presentation encodes them as finite trees read by a bottom-up
+tree automaton — which is exactly the step from Büchi's theorem to Rabin's.
+[`autstr.tree_uniform`](autstr/tree_uniform.py) hosts the classes whose advice
+is naturally a tree: a tree decomposition (bounded tree-width) or a
+k-expression (bounded clique-width), and Skolem arithmetic (ℕ, ·) in
+[`autstr.buildin.tree_presentations`](autstr/buildin/tree_presentations.py),
+where a number is the tree of its prime exponents.
+
+The showcase notebooks in [`notebooks/`](notebooks/) walk through all of it.
 
 ---
 
@@ -365,3 +378,53 @@ mathematical direction and review kept firmly human.
    and Limitations.* LMCS 3(2), 2007.
    arXiv: [cs/0703064](https://arxiv.org/abs/cs/0703064) ·
    DOI: [10.2168/LMCS-3(2:2)2007](https://doi.org/10.2168/LMCS-3%282%3A2%292007)
+
+### Foundations
+
+The idea that a logic can be decided by translating formulas into automata long
+predates the term *automatic structure*; this library is a late implementation of
+a line of work that runs through:
+
+7. **Büchi, J. R.** *Weak Second-Order Arithmetic and Finite Automata.*
+   Zeitschrift für math. Logik und Grundlagen der Mathematik 6 (1960), 66–92.
+   DOI: [10.1002/malq.19600060105](https://doi.org/10.1002/malq.19600060105)
+   *Monadic second-order logic over (ℕ, +1) is decidable, by translation into
+   finite automata. Every `evaluate` call in this library is this construction.*
+
+8. **Rabin, M. O.** *Decidability of Second-Order Theories and Automata on
+   Infinite Trees.* Transactions of the AMS 141 (1969), 1–35.
+   DOI: [10.2307/1995086](https://doi.org/10.2307/1995086)
+   *The same programme over trees. `autstr.sparse_tree_automata` and the
+   tree-automatic presentations are the finite-tree fragment of this.*
+
+9. **Courcelle, B.** *The Monadic Second-Order Logic of Graphs I: Recognizable
+   Sets of Finite Graphs.* Information and Computation 85(1), 1990, 12–75.
+   DOI: [10.1016/0890-5401(90)90043-H](https://doi.org/10.1016/0890-5401%2890%2990043-H)
+   *MSO properties of graphs of bounded tree-width are decidable in linear time.
+   `autstr.tree_graphs.TreeWidthClass` builds the automaton the theorem promises.*
+
+10. **Courcelle, B., & Olariu, S.** *Upper Bounds to the Clique Width of Graphs.*
+    Discrete Applied Mathematics 101 (2000), 77–114.
+    DOI: [10.1016/S0166-218X(99)00184-5](https://doi.org/10.1016/S0166-218X%2899%2900184-5)
+    *The k-expressions that `autstr.tree_graphs.CliqueWidthClass` reads as advice.*
+
+11. **Makowsky, J. A.** *Algorithmic Uses of the Feferman–Vaught Theorem.*
+    Annals of Pure and Applied Logic 126 (2004), 159–213.
+    DOI: [10.1016/j.apal.2003.11.002](https://doi.org/10.1016/j.apal.2003.11.002)
+    *The composition method behind meta-theorems of this shape.*
+
+### Related tools
+
+- **[MONA](https://www.brics.dk/mona/)** (Klarlund, Møller, Henriksen et al.)
+  decides WS1S and WS2S by translating formulas to automata whose transitions are
+  shared multi-terminal BDDs over the symbol's bits. AutStr's
+  [`autstr.mtbdd`](autstr/mtbdd.py) adopts exactly that representation, for
+  exactly MONA's reason: over a convolution alphabet, the flat
+  `symbol -> target` table is the bottleneck.
+- **[Walnut](https://cs.uwaterloo.ca/~shallit/walnut.html)** (Mousavi, Shallit)
+  proves theorems about automatic sequences by deciding first-order statements
+  over (ℕ, +) with automata — the same decision procedure, aimed at combinatorics
+  on words rather than at presenting structures.
+
+Both are mature and fast, and neither targets *uniformly* automatic classes or
+arbitrary automatic presentations, which is where AutStr sits.

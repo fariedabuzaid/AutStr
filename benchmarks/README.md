@@ -15,12 +15,40 @@ correctness check), and a **runtime curve** (SVG + PDF) confirming linearity.
 
 | benchmark | class | property | automaton | plot |
 |-----------|-------|----------|:---------:|------|
-| `uniform_graph_benchmark.py` + `runtime_curves.py` | `TreeDepthClass(4)` | connectedness, 2-col, 3-col | 11 / 16 / >6 GB | `runtime_curves.svg` |
+| `uniform_graph_benchmark.py` + `runtime_curves.py` | `TreeDepthClass(4)` | connectedness, 2-col*, 3-col* | 11 / 16 / never compiled | `runtime_curves.svg` |
 | `pathwidth_graph_benchmark.py` | `PathWidthClass(2)` | connectedness, 2-col | 16 / 22 | `pathwidth_curves.svg` |
 | `abelian_group_benchmark.py` | finite abelian groups | has an element of order 2 | 9 | `abelian_even_order_curve.svg` |
 | `extraspecial_group_benchmark.py` | extraspecial p-groups | do two elements commute? | 6 | `extraspecial_commute_curve.svg` |
+| `tree_class_benchmark.py` | `CliqueWidthClass(2)`, `TreeWidthClass(1)` | 2-col, connectedness, 2-col* | 9 / 7 / 6 | — |
 
-Common timing/throughput/plot helpers live in `_bench_common.py`.
+`*` = only in the heavy profile. Common helpers live in `_bench_common.py`.
+
+## Light and heavy
+
+Every benchmark takes `--profile`:
+
+```bash
+python tree_class_benchmark.py                  # light (the default)
+python tree_class_benchmark.py --profile heavy  # minutes, more RAM, extra queries
+```
+
+**light** is the default. It runs in seconds on a laptop, up to 10⁴-symbol
+structures, and skips the queries whose *compile* is expensive. Run it on any
+checkout.
+
+**heavy** goes to 10⁶ symbols, larger batches, and adds the expensive compiles:
+tree-depth-4 two-colourability, tree-width-1 two-colourability. It is
+deliberately *not* the largest thing that can be compiled — it is the largest
+thing that still finishes unattended (minutes, ≲ 2 GB). The one query that has
+never compiled anywhere, 3-colourability at tree-depth 4, is loaded from cache
+if present and otherwise reported as skipped; see below.
+
+`--max-exp`, `--batch`, `--reps` override the profile; `--no-plot` skips the
+figures.
+
+Deciding is always linear and cheap. It is *compiling* that separates light
+from heavy — so both profiles report the same decision throughput, and heavy
+mostly buys you bigger structures and more query automata.
 
 ## Tree-depth graphs (`uniform_graph_benchmark.py`, `runtime_curves.py`)
 
@@ -34,7 +62,7 @@ benchmarks scale to tens of millions of vertices instantly.
 |-------|-----------------------------|:-----:|:---------:|:-------:|
 | connectedness   | P            | 4 | 11 states | ~14 s, ~1.2 GB |
 | 2-colourability | P            | 4 | 16 states | ~17 s, ~1.4 GB |
-| 3-colourability | **NP-complete** | 5 | large     | **> 6 GB** |
+| 3-colourability | **NP-complete** | 5 | large     | **never compiled** (see below) |
 
 The compile cost is governed by the **width** — the number of simultaneously
 free variables — because the intermediate automata range over `base^width`
@@ -189,11 +217,43 @@ scaling is still perfectly linear.
 The remaining classes suit this style less: the index-2 cyclic groups have
 advice of length only ~log(order), so there is no large-structure axis to sweep.
 
+## Tree classes (`tree_class_benchmark.py`)
+
+The tree-automatic classes read a convolution of *trees*, so the advice is a
+tree decomposition (`TreeWidthClass`) or a k-expression (`CliqueWidthClass`).
+Advice trees are generated straight as trees, never through networkx.
+
+The two classes pull in opposite directions, and the benchmark shows it:
+
+| class | query | states | compile | decide |
+|-------|-------|:------:|---------|--------|
+| `CliqueWidthClass(2)` | 2-colourability (MSO) | 9 | ~1.4 s | ~153 ns/node |
+| `TreeWidthClass(1)` | connectedness (MSO) | 7 | ~0.3 s | ~172 ns/node |
+| `TreeWidthClass(1)` | 2-colourability (MSO) | 6 | ~50 s | ~183 ns/node |
+
+Clique-width's advice alphabet is small and its edge automaton only has to
+remember each marked vertex's current label, so its queries compile in seconds.
+Tree-width's edge automaton carries pending registers and its alphabet is wider,
+so the same query costs a minute — and then decides just as fast. Compilation is
+where the widths differ; decision is linear in the advice tree either way, at
+about 150–190 ns per node in both.
+
+Correctness is checked against ground truth rather than against itself: cliques
+(never 2-colourable beyond K₂) versus complete bipartite graphs (always), and a
+path versus a path split into two components.
+
 ## Compiling 3-colourability
 
-The 3-col automaton needs more RAM than a typical laptop has (> 6 GB peak).
-Build it once on a larger machine and drop the serialized file into the cache;
-both scripts then run 3-col exactly like the others:
+3-colourability at tree-depth 4 has never compiled here. It is not diverging:
+instrumenting the projection that fails shows the subset construction steadily
+*closing* — outstanding work per completed state falls 5.5 → 1.6, and the state
+count flattens near 210k — but it wants roughly 27M diagram nodes, about 5 GB,
+and gets killed at 4 GB. Two thirds of those nodes are live, so a garbage
+collector does not rescue it either (`autstr.mtbdd` has one; it reclaims the
+other third).
+
+Build it once on a machine with more memory and drop the serialized file into
+the cache; both scripts then run 3-col exactly like the others:
 
 ```python
 from autstr.graphs import TreeDepthClass
@@ -204,7 +264,9 @@ dfa.sparse_dfa_to_file(str(CACHE / "3col_td4.sdfa"))
 
 This is the uniform paradigm in miniature: the compile is a one-time,
 machine-independent cost you can pay once and serialize; evaluating the
-resulting automaton on huge graphs is always cheap.
+resulting automaton on huge graphs is always cheap. Note the serialized format
+stores the transition *diagrams*, so an automaton over an alphabet too wide to
+enumerate still round-trips.
 
 ## Caching and safely running heavy compiles
 

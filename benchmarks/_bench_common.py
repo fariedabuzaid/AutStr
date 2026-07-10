@@ -11,6 +11,7 @@ A benchmark provides, for a compiled query automaton:
 These helpers then measure single-structure scaling, batched throughput
 (NumPy loop vs. NumPy batch vs. JAX batch) and draw a vector runtime curve.
 """
+import argparse
 import time
 from pathlib import Path
 
@@ -18,6 +19,47 @@ import numpy as np
 
 from autstr.utils.misc import encode_symbol
 import autstr.sparse_automata as _sa
+
+
+# ---------------------------------------------------------------- profiles
+#
+# Every benchmark runs in one of two sizes. `light` is the default: it takes
+# seconds, fits in a laptop, and is meant to be run on every checkout. `heavy`
+# takes minutes and more memory, and additionally unlocks the queries a light
+# run skips. Heavy is deliberately not the largest thing we can compile --
+# it is the largest thing that still finishes unattended.
+
+LIGHT = dict(max_exp=4, batch=2_000, reps=3)
+HEAVY = dict(max_exp=6, batch=50_000, reps=5)
+
+
+def parser(description=None):
+    """An argument parser with the options every benchmark shares."""
+    ap = argparse.ArgumentParser(description=description)
+    ap.add_argument("--profile", choices=("light", "heavy"), default="light",
+                    help="light (default): seconds, laptop-safe. "
+                         "heavy: minutes, more RAM, extra queries.")
+    ap.add_argument("--max-exp", type=int, help="override: largest 10**e size")
+    ap.add_argument("--batch", type=int, help="override: words per batch")
+    ap.add_argument("--reps", type=int, help="override: timing repetitions")
+    ap.add_argument("--out-dir", default=str(Path(__file__).resolve().parent))
+    ap.add_argument("--formats", default="svg,pdf")
+    ap.add_argument("--no-plot", action="store_true", help="skip the figures")
+    return ap
+
+
+def settings(args):
+    """Profile defaults, with any explicit flag winning."""
+    chosen = dict(HEAVY if args.profile == "heavy" else LIGHT)
+    for key in ("max_exp", "batch", "reps"):
+        value = getattr(args, key, None)
+        if value is not None:
+            chosen[key] = value
+    chosen["heavy"] = args.profile == "heavy"
+    chosen["plot"] = not args.no_plot
+    print(f"[profile: {args.profile}] max_exp={chosen['max_exp']} "
+          f"batch={chosen['batch']:,} reps={chosen['reps']}")
+    return chosen
 
 
 def encoder(dfa):
@@ -179,3 +221,42 @@ def draw(series, out_dir, formats, title, stem):
         p = out_dir / f"{stem}.{fmt}"
         fig.savefig(p); written.append(str(p))
     print("\nWrote plot -> " + ", ".join(written))
+
+
+# ---------------------------------------------------------------- tree automata
+#
+# The tree classes read a convolution of trees rather than a word, so they
+# need their own encoder and timer.
+
+def tree_arrays(sta, tree):
+    """Pre-encode a tree into the post-order arrays `run` consumes, so the
+    timing measures the automaton and not the encoder."""
+    from autstr.sparse_tree_automata import tree_to_arrays
+    return tree_to_arrays(tree, sta.base_alphabet_frozen, sta.symbol_arity)
+
+
+def tree_decide(sta, arrays):
+    return bool(sta.is_accepting[sta.run(*arrays)])
+
+
+def run_tree_scaling(sta, build, sizes, label, reps=3):
+    """Time a compiled tree automaton on advice trees of growing size."""
+    print(f"\n=== {label} (automaton: {sta.num_states} states) ===")
+    print(f"{'nodes':>12} {'build(s)':>10} {'decide(ms)':>12} "
+          f"{'ns/node':>9}  answer")
+    data = {"n": [], "ms": []}
+    for size in sizes:
+        t0 = time.time()
+        arrays = tree_arrays(sta, build(size))
+        build_s = time.time() - t0
+        nodes = len(arrays[0])
+        best = min(_timed(lambda: sta.run(*arrays)) for _ in range(reps))
+        answer = tree_decide(sta, arrays)
+        data["n"].append(nodes)
+        data["ms"].append(best * 1000)
+        print(f"{nodes:>12,} {build_s:>10.3f} {best*1000:>12.3f} "
+              f"{best*1e9/nodes:>9.1f}  {answer}")
+    if len(data["n"]) >= 2:
+        slope, r2 = _fit(data["n"], data["ms"])
+        print(f"  linear fit: {slope*1e6:7.1f} ns/node, R^2 = {r2:.5f}")
+    return data
