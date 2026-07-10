@@ -25,7 +25,7 @@ import os
 import time
 from pathlib import Path
 
-from autstr.algebra import FiniteAbelianGroups
+from autstr.groups import FiniteAbelianGroups
 from autstr.sparse_automata import SparseDFA
 import _bench_common as bench
 

@@ -1,4 +1,4 @@
-"""Closure operations on automatic presentations.
+"""Composing automatic presentations.
 
 The building block is `recode`: re-expressing an automaton over a different
 base alphabet. Every closure construction needs it -- a disjoint union
@@ -90,7 +90,7 @@ class TestRecode:
 
 import pytest
 
-from autstr.closure import disjoint_union, prefix
+from autstr.composition import disjoint_union, prefix
 from autstr.presentations import AutomaticPresentation
 
 
@@ -186,7 +186,7 @@ class TestDisjointUnion:
 # Direct products
 # ====================================================================
 
-from autstr.closure import direct_product
+from autstr.composition import direct_product
 
 TRANSITIVE = 'all x.(all y.(all z.((Lt(x,y) and Lt(y,z)) -> Lt(x,z))))'
 
@@ -253,7 +253,7 @@ class TestDirectProduct:
 # Union of two uniformly automatic classes
 # ====================================================================
 
-from autstr.closure import class_union, tagged_advice
+from autstr.composition import class_union, tagged_advice
 from autstr.uniform import UniformlyAutomaticClass, dfa_from_delta
 
 
@@ -346,7 +346,7 @@ class TestClassUnion:
 # Direct product closure of a uniformly automatic class
 # ====================================================================
 
-from autstr.closure import blocks, direct_product_closure
+from autstr.composition import blocks, direct_product_closure
 
 
 class TestDirectProductClosure:
@@ -401,7 +401,6 @@ class TestDirectProductClosure:
 # ====================================================================
 
 from autstr.groups import ExtraspecialGroups, IndexTwoCyclicGroups
-from autstr.uniform import UniformlyAutomaticClass
 
 IDENTITY = 'exists u.(all x.(M(x,u,x)))'
 ABELIAN = 'all x.(all y.(all z.(M(x,y,z) -> M(y,x,z))))'

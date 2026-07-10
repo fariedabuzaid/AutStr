@@ -1,9 +1,10 @@
-"""Closure operations on automatic presentations.
+"""Composing automatic presentations.
 
 Automatic structures over a common signature are closed under disjoint union
-and under direct products, and the constructions are all statements about
-*letters*: re-express the factors over a common alphabet, then combine them
-with the Boolean operations the engine already has.
+and under direct products, and uniformly automatic classes under union and
+under the direct-product closure. Every one of these constructions is a
+statement about *letters*: re-express the factors over a common alphabet, then
+combine them with the Boolean operations the engine already has.
 
 The letter work is done by `autstr.sparse_automata.recode`, which rewrites a
 transition diagram for a new alphabet in one pass over its nodes. Widening an
