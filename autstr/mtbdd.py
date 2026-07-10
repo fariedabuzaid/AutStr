@@ -47,6 +47,72 @@ def num_bits(m: int) -> int:
     return max(1, (max(m, 1) - 1).bit_length())
 
 
+class ComputedTable:
+    """A memo for `apply` that is exact while small and *lossy* once large.
+
+    A dict memo for `apply2` grows without bound: a set quantifier fills it
+    with tens of millions of entries at roughly 180 bytes each, outweighing
+    the nodes it caches. But most `apply` calls in a normal query are tiny,
+    and a dict beats any hand-rolled table at that size.
+
+    So: a plain dict until it exceeds `dict_limit` entries, then a
+    direct-mapped array of (key, value) pairs at 16 bytes per slot that simply
+    overwrites on collision. Memory is bounded by the table; a miss only
+    recomputes a pure function.
+
+    Correctness rests on `apply`'s terminal operations being deterministic
+    functions of their arguments: recomputing an entry allocates no new state
+    id or subset, it re-derives the same one. Only the *computed* tables may
+    be lossy — the unique table `NodeStore._node_ids` must stay exact, or
+    hash-consing breaks and node equality stops meaning function equality.
+    """
+
+    __slots__ = ("_dict", "_limit", "mask", "shift", "keys", "vals")
+
+    _MIX = 0x9E3779B97F4A7C15
+    _WORD = (1 << 64) - 1
+    _EMPTY = -1                       # keys are non-negative packed node pairs
+
+    def __init__(self, cap_log2: int = 23, dict_limit: int = 1 << 19) -> None:
+        self._dict = {}
+        self._limit = dict_limit
+        size = 1 << cap_log2
+        self.mask = size - 1
+        self.shift = 64 - cap_log2
+        self.keys = None
+        self.vals = None
+
+    def _slot(self, key: int) -> int:
+        return (((key * self._MIX) & self._WORD) >> self.shift) & self.mask
+
+    def _migrate(self) -> None:
+        self.keys = array('q', b'\xff' * (8 * (self.mask + 1)))
+        self.vals = array('q', bytes(8 * (self.mask + 1)))
+        for key, value in self._dict.items():
+            slot = self._slot(key)
+            self.keys[slot] = key
+            self.vals[slot] = value
+        self._dict = None
+
+    def get(self, key: int, default=None):
+        if self._dict is not None:
+            return self._dict.get(key, default)
+        slot = self._slot(key)
+        if self.keys[slot] == key:
+            return self.vals[slot]
+        return default
+
+    def __setitem__(self, key: int, value: int) -> None:
+        if self._dict is not None:
+            self._dict[key] = value
+            if len(self._dict) > self._limit:
+                self._migrate()
+            return
+        slot = self._slot(key)
+        self.keys[slot] = key
+        self.vals[slot] = value
+
+
 def bits_of(mask: int) -> List[int]:
     """The set bit positions of an integer bitset, ascending.
 
@@ -80,8 +146,8 @@ class NodeStore:
         self.term = array('q')
         self._terminal_ids: Dict[int, int] = {}
         self._node_ids: Dict[int, int] = {}
-        self._cofactor: Dict[Tuple[int, int, int], int] = {}
-        self._mux: Dict[Tuple[int, int, int], int] = {}
+        self._cofactor: Dict[int, int] = {}
+        self._mux: Dict[int, int] = {}
         self._terminals: Dict[int, Tuple[int, ...]] = {}
         self._const: Dict[Tuple[int, int, int], int] = {}
         self._arrays: Optional[Tuple[np.ndarray, ...]] = None
@@ -209,7 +275,7 @@ class NodeStore:
             return node
         if v == var:
             return self.hi[node] if bit else self.lo[node]
-        key = (node, var, bit)
+        key = (node * 1024 + var) * 2 + bit
         result = self._cofactor.get(key)
         if result is None:
             result = self._cofactor[key] = self.make(
@@ -221,7 +287,7 @@ class NodeStore:
         """The node that behaves like `on_high` where `var` is 1 and like
         `on_low` where it is 0 — `var` may sit below the arguments' roots, in
         which case they are pushed down."""
-        key = (var, on_high, on_low)
+        key = (var * self._SHIFT + on_high) * self._SHIFT + on_low
         result = self._mux.get(key)
         if result is not None:
             return result
@@ -255,10 +321,13 @@ class NodeStore:
                 self.rename(self.lo[node], varmap, cache))
         return result
 
-    def apply2(self, f: int, g: int, op, cache: Dict[Tuple[int, int], int]
-               ) -> int:
-        """Pointwise combination of two nodes; `op` acts on terminal values."""
-        key = (f, g)
+    def apply2(self, f: int, g: int, op, cache) -> int:
+        """Pointwise combination of two nodes; `op` acts on terminal values.
+
+        `cache` is a memo keyed by the packed node pair: a dict, or a bounded
+        `ComputedTable` when the pair space is large enough that an exact memo
+        would outweigh the nodes it caches."""
+        key = (f << 32) | g
         result = cache.get(key)
         if result is not None:
             return result
@@ -290,7 +359,7 @@ class NodeStore:
         return result
 
     def quantify_letter(self, node: int, tape: int, m: int, bits: int, op,
-                        cache: Dict[Tuple[int, int], int]) -> int:
+                        cache) -> int:
         """Combine the m cofactors of `node` on tape `tape`'s letter with
         `op` — the tape's variables no longer occur in the result."""
         result = None

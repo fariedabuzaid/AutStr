@@ -29,7 +29,9 @@ import struct
 import zlib
 
 
-from autstr.mtbdd import NONE, STORE, TOP, bits_of, num_bits, var_tables
+from autstr.mtbdd import (
+    NONE, STORE, TOP, ComputedTable, bits_of, num_bits, var_tables,
+)
 from autstr.utils.misc import decode_symbol, encode_symbol
 
 
@@ -833,6 +835,186 @@ def _mask(states) -> int:
     return mask
 
 
+def reduce_set_nfa(store, nodes, subsets, is_accepting, start: int,
+                   arity: int, m: int, bits: int):
+    """Shrink a set-valued NFA before determinizing it.
+
+    `nodes[q]` is a diagram from symbols to sets of successors (terminals are
+    indices into `subsets`, whose entries are bitsets of states). Two
+    reductions apply, both language-preserving and both cheap next to the
+    subset construction that follows:
+
+    - states that reach no accepting state, and states unreachable from
+      `start`, are dropped: they enlarge every subset that contains them
+      without ever affecting acceptance;
+    - the remainder is quotiented by *forward bisimulation* — q and q' merge
+      when they agree on acceptance and, on every symbol, their successor sets
+      have the same classes. Relabelling a state's diagram so each terminal
+      becomes the *class* bitset of its target set turns the state's signature
+      into a hash-consed node id, so a refinement round is one `apply1` per
+      state.
+
+    Determinizing the quotient explores subsets of classes, which are images
+    of the subsets of states, so the state count can only shrink.
+
+    :returns: ``(nodes, subsets, subset_ids, is_accepting, start)`` over the
+        classes, or None when the language is empty.
+    """
+    n = len(nodes)
+    is_accepting = np.asarray(is_accepting, dtype=bool)
+
+    successors = []
+    for q in range(n):
+        mask = 0
+        for sid in store.terminals(int(nodes[q])):
+            mask |= subsets[sid]
+        successors.append(mask)
+
+    forward = np.zeros(n, dtype=bool)
+    forward[start] = True
+    stack = [start]
+    while stack:
+        for t in bits_of(successors[stack.pop()]):
+            if not forward[t]:
+                forward[t] = True
+                stack.append(t)
+
+    predecessors = [[] for _ in range(n)]
+    for q in range(n):
+        for t in bits_of(successors[q]):
+            predecessors[t].append(q)
+    backward = np.zeros(n, dtype=bool)
+    stack = np.flatnonzero(is_accepting).tolist()
+    for q in stack:
+        backward[q] = True
+    while stack:
+        for p in predecessors[stack.pop()]:
+            if not backward[p]:
+                backward[p] = True
+                stack.append(p)
+
+    keep = forward & backward
+    if not keep[start]:
+        return None                                # no accepting run at all
+    live = np.flatnonzero(keep)
+    live_mask = _mask(live.tolist())
+
+    # ---- forward bisimulation over the live states ----
+    cls_of = np.full(n, -1, dtype=np.int64)
+    cls_of[live] = is_accepting[live].astype(np.int64)
+    parts = len(np.unique(cls_of[live]))
+    while True:
+        class_ids: Dict[int, int] = {}
+
+        def class_mask(sid: int) -> int:
+            targets = 0
+            for q in bits_of(subsets[sid] & live_mask):
+                targets |= 1 << int(cls_of[q])
+            idx = class_ids.get(targets)
+            if idx is None:
+                idx = class_ids[targets] = len(class_ids)
+            return idx
+
+        cache: Dict[int, int] = {}
+        signature = np.array(
+            [store.apply1(int(nodes[q]), class_mask, cache)
+             for q in live.tolist()], dtype=np.int64)
+        _, refined = np.unique(np.stack([cls_of[live], signature], axis=1),
+                               axis=0, return_inverse=True)
+        refined = refined.reshape(-1).astype(np.int64)
+        new_parts = len(np.unique(refined))
+        cls_of[live] = refined
+        if new_parts == parts:
+            break
+        parts = new_parts
+
+    # ---- rebuild over the classes ----
+    representative = np.zeros(parts, dtype=np.int64)
+    representative[cls_of[live]] = live            # last wins; any will do
+    new_subsets: List[int] = []
+    new_ids: Dict[int, int] = {}
+
+    def new_subset_id(mask: int) -> int:
+        idx = new_ids.get(mask)
+        if idx is None:
+            idx = new_ids[mask] = len(new_subsets)
+            new_subsets.append(mask)
+        return idx
+
+    def to_classes(sid: int) -> int:
+        # dropped states vanish here, so a transition into them alone yields
+        # the empty set of classes (a rejecting sink)
+        targets = 0
+        for q in bits_of(subsets[sid] & live_mask):
+            targets |= 1 << int(cls_of[q])
+        return new_subset_id(targets)
+
+    cache = {}
+    new_nodes = np.array([store.apply1(int(nodes[representative[c]]),
+                                       to_classes, cache)
+                          for c in range(parts)], dtype=np.int64)
+    new_accepting = is_accepting[representative]
+    return (new_nodes, new_subsets, new_ids, new_accepting,
+            int(cls_of[start]))
+
+
+def _determinize_set_nfa(store, nodes, subsets, subset_ids, is_accepting,
+                         start: int, arity: int, m: int, bits: int,
+                         base_alphabet) -> 'SparseDFA':
+    """Subset construction over a (reduced) set-valued NFA."""
+    def subset_id(mask: int) -> int:
+        idx = subset_ids.get(mask)
+        if idx is None:
+            idx = subset_ids[mask] = len(subsets)
+            subsets.append(mask)
+        return idx
+
+    def union(a: int, b: int) -> int:
+        if a == NONE or b == NONE:
+            return NONE
+        return subset_id(subsets[a] | subsets[b])
+
+    dfa_subsets: List[int] = []
+    dfa_ids: Dict[int, int] = {}
+
+    def state_of(sid: int) -> int:
+        mask = subsets[sid]
+        idx = dfa_ids.get(mask)
+        if idx is None:
+            idx = dfa_ids[mask] = len(dfa_subsets)
+            dfa_subsets.append(mask)
+        return idx
+
+    # the fold's memo is by far the largest structure a determinization
+    # builds, so it is the one that must not grow without bound
+    union_cache = ComputedTable()
+    state_cache: Dict[int, int] = {}
+    state_of(subset_id(1 << start))
+
+    dfa_nodes: List[int] = []
+    index = 0
+    while index < len(dfa_subsets):                # grows inside apply1
+        members = bits_of(dfa_subsets[index])
+        self_id = index
+        index += 1
+        if not members:
+            # pruning dead states lets a transition land on the empty set of
+            # states, which is the rejecting sink
+            dfa_nodes.append(store.const(self_id, arity, m, bits))
+            continue
+        node = int(nodes[members[0]])
+        for q in members[1:]:
+            node = store.apply2(node, int(nodes[q]), union, union_cache)
+        dfa_nodes.append(store.apply1(node, state_of, state_cache))
+
+    accepting_mask = _mask(np.flatnonzero(is_accepting).tolist())
+    accepting = np.array([bool(mask & accepting_mask) for mask in dfa_subsets],
+                         dtype=bool)
+    return SparseDFA(len(dfa_subsets), is_accepting=accepting, start_state=0,
+                     symbol_arity=arity, base_alphabet=base_alphabet,
+                     nodes=np.array(dfa_nodes, dtype=np.int64))
+
+
 class SparseNFA:
     """Nondeterministic automaton whose states carry a diagram from symbols to
     *sets* of targets (terminals index `self.subsets`).
@@ -931,46 +1113,25 @@ class SparseNFA:
     def determinize(self) -> SparseDFA:
         """Subset construction on the diagrams: a subset's transition is the
         union of its members' diagrams, and the union of two set-valued
-        diagrams is one `apply`. No symbol is enumerated."""
+        diagrams is one `apply`. No symbol is enumerated.
+
+        The NFA is first pruned and quotiented by forward bisimulation (see
+        `reduce_set_nfa`), which is cheap and shrinks the subset space."""
         store = self.store
-        union_cache: Dict[int, int] = {}
-        state_cache: Dict[int, int] = {}
+        arity, m, bits = self.symbol_arity, self.m, self.bits
 
-        def union(a: int, b: int) -> int:
-            if a == NONE or b == NONE:
-                return NONE
-            return self.subset_id(self.subsets[a] | self.subsets[b])
-
-        dfa_subsets: List[int] = []
-        dfa_ids: Dict[int, int] = {}
-
-        def state_of(sid: int) -> int:
-            mask = self.subsets[sid]
-            idx = dfa_ids.get(mask)
-            if idx is None:
-                idx = dfa_ids[mask] = len(dfa_subsets)
-                dfa_subsets.append(mask)
-            return idx
-
-        state_of(self.subset_id(1 << self.start_state))
-        nodes: List[int] = []
-        index = 0
-        while index < len(dfa_subsets):             # grows inside apply1
-            members = bits_of(dfa_subsets[index])
-            index += 1
-            node = int(self.nodes[members[0]])
-            for q in members[1:]:
-                node = store.apply2(node, int(self.nodes[q]), union,
-                                    union_cache)
-            nodes.append(store.apply1(node, state_of, state_cache))
-
-        accepting_mask = _mask(np.flatnonzero(self.is_accepting).tolist())
-        accepting = np.array([bool(mask & accepting_mask)
-                              for mask in dfa_subsets], dtype=bool)
-        return SparseDFA(len(dfa_subsets), is_accepting=accepting,
-                         start_state=0, symbol_arity=self.symbol_arity,
-                         base_alphabet=self.base_alphabet,
-                         nodes=np.array(nodes, dtype=np.int64))
+        reduced = reduce_set_nfa(store, self.nodes, self.subsets,
+                                 self.is_accepting, self.start_state,
+                                 arity, m, bits)
+        if reduced is None:
+            return SparseDFA(1, is_accepting=[False], start_state=0,
+                             symbol_arity=arity,
+                             base_alphabet=self.base_alphabet,
+                             nodes=np.array([store.const(0, arity, m, bits)]))
+        nodes, subsets, subset_ids, accepting, start = reduced
+        return _determinize_set_nfa(store, nodes, subsets, subset_ids,
+                                    accepting, start, arity, m, bits,
+                                    self.base_alphabet)
 
     def __str__(self) -> str:
         """Returns a string representation of the NFA"""

@@ -48,7 +48,7 @@ from typing import Dict, FrozenSet, List, Optional, Set, Tuple
 
 import numpy as np
 
-from autstr.mtbdd import NONE, bits_of, var_tables
+from autstr.mtbdd import NONE, ComputedTable, bits_of, var_tables
 from autstr.sparse_tree_automata import SparseTreeAutomaton
 from autstr.utils.misc import encode_symbol
 
@@ -177,7 +177,7 @@ def project(sta: SparseTreeAutomaton, tape: int, padding_symbol,
     varmap = [(v // bits - (1 if v // bits > tape else 0)) * bits + v % bits
               for v in range(sta.nvars)]
     singleton_cache: Dict[int, int] = {}
-    union_cache: Dict[int, int] = {}
+    union_cache = ComputedTable(23)
     rename_cache: Dict[int, int] = {}
 
     def nondeterministic(node: int) -> int:

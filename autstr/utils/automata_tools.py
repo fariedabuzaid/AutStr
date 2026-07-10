@@ -4,8 +4,10 @@ from collections import deque
 from typing import Callable, Dict, Generator, List, Set
 import itertools as it
 
-from autstr.mtbdd import NONE, bits_of, var_tables
-from autstr.sparse_automata import SparseDFA, SparseNFA
+from autstr.mtbdd import NONE, var_tables
+from autstr.sparse_automata import (
+    SparseDFA, SparseNFA, _determinize_set_nfa, reduce_set_nfa,
+)
 from autstr.buildin.automata import one
 from autstr.utils.misc import decode_symbol, encode_symbol, complement
 
@@ -283,6 +285,12 @@ def projection(dfa: SparseDFA, i: int) -> SparseDFA:
     diagram on tape i's variable block — a diagram over *sets* of states — and
     the subset construction then folds those over the members of each subset.
     Neither the source nor the projected alphabet is ever enumerated.
+
+    Quantifying a tape coarsens the dynamics, so the resulting NFA is pruned
+    and quotiented by forward bisimulation (`reduce_set_nfa`) before it is
+    determinized: even a minimal source DFA usually has bisimilar states once
+    a tape is existentially quantified, and every merged pair halves a
+    dimension of the subset space.
     """
     arity = dfa.symbol_arity
     if arity < 2:
@@ -322,37 +330,16 @@ def projection(dfa: SparseDFA, i: int) -> SparseDFA:
         node = store.quantify_letter(node, i, m, bits, union, union_cache)
         set_nodes[q] = store.rename(node, varmap, rename_cache)
 
-    new_subsets: List[int] = []
-    new_ids: Dict[int, int] = {}
-
-    def state_of(sid: int) -> int:
-        mask = subsets[sid]
-        idx = new_ids.get(mask)
-        if idx is None:
-            idx = new_ids[mask] = len(new_subsets)
-            new_subsets.append(mask)
-        return idx
-
-    state_cache: Dict[int, int] = {}
-    state_of(singleton(int(dfa.start_state)))
-    nodes: List[int] = []
-    index = 0
-    while index < len(new_subsets):                # grows inside apply1
-        members = bits_of(new_subsets[index])
-        index += 1
-        node = int(set_nodes[members[0]])
-        for q in members[1:]:
-            node = store.apply2(node, int(set_nodes[q]), union, union_cache)
-        nodes.append(store.apply1(node, state_of, state_cache))
-
-    accepting_mask = 0
-    for q in np.flatnonzero(dfa.is_accepting).tolist():
-        accepting_mask |= 1 << q
-    accepting = np.array([bool(mask & accepting_mask) for mask in new_subsets],
-                         dtype=bool)
-    return SparseDFA(len(new_subsets), is_accepting=accepting, start_state=0,
-                     symbol_arity=new_arity, base_alphabet=dfa.base_alphabet,
-                     nodes=np.array(nodes, dtype=np.int64))
+    reduced = reduce_set_nfa(store, set_nodes, subsets, dfa.is_accepting,
+                             dfa.start_state, new_arity, m, bits)
+    if reduced is None:
+        return SparseDFA(1, is_accepting=[False], start_state=0,
+                         symbol_arity=new_arity,
+                         base_alphabet=dfa.base_alphabet,
+                         nodes=np.array([store.const(0, new_arity, m, bits)]))
+    nodes, new_subsets, new_ids, accepting, start = reduced
+    return _determinize_set_nfa(store, nodes, new_subsets, new_ids, accepting,
+                                start, new_arity, m, bits, dfa.base_alphabet)
 
 
 def expand(dfa, new_arity: int, pos: List[int]) -> SparseDFA:
