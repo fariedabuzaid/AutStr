@@ -218,7 +218,7 @@ any member by running its advice word through the resulting automaton.
 
 ```python
 # Finite abelian groups — advice is the cyclic decomposition
-from autstr.algebra import FiniteAbelianGroups
+from autstr.groups import FiniteAbelianGroups
 ab = FiniteAbelianGroups()
 ab.check('A(x,y,z)', [2, 3], x=(1, 1), y=(1, 2), z=(0, 0))   # (1,1)+(1,2)=(0,0) in Z2⊕Z3
 
