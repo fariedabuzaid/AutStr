@@ -20,18 +20,68 @@ from nltk.sem import logic
 from autstr.presentations import AutomaticPresentation
 from autstr.sparse_automata import SparseDFA
 from autstr.buildin.automata import one
-from autstr.buildin.presentations import create_sparse_dfa
+from autstr.buildin.presentations import create_sparse_dfa, encode_symbol
 from autstr.utils.automata_tools import expand, pad, permute_tapes, projection, word_automaton
 from autstr.utils.logic import get_free_elementary_vars
 from autstr.utils.misc import get_unique_id
 
 
-def dfa_from_delta(sigma, states, arity, delta, initial, finals) -> SparseDFA:
+def dfa_from_delta(sigma, states, arity, delta, initial, finals,
+                   tapes=None, dead=None) -> SparseDFA:
     """Build a SparseDFA from a transition function over the full symbol
-    space sigma^arity. Convenience for constructing presentation automata."""
-    input_symbols = set(it.product(sorted(sigma), repeat=arity))
-    transitions = {q: {sym: delta(q, sym) for sym in input_symbols} for q in states}
-    return create_sparse_dfa(list(states), input_symbols, transitions, initial, finals)
+    space sigma^arity. Convenience for constructing presentation automata.
+
+    :param tapes: optional per-tape alphabets (the string analog of
+        `sta_from_delta`'s parameter). A convolution tape usually ranges over
+        a small part of the base alphabet — the advice tape reads advice
+        letters, an element tape reads element letters — and every mixed
+        tuple is dead. Naming the tapes' alphabets restricts the enumeration
+        to their product; every other symbol falls to `dead`, which must then
+        be named and becomes every state's sparse default.
+    :param dead: name of the sink state (required with `tapes`); delta must
+        map it to itself on every enumerated symbol.
+    """
+    import numpy as np
+
+    if tapes is None:
+        input_symbols = set(it.product(sorted(sigma), repeat=arity))
+        transitions = {q: {sym: delta(q, sym) for sym in input_symbols} for q in states}
+        return create_sparse_dfa(list(states), input_symbols, transitions, initial, finals)
+
+    if dead is None:
+        raise ValueError("tapes requires a named dead state")
+    if len(tapes) != arity:
+        raise ValueError(f"expected {arity} tape alphabets, got {len(tapes)}")
+    states = list(states)
+    state_to_index = {s: i for i, s in enumerate(states)}
+    base_alphabet = set(sigma)
+    exceptions = {q: [] for q in states}
+    for sym in it.product(*[sorted(t) for t in tapes]):
+        enc = None
+        for q in states:
+            target = delta(q, sym)
+            if target != dead:
+                if enc is None:
+                    enc = encode_symbol(sym, base_alphabet)
+                exceptions[q].append((enc, state_to_index[target]))
+    max_exceptions = max(1, max(len(e) for e in exceptions.values()))
+    ex_syms = np.full((len(states), max_exceptions), -1, dtype=np.int64)
+    ex_states = np.full((len(states), max_exceptions), -1, dtype=np.int64)
+    for q, rows in exceptions.items():
+        rows.sort()
+        i = state_to_index[q]
+        ex_syms[i, :len(rows)] = [s for s, _ in rows]
+        ex_states[i, :len(rows)] = [t for _, t in rows]
+    return SparseDFA(
+        num_states=len(states),
+        default_states=np.full(len(states), state_to_index[dead], dtype=np.int64),
+        exception_symbols=ex_syms,
+        exception_states=ex_states,
+        is_accepting=np.array([q in finals for q in states], dtype=bool),
+        start_state=state_to_index[initial],
+        symbol_arity=arity,
+        base_alphabet=base_alphabet,
+    ).minimize()
 
 
 class UniformlyAutomaticClass:

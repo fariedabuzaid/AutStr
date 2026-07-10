@@ -41,8 +41,20 @@ For fixed p the bilinear correction <a, b'> pairs digits *positionwise*, so
 it is a running sum mod p in the automaton state — nilpotency class 2 with
 growing rank is uniformly automatic, in contrast to growing modulus
 (Heisenberg over Z_n interprets modular multiplication and is not).
+
+**Class-2 groups of bounded linear cut-rank** (`CutRankGroups(p, k, r)`):
+the common generalization. A member is a central extension of Z_p^n by
+Z_p^k given by commutator labels [x_j, x_i] = y^B[j,i]; the advice spells
+out, cut by cut, a rank-<=r factorization of the crossing block of B, and
+the automaton carries r linear functionals of the digits read so far
+instead of the digits themselves. Bounded pathwidth, bounded vertex cover,
+the extraspecial matching and the complete graph (nothing commutes,
+pathwidth n-1, cut-rank 1!) are all special layouts.
 """
+import itertools as it
 from typing import Dict, List, Sequence, Tuple, Union
+
+import numpy as np
 
 from autstr.presentations import AutomaticPresentation
 from autstr.sparse_automata import SparseDFA
@@ -670,3 +682,301 @@ class FiniteAbelianGroups:
 
     def get_structure(self, orders: Sequence[int]) -> AutomaticPresentation:
         return self.cls.get_structure(self.advice(orders))
+
+
+# ====================================================================
+# Class-2 groups of bounded linear cut-rank (linear rank-width)
+# ====================================================================
+
+CMARK = 'c'
+
+
+def _rref_mod(A: np.ndarray, p: int) -> Tuple[np.ndarray, List[int]]:
+    """Reduced row echelon form over Z_p: (nonzero rows, pivot columns)."""
+    A = A.copy() % p
+    m, n = A.shape
+    pivots = []
+    row = 0
+    for col in range(n):
+        if row == m:
+            break
+        sel = next((i for i in range(row, m) if A[i, col]), None)
+        if sel is None:
+            continue
+        A[[row, sel]] = A[[sel, row]]
+        A[row] = (A[row] * pow(int(A[row, col]), p - 2, p)) % p
+        for i in range(m):
+            if i != row and A[i, col]:
+                A[i] = (A[i] - A[i, col] * A[row]) % p
+        pivots.append(col)
+        row += 1
+    return A[:row], pivots
+
+
+def _solve_xa_eq_b(A: np.ndarray, B: np.ndarray, p: int) -> np.ndarray:
+    """Any X over Z_p with X A = B (mod p); raises if the system is
+    inconsistent. A: (a, c), B: (m, c), X: (m, a); free variables are 0."""
+    a, c = A.shape
+    m = B.shape[0]
+    X = np.zeros((m, a), dtype=np.int64)
+    if c == 0:
+        return X
+    reduced, pivots = _rref_mod(np.concatenate([A.T % p, B.T % p], axis=1), p)
+    for row, col in enumerate(pivots):
+        if col >= a:
+            raise ValueError("inconsistent linear system over Z_p")
+        X[:, col] = reduced[row, a:]
+    return X
+
+
+class CutRankGroups:
+    """For a fixed prime p, center dimension k and width r, the uniformly
+    automatic class of class-2 central extensions of Z_p^n by Z_p^k whose
+    commutation form admits a linear layout of cut-rank <= r (bounded
+    *linear rank-width* over F_p).
+
+    A member is an alternating form: labels B[j,i] in Z_p^k for i < j,
+    presenting x_j x_i = x_i x_j y^B[j,i] with the y's central of order p
+    and x_i^p = 1. Elements are (b, a) with b in Z_p^k, a in Z_p^n and
+
+        (b, a)(b', a') = (b + b' + C(a, a'), a + a'),
+        C(a, a') = sum_{i<j} B[j,i] a_j a'_i,
+
+    a 2-cocycle because C is bilinear. The multiplication automaton never
+    needs the digits it has read — only what the future consumes from them,
+    which is the crossing block of B at the current cut. If every crossing
+    block factors through rank r, the automaton can carry the r linear
+    functionals w = V a' instead of the digits. The advice letter at
+    position t spells the factorization out — three matrices over Z_p:
+
+        T (r x r): basis change between cuts,   w <- T w + v a'_t,
+        v (r):     coefficient of the new digit,
+        R (k x r): read-off,   sum_{i<t} B[t,i] a'_i = R w,
+
+    so the state is (deficit in Z_p^k, w in Z_p^r): p^(k+r) states however
+    long the word. Every well-shaped advice presents *some* group in the
+    class (the streamed cocycle is bilinear by construction), and
+    `advice` compiles a form into letters, failing precisely when a cut
+    exceeds rank r; `linear_cut_rank` measures the width a form needs.
+
+    Special layouts: a perfect matching is extraspecial (`matching_form`,
+    cut-rank 1, compare `ExtraspecialGroups`); the complete graph — nothing
+    commutes, pathwidth n-1 — also has cut-rank 1, its crossing blocks are
+    all-ones (`clique_form`); a vertex cover of size c needs rank <= c.
+    Signature: M(x,y,z), Eq(x,y); the center is first-order definable,
+    Cen(x) := all y,z,w (M(x,y,z) and M(y,x,w) -> z = w).
+    """
+
+    def __init__(self, p: int, k: int = 1, r: int = 1):
+        if p < 2 or p > 9 or any(p % d == 0 for d in range(2, int(p ** 0.5) + 1)):
+            raise ValueError(f"p must be a prime in 2..9 (single digits), got {p}")
+        if k < 1 or r < 1:
+            raise ValueError("need k >= 1 central and r >= 1 state dimensions")
+        n_letters = p ** (r * r + r + k * r)
+        if n_letters > 20000:
+            raise ValueError(
+                f"advice alphabet would have {n_letters} letters; "
+                f"choose smaller p, k or r")
+        self.p, self.k, self.r = p, k, r
+        self.digits = [str(d) for d in range(p)]
+        self.letters: Dict[str, tuple] = {}
+        for digs in it.product(range(p), repeat=r * r + r + k * r):
+            T = tuple(tuple(digs[i * r + j] for j in range(r)) for i in range(r))
+            v = tuple(digs[r * r: r * r + r])
+            R = tuple(tuple(digs[r * r + r + l * r + s] for s in range(r))
+                      for l in range(k))
+            self.letters['a' + ''.join(map(str, digs))] = (T, v, R)
+        self.sigma = {PAD, CMARK} | set(self.digits) | set(self.letters)
+        self._advice_tape = {PAD, CMARK} | set(self.letters)
+        self._element_tape = {PAD} | set(self.digits)
+
+        self.cls = UniformlyAutomaticClass({
+            'U': self._universe_automaton(),
+            'M': self._multiplication_automaton(),
+            'Eq': self._eq_automaton(),
+        }, padding_symbol=PAD)
+
+    # ---------------- the automata ----------------
+
+    def _universe_automaton(self) -> SparseDFA:
+        """U(p, x): k digits under the center markers, then one digit per
+        advice letter."""
+        states = ['dead', 'ok'] + [('c', j) for j in range(self.k)]
+
+        def delta(q, sym):
+            a, x = sym
+            if q != 'dead' and x in self.digits:
+                if a == CMARK and q != 'ok' and q[1] < self.k:
+                    return 'ok' if q[1] + 1 == self.k else ('c', q[1] + 1)
+                if a in self.letters and q == 'ok':
+                    return 'ok'
+            return 'dead'
+
+        return dfa_from_delta(self.sigma, states, 2, delta, ('c', 0), {'ok'},
+                              tapes=[self._advice_tape, self._element_tape],
+                              dead='dead')
+
+    def _multiplication_automaton(self) -> SparseDFA:
+        """M(p, x, y, z): z = x·y. The center digits seed the deficit
+        d = b_z - b_x - b_y; each x-position checks the digit sum, subtracts
+        its commutator contribution x_t * (R w) from the deficit and updates
+        the carried functionals w <- T w + v * y_t; accept iff d = 0."""
+        p, k, r = self.p, self.k, self.r
+        states = ['dead']
+        for j in range(k):
+            for d in it.product(range(p), repeat=j):
+                states.append(('c', j, d + (0,) * (k - j)))
+        for d in it.product(range(p), repeat=k):
+            for w in it.product(range(p), repeat=r):
+                states.append(('x', d, w))
+
+        def delta(q, sym):
+            a, x, y, z = sym
+            if q == 'dead' or not all(s in self.digits for s in (x, y, z)):
+                return 'dead'
+            xi, yi, zi = int(x), int(y), int(z)
+            if a == CMARK and q[0] == 'c':
+                j, d = q[1], q[2]
+                d = d[:j] + ((zi - xi - yi) % p,) + d[j + 1:]
+                return ('x', d, (0,) * r) if j + 1 == k else ('c', j + 1, d)
+            if a in self.letters and q[0] == 'x':
+                if (xi + yi - zi) % p:
+                    return 'dead'
+                T, v, R = self.letters[a]
+                d, w = q[1], q[2]
+                d = tuple((d[l] - xi * sum(R[l][s] * w[s] for s in range(r))) % p
+                          for l in range(k))
+                w = tuple((sum(T[s][u] * w[u] for u in range(r)) + v[s] * yi) % p
+                          for s in range(r))
+                return ('x', d, w)
+            return 'dead'
+
+        finals = {('x', (0,) * k, w) for w in it.product(range(p), repeat=r)}
+        return dfa_from_delta(self.sigma, states, 4, delta, ('c', 0, (0,) * k),
+                              finals,
+                              tapes=[self._advice_tape] + [self._element_tape] * 3,
+                              dead='dead')
+
+    def _eq_automaton(self) -> SparseDFA:
+        """Eq(p, x, y): identical well-shaped elements."""
+        states = ['dead', 'ok'] + [('c', j) for j in range(self.k)]
+
+        def delta(q, sym):
+            a, x, y = sym
+            if q != 'dead' and x == y and x in self.digits:
+                if a == CMARK and q != 'ok' and q[1] < self.k:
+                    return 'ok' if q[1] + 1 == self.k else ('c', q[1] + 1)
+                if a in self.letters and q == 'ok':
+                    return 'ok'
+            return 'dead'
+
+        return dfa_from_delta(self.sigma, states, 3, delta, ('c', 0), {'ok'},
+                              tapes=[self._advice_tape] + [self._element_tape] * 2,
+                              dead='dead')
+
+    # ---------------- forms, layouts and advice ----------------
+
+    def _check_form(self, n: int, form: Dict[Tuple[int, int], Sequence[int]]):
+        for (j, i), label in form.items():
+            if not 1 <= i < j <= n:
+                raise ValueError(f"label position {(j, i)} needs 1 <= i < j <= {n}")
+            if len(label) != self.k:
+                raise ValueError(f"label {label} at {(j, i)} must have length k={self.k}")
+
+    def _crossing(self, n: int, form: Dict, t: int) -> np.ndarray:
+        """Crossing block of the form at the cut after position t, flattened
+        to one row per (later position j, center coordinate)."""
+        M = np.zeros(((n - t) * self.k, t), dtype=np.int64)
+        for (j, i), label in form.items():
+            if i <= t < j:
+                for l in range(self.k):
+                    M[(j - t - 1) * self.k + l, i - 1] = label[l] % self.p
+        return M
+
+    def linear_cut_rank(self, n: int, form: Dict) -> int:
+        """The width the given layout of the form needs: the maximal rank
+        over Z_p of its crossing blocks."""
+        self._check_form(n, form)
+        return max((len(_rref_mod(self._crossing(n, form, t), self.p)[1])
+                    for t in range(1, n)), default=0)
+
+    def advice(self, n: int, form: Dict[Tuple[int, int], Sequence[int]]) -> List[str]:
+        """Compile a form — {(j, i): label in Z_p^k, i < j} — into advice.
+        Maintains a row basis V of each crossing block's row space and
+        expresses the next basis and the current read-off row over it;
+        raises if some cut exceeds rank r."""
+        self._check_form(n, form)
+        p, k, r = self.p, self.k, self.r
+        word = [CMARK] * k
+        V_prev = np.zeros((r, 0), dtype=np.int64)
+        for t in range(1, n + 1):
+            Bt = np.zeros((k, t - 1), dtype=np.int64)
+            for i in range(1, t):
+                label = form.get((t, i))
+                if label:
+                    Bt[:, i - 1] = [c % p for c in label]
+            R = _solve_xa_eq_b(V_prev, Bt, p)
+            V = np.zeros((r, t), dtype=np.int64)
+            if t < n:
+                basis, pivots = _rref_mod(self._crossing(n, form, t), p)
+                if len(pivots) > r:
+                    raise ValueError(
+                        f"cut {t} has rank {len(pivots)} > r = {r}; this form "
+                        f"needs width {self.linear_cut_rank(n, form)}")
+                V[:basis.shape[0]] = basis
+            T = _solve_xa_eq_b(V_prev, V[:, :t - 1], p)
+            digs = [T[i, j] for i in range(r) for j in range(r)]
+            digs += [V[s, t - 1] for s in range(r)]
+            digs += [R[l, s] for l in range(k) for s in range(r)]
+            word.append('a' + ''.join(str(int(d) % p) for d in digs))
+            V_prev = V
+        return word
+
+    def clique_form(self, n: int, label: Sequence[int] = None) -> Dict:
+        """Nothing commutes: [x_j, x_i] = y^label for every pair. Pathwidth
+        n-1, but every crossing block is all-ones — cut-rank 1."""
+        label = tuple(label) if label is not None else (1,) + (0,) * (self.k - 1)
+        return {(j, i): label for j in range(2, n + 1) for i in range(1, j)}
+
+    def matching_form(self, n: int) -> Dict:
+        """Disjoint commutator pairs hitting the first center coordinate:
+        the extraspecial layout, cut-rank 1."""
+        e1 = (1,) + (0,) * (self.k - 1)
+        return {(2 * t, 2 * t - 1): e1 for t in range(1, n // 2 + 1)}
+
+    # ---------------- encodings and class operations ----------------
+
+    def multiply(self, n: int, form: Dict, g, h):
+        """Reference implementation of the group law given by the form."""
+        (b1, a1), (b2, a2) = g, h
+        b = [(u + v) % self.p for u, v in zip(b1, b2)]
+        for (j, i), label in form.items():
+            c = a1[j - 1] * a2[i - 1]
+            for l in range(self.k):
+                b[l] = (b[l] + label[l] * c) % self.p
+        return tuple(b), tuple((u + v) % self.p for u, v in zip(a1, a2))
+
+    def identity(self, n: int):
+        return (0,) * self.k, (0,) * n
+
+    def encode(self, element, n: int) -> List[str]:
+        """Encode (b, a) with b in Z_p^k, a in Z_p^n."""
+        b, a = element
+        if len(b) != self.k or len(a) != n:
+            raise ValueError(f"element must be (Z_p^{self.k}, Z_p^{n})")
+        if not all(0 <= d < self.p for d in tuple(b) + tuple(a)):
+            raise ValueError(f"components must lie in Z_{self.p}")
+        return [str(d) for d in b] + [str(d) for d in a]
+
+    def evaluate(self, phi) -> Tuple[SparseDFA, List[str]]:
+        return self.cls.evaluate(phi)
+
+    def check(self, phi, advice: Sequence[str], **elements) -> bool:
+        """Model check against the member presented by the advice; free
+        variables can be assigned elements as (b, a) tuples."""
+        n = len(advice) - self.k
+        words = {name: self.encode(el, n) for name, el in elements.items()}
+        return self.cls.check(phi, advice, **words)
+
+    def get_structure(self, advice: Sequence[str]) -> AutomaticPresentation:
+        return self.cls.get_structure(advice)
