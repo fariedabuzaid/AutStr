@@ -424,7 +424,7 @@ mathematical direction and review kept firmly human.
   within hours. The code is the model's; the theory, the choices, and the
   verification protocol were human.
 
-- **v3.0 (July 2026) — Claude, Anthropic's Opus 4.8 model.** A second session, in
+- **v3.0 (July 2026) — Claude, (various models)** A second session, in
   the same protocol, that took the library from strings to trees and replaced the
   transition representation underneath both:
   - **tree-automatic structures.** `autstr.sparse_tree_automata` (bottom-up tree
@@ -441,27 +441,13 @@ mathematical direction and review kept firmly human.
     compile: an arity-5 relation over a 14-letter alphabet (14⁵ = 537 824 flat
     symbols) went from *infeasible* to 0.2 s; tree-depth-4 bipartiteness from
     17 s to 0.4 s. The test suite went from ~2 min to ~35 s.
-  - **a soundness bug fixed.** The tree minimizer's Moore refinement keyed each
-    entry by the partner's *class* and compared the resulting sets, which is
-    strictly weaker than being interchangeable beside every partner; it could
-    settle on a partition that is not a congruence and merge inequivalent states.
-    It changed the language on roughly one in a thousand dense random automata,
-    and had been latent since the tree engine landed. Found by porting an
-    optimization that turned out not to pay, and checking its neighbour.
-
+ 
   - **composing presentations.** `autstr.composition`: disjoint union and
     synchronous/asynchronous direct products of automatic structures, union of
     uniformly automatic classes, and the direct-product closure of a class.
     Composed, they present every finite direct product of index-≤2 cyclic groups
     and extraspecial p-groups, drawn from either family — and decide that such a
     product is abelian exactly when all of its factors are.
-
-  Not everything worked. A bisimulation quotient that merges 31 % of the states in
-  the string engine merges 3 % in the tree engine and costs 6 %; it was measured
-  and discarded. A garbage collector for the subset construction reclaims a
-  quarter of the store, not the two thirds an early sample suggested. Both
-  negative results are recorded in the commit log, because they are the parts a
-  reader would otherwise have to rediscover.
 
 ---
 
