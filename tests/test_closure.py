@@ -394,3 +394,51 @@ class TestDirectProductClosure:
         chains = prefix_chain_class('a')
         with pytest.raises(ValueError):
             direct_product_closure(chains, separator='a')
+
+
+# ====================================================================
+# The point of the exercise: mixing two families of finite groups
+# ====================================================================
+
+from autstr.groups import ExtraspecialGroups, IndexTwoCyclicGroups
+from autstr.uniform import UniformlyAutomaticClass
+
+IDENTITY = 'exists u.(all x.(M(x,u,x)))'
+ABELIAN = 'all x.(all y.(all z.(M(x,y,z) -> M(y,x,z))))'
+
+
+def _reduct(uniform):
+    """The common signature of the two group classes: domain and product."""
+    return UniformlyAutomaticClass(
+        {'U': uniform.class_automata['U'], 'M': uniform.class_automata['M']},
+        padding_symbol='*')
+
+
+@pytest.fixture(scope="module")
+def mixed_groups():
+    """All finite direct products of index-<=2 cyclic groups and extraspecial
+    3-groups, drawn from either family."""
+    cyclic, extra = IndexTwoCyclicGroups(), ExtraspecialGroups(3)
+    both = class_union(_reduct(cyclic.cls), _reduct(extra.cls))
+    return direct_product_closure(both), cyclic, extra
+
+
+class TestMixedGroupProducts:
+    def test_a_product_of_groups_has_an_identity(self, mixed_groups):
+        products, cyclic, extra = mixed_groups
+        z4 = tagged_advice(cyclic.cyclic(4), '<l>')
+        heis = tagged_advice(extra.advice(1), '<r>')
+        assert products.check(IDENTITY, blocks(z4, heis))
+
+    def test_a_product_is_abelian_exactly_when_its_factors_are(self, mixed_groups):
+        products, cyclic, extra = mixed_groups
+        z4 = tagged_advice(cyclic.cyclic(4), '<l>')
+        d4 = tagged_advice(cyclic.advice('dihedral', 4), '<l>')
+        heis = tagged_advice(extra.advice(1), '<r>')
+
+        assert products.check(ABELIAN, blocks(z4))            # Z4
+        assert not products.check(ABELIAN, blocks(heis))      # extraspecial
+        assert products.check(ABELIAN, blocks(z4, z4))        # Z4 x Z4
+        # one nonabelian factor is enough, from either family
+        assert not products.check(ABELIAN, blocks(z4, heis))
+        assert not products.check(ABELIAN, blocks(d4, z4))
