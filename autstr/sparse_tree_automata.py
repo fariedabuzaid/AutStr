@@ -148,7 +148,7 @@ class SparseTreeAutomaton:
     :param is_accepting: boolean array over the real states (acceptance is
         checked at the root).
     :param pd_left, pd_right, pd_target: parallel arrays of pair defaults
-        delta(pd_left, pd_right, *) = pd_target for symbols without an
+        ``delta(pd_left, pd_right, *) = pd_target`` for symbols without an
         exception. Pairs not listed fall back to the global default.
     :param pair_keys, pair_nodes: the compiled form (sorted packed pair keys
         and their diagram roots); passed by the pipeline instead of the flat

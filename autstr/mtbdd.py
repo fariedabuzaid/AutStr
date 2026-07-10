@@ -282,8 +282,9 @@ class NodeStore:
         Per tape, take the old block's `old_m` cofactors and reassemble them at
         the new digits. One memoized pass over the nodes -- widening an
         alphabet never rebuilds a transition table, which is why a direct
-        product is affordable: the pair alphabet has |A|*|B| letters but its
-        diagrams have bits_A + bits_B variables. Letters multiply; bits add.
+        product is affordable: the pair alphabet has ``|A| * |B|`` letters but
+        its diagrams have ``bits_A + bits_B`` variables. Letters multiply;
+        bits add.
         """
         if len(source) != new_m:
             raise ValueError("source must give one old letter per new letter")

@@ -562,8 +562,9 @@ def word_automaton(word: List, base_alphabet: Set, padding_symbol=None) -> Spars
 
 def lsbf_Z_automaton(z: int) -> SparseDFA:
     """
-    Creates a SparseDFA for LSB-first representation of integer z with sign bit and padding.
-    Alphabet encoding:
+    Creates a SparseDFA for LSB-first representation of integer z with sign bit
+    and padding. Alphabet encoding::
+
         "*" = 0
         "0" = 1
         "1" = 2

@@ -150,7 +150,7 @@ def direct_product(left: AutomaticPresentation, right: AutomaticPresentation,
 
     An element is a pair, encoded over the *pair* alphabet: position i carries
     one letter of each component, the shorter one padded. Both products are
-    then Boolean combinations of the factors embedded into that alphabet:
+    then Boolean combinations of the factors embedded into that alphabet::
 
         sync   R((a,b), (a',b'))  iff  R_A(a,a') and R_B(b,b')
         async  R((a,b), (a',b'))  iff  (R_A(a,a') and b = b')
