@@ -253,3 +253,77 @@ def tagged_advice(advice, tag='<l>'):
 def tagged_element(element, skip='<#>'):
     """An element of a factor, as an element of the union."""
     return [skip] + list(element)
+
+
+def _block_reset(dfa: SparseDFA, separator) -> SparseDFA:
+    """Accept ``b_1 sep b_2 sep ... sep b_n`` iff `dfa` accepts every block.
+
+    `separator` must occur on every tape simultaneously; a symbol that mixes it
+    with ordinary letters is rejected. Recoding onto the wider alphabet already
+    sends every symbol containing the separator to a fresh dead state, so only
+    the all-separator symbol has to be redirected: from an accepting state back
+    to the start, from any other to the sink. Acceptance is unchanged, which
+    makes the last block the one that must accept.
+
+    The automaton grows by a single state, not by a factor per block -- an
+    interleaved encoding would instead force one copy of `dfa` per component.
+    """
+    if separator in dfa.base_alphabet_frozen:
+        raise ValueError(f"{separator!r} already occurs in the alphabet")
+    wider = recode(dfa, set(dfa.base_alphabet) | {separator})
+    arity = wider.symbol_arity
+    store = wider.store
+
+    code = encode_symbol((separator,) * arity, wider.base_alphabet_frozen)
+    assignment = _symbol_assignment(code, arity, wider.m, wider.bits)
+    sink = wider.num_states - 1                    # `recode` appended it
+
+    nodes = [store.set_path(int(node), assignment,
+                            wider.start_state if wider.is_accepting[q] else sink)
+             for q, node in enumerate(wider.nodes.tolist())]
+    return SparseDFA(wider.num_states, is_accepting=wider.is_accepting,
+                     start_state=wider.start_state, symbol_arity=arity,
+                     base_alphabet=wider.base_alphabet,
+                     nodes=np.array(nodes, dtype=np.int64))
+
+
+def direct_product_closure(uniform: UniformlyAutomaticClass,
+                           separator: str = '<|>') -> UniformlyAutomaticClass:
+    """The class of all finite direct products of the class's members.
+
+    The advice ``alpha_1 # ... # alpha_n`` presents the product of the members
+    that ``alpha_1, ..., alpha_n`` present, and an element of that product is
+    the tuple ``w_1 # ... # w_n`` of its components. Because an element of a
+    member is never longer than its advice, the blocks line up positionally
+    across every tape of a convolution, and a relation of the product is just
+    the original relation holding in every block.
+
+    So each automaton -- the domain and every relation alike -- is the same
+    block-reset wrapper of the original: read a block, and at a separator
+    demand that the block was accepted and start the next one. The result has
+    one more state than the original, where an encoding that interleaved the
+    components would need one copy of the automaton per component.
+
+    This is the construction that takes the cyclic groups to the finite abelian
+    groups (compare `autstr.algebra.FiniteAbelianGroups`, whose advice is a
+    '#'-separated list of orders). Composed with `class_union` it mixes two
+    families: ``direct_product_closure(class_union(C, D))`` is the class of all
+    finite products of members of either.
+
+    Requires every element to be no longer than its advice, which holds exactly
+    when the members are finite; the construction cannot check it.
+    """
+    automata = {name: _block_reset(dfa, separator)
+                for name, dfa in uniform.class_automata.items()}
+    return UniformlyAutomaticClass(automata,
+                                   padding_symbol=uniform.padding_symbol)
+
+
+def blocks(*words, separator: str = '<|>'):
+    """Concatenate advices or elements into one product advice/element."""
+    out = []
+    for i, word in enumerate(words):
+        if i:
+            out.append(separator)
+        out.extend(word)
+    return out

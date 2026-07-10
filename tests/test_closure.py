@@ -340,3 +340,57 @@ class TestClassUnion:
         right.class_automata['Other'] = right.class_automata['Lt']
         with pytest.raises(ValueError):
             class_union(left, right)
+
+
+# ====================================================================
+# Direct product closure of a uniformly automatic class
+# ====================================================================
+
+from autstr.closure import blocks, direct_product_closure
+
+
+class TestDirectProductClosure:
+    def test_a_single_block_is_the_original_member(self):
+        chains = prefix_chain_class('a')
+        products = direct_product_closure(chains)
+        for n in (1, 2, 3):
+            assert products.check(SOME_EDGE, blocks(['a'] * n)) == \
+                chains.check(SOME_EDGE, ['a'] * n), n
+
+    def test_the_product_relation_is_componentwise(self):
+        """Lt holds in a product only when it holds in *every* component, so a
+        product with a one-element factor has no edge at all."""
+        products = direct_product_closure(prefix_chain_class('a'))
+        assert not products.check(SOME_EDGE, blocks(['a'], ['a', 'a']))
+        assert not products.check(SOME_EDGE, blocks(['a', 'a'], ['a']))
+        assert products.check(SOME_EDGE, blocks(['a', 'a'], ['a', 'a']))
+
+    def test_three_factors(self):
+        products = direct_product_closure(prefix_chain_class('a'))
+        assert products.check(SOME_EDGE, blocks(['a', 'a'], ['a', 'a'],
+                                                ['a', 'a']))
+        assert not products.check(SOME_EDGE, blocks(['a', 'a'], ['a', 'a'],
+                                                    ['a']))
+
+    def test_a_product_of_orders_is_transitive(self):
+        products = direct_product_closure(prefix_chain_class('a'))
+        transitive = ('all x.(all y.(all z.((Lt(x,y) and Lt(y,z)) '
+                      '-> Lt(x,z))))')
+        assert products.check(transitive, blocks(['a', 'a', 'a'],
+                                                 ['a', 'a', 'a']))
+
+    def test_mixing_two_classes(self):
+        """The point of the whole exercise: products of members drawn from
+        either of two different classes."""
+        both = class_union(prefix_chain_class('a'), prefix_chain_class('b'))
+        products = direct_product_closure(both)
+        left2 = tagged_advice(['a', 'a'], '<l>')
+        right2 = tagged_advice(['b', 'b'], '<r>')
+        right1 = tagged_advice(['b'], '<r>')
+        assert products.check(SOME_EDGE, blocks(left2, right2))
+        assert not products.check(SOME_EDGE, blocks(left2, right1))
+
+    def test_rejects_a_separator_already_in_the_alphabet(self):
+        chains = prefix_chain_class('a')
+        with pytest.raises(ValueError):
+            direct_product_closure(chains, separator='a')
