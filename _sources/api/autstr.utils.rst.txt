@@ -1,0 +1,45 @@
+autstr.utils package
+====================
+
+Submodules
+----------
+
+autstr.utils.automata\_tools module
+-----------------------------------
+
+.. automodule:: autstr.utils.automata_tools
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+autstr.utils.logic module
+-------------------------
+
+.. automodule:: autstr.utils.logic
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+autstr.utils.misc module
+------------------------
+
+.. automodule:: autstr.utils.misc
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+autstr.utils.tree\_automata\_tools module
+-----------------------------------------
+
+.. automodule:: autstr.utils.tree_automata_tools
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+Module contents
+---------------
+
+.. automodule:: autstr.utils
+   :members:
+   :show-inheritance:
+   :undoc-members:

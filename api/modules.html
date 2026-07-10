@@ -1,0 +1,744 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="autstr package" href="autstr.html"><link rel="prev" title="AutStr: computing with infinite structures" href="../index.html">
+
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+        <title>autstr - AutStr 3.0.0</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../index.html"><div class="brand">AutStr 3.0.0</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../index.html">
+  
+  <span class="sidebar-brand-text">AutStr 3.0.0</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">API reference</span></p>
+<ul class="current">
+<li class="toctree-l1 current has-children current-page"><a class="current reference internal" href="#">autstr</a><input aria-label="Toggle navigation of autstr" checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="autstr.html">autstr package</a><input aria-label="Toggle navigation of autstr package" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="autstr.buildin.html">autstr.buildin package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.utils.html">autstr.utils package</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../_sources/api/modules.rst.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="autstr">
+<h1>autstr<a class="headerlink" href="#autstr" title="Link to this heading">¶</a></h1>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="autstr.html">autstr package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="autstr.html#subpackages">Subpackages</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="autstr.buildin.html">autstr.buildin package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.buildin.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.buildin.html#module-autstr.buildin.automata">autstr.buildin.automata module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.buildin.html#module-autstr.buildin.presentations">autstr.buildin.presentations module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.buildin.html#module-autstr.buildin.tree_presentations">autstr.buildin.tree_presentations module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.buildin.html#module-autstr.buildin">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.utils.html">autstr.utils package</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.utils.html#submodules">Submodules</a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.utils.html#module-autstr.utils.automata_tools">autstr.utils.automata_tools module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.utils.html#module-autstr.utils.logic">autstr.utils.logic module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.utils.html#module-autstr.utils.misc">autstr.utils.misc module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.utils.html#module-autstr.utils.tree_automata_tools">autstr.utils.tree_automata_tools module</a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.utils.html#module-autstr.utils">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="autstr.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="autstr.html#module-autstr.algebra">autstr.algebra module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.algebra.Z1pElement"><code class="docutils literal notranslate"><span class="pre">Z1pElement</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.algebra.Z1pElement.num"><code class="docutils literal notranslate"><span class="pre">Z1pElement.num</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.algebra.Z1pElement.exp"><code class="docutils literal notranslate"><span class="pre">Z1pElement.exp</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.algebra.Z1pLocalization"><code class="docutils literal notranslate"><span class="pre">Z1pLocalization</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.algebra.Z1pLocalization.normalize"><code class="docutils literal notranslate"><span class="pre">Z1pLocalization.normalize()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.algebra.Z1pLocalization.element"><code class="docutils literal notranslate"><span class="pre">Z1pLocalization.element()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.algebra.Z1pLocalization.from_fraction"><code class="docutils literal notranslate"><span class="pre">Z1pLocalization.from_fraction()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.algebra.Z1pLocalization.add"><code class="docutils literal notranslate"><span class="pre">Z1pLocalization.add()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.algebra.Z1pLocalization.neg"><code class="docutils literal notranslate"><span class="pre">Z1pLocalization.neg()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.algebra.Z1pLocalization.sub"><code class="docutils literal notranslate"><span class="pre">Z1pLocalization.sub()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.algebra.Z1pLocalization.equals"><code class="docutils literal notranslate"><span class="pre">Z1pLocalization.equals()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.algebra.Z1pLocalization.sigma"><code class="docutils literal notranslate"><span class="pre">Z1pLocalization.sigma</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.algebra.Z1pLocalization.presentation"><code class="docutils literal notranslate"><span class="pre">Z1pLocalization.presentation</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.algebra.Z1pLocalization.encode"><code class="docutils literal notranslate"><span class="pre">Z1pLocalization.encode()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.algebra.Z1pLocalization.evaluate"><code class="docutils literal notranslate"><span class="pre">Z1pLocalization.evaluate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.algebra.Z1pLocalization.check"><code class="docutils literal notranslate"><span class="pre">Z1pLocalization.check()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.algebra.z1p_localization"><code class="docutils literal notranslate"><span class="pre">z1p_localization()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.algebra.FiniteBooleanAlgebras"><code class="docutils literal notranslate"><span class="pre">FiniteBooleanAlgebras</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.algebra.FiniteBooleanAlgebras.advice"><code class="docutils literal notranslate"><span class="pre">FiniteBooleanAlgebras.advice()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.algebra.FiniteBooleanAlgebras.encode"><code class="docutils literal notranslate"><span class="pre">FiniteBooleanAlgebras.encode()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.algebra.FiniteBooleanAlgebras.evaluate"><code class="docutils literal notranslate"><span class="pre">FiniteBooleanAlgebras.evaluate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.algebra.FiniteBooleanAlgebras.check"><code class="docutils literal notranslate"><span class="pre">FiniteBooleanAlgebras.check()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.algebra.FiniteBooleanAlgebras.get_structure"><code class="docutils literal notranslate"><span class="pre">FiniteBooleanAlgebras.get_structure()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="autstr.html#module-autstr.arithmetic">autstr.arithmetic module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.arithmetic.Term"><code class="docutils literal notranslate"><span class="pre">Term</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.Term.arithmetic"><code class="docutils literal notranslate"><span class="pre">Term.arithmetic</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.Term.update_presentation"><code class="docutils literal notranslate"><span class="pre">Term.update_presentation()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.Term.evaluate"><code class="docutils literal notranslate"><span class="pre">Term.evaluate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.Term.get_variables"><code class="docutils literal notranslate"><span class="pre">Term.get_variables()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.Term.substitute"><code class="docutils literal notranslate"><span class="pre">Term.substitute()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.arithmetic.RelationalAlgebraTerm"><code class="docutils literal notranslate"><span class="pre">RelationalAlgebraTerm</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.RelationalAlgebraTerm.drop"><code class="docutils literal notranslate"><span class="pre">RelationalAlgebraTerm.drop()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.RelationalAlgebraTerm.ex"><code class="docutils literal notranslate"><span class="pre">RelationalAlgebraTerm.ex()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.RelationalAlgebraTerm.exinf"><code class="docutils literal notranslate"><span class="pre">RelationalAlgebraTerm.exinf()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.RelationalAlgebraTerm.isempty"><code class="docutils literal notranslate"><span class="pre">RelationalAlgebraTerm.isempty()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.RelationalAlgebraTerm.isfinite"><code class="docutils literal notranslate"><span class="pre">RelationalAlgebraTerm.isfinite()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.arithmetic.ExInfRATerm"><code class="docutils literal notranslate"><span class="pre">ExInfRATerm</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.ExInfRATerm.update_presentation"><code class="docutils literal notranslate"><span class="pre">ExInfRATerm.update_presentation()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.ExInfRATerm.get_variables"><code class="docutils literal notranslate"><span class="pre">ExInfRATerm.get_variables()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.arithmetic.BaseRATerm"><code class="docutils literal notranslate"><span class="pre">BaseRATerm</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.BaseRATerm.get_variables"><code class="docutils literal notranslate"><span class="pre">BaseRATerm.get_variables()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.BaseRATerm.update_presentation"><code class="docutils literal notranslate"><span class="pre">BaseRATerm.update_presentation()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.BaseRATerm.to_fo"><code class="docutils literal notranslate"><span class="pre">BaseRATerm.to_fo()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.arithmetic.BinaryRATerm"><code class="docutils literal notranslate"><span class="pre">BinaryRATerm</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.BinaryRATerm.get_variables"><code class="docutils literal notranslate"><span class="pre">BinaryRATerm.get_variables()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.BinaryRATerm.update_presentation"><code class="docutils literal notranslate"><span class="pre">BinaryRATerm.update_presentation()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.arithmetic.IntersectionRATerm"><code class="docutils literal notranslate"><span class="pre">IntersectionRATerm</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.arithmetic.UnionRATerm"><code class="docutils literal notranslate"><span class="pre">UnionRATerm</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.arithmetic.ComplementRATerm"><code class="docutils literal notranslate"><span class="pre">ComplementRATerm</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.ComplementRATerm.update_presentation"><code class="docutils literal notranslate"><span class="pre">ComplementRATerm.update_presentation()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.ComplementRATerm.get_variables"><code class="docutils literal notranslate"><span class="pre">ComplementRATerm.get_variables()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.arithmetic.DropRATerm"><code class="docutils literal notranslate"><span class="pre">DropRATerm</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.DropRATerm.update_presentation"><code class="docutils literal notranslate"><span class="pre">DropRATerm.update_presentation()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.DropRATerm.get_variables"><code class="docutils literal notranslate"><span class="pre">DropRATerm.get_variables()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.arithmetic.ElementaryTerm"><code class="docutils literal notranslate"><span class="pre">ElementaryTerm</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.ElementaryTerm.to_term"><code class="docutils literal notranslate"><span class="pre">ElementaryTerm.to_term()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.ElementaryTerm.eq"><code class="docutils literal notranslate"><span class="pre">ElementaryTerm.eq()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.ElementaryTerm.lt"><code class="docutils literal notranslate"><span class="pre">ElementaryTerm.lt()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.ElementaryTerm.gt"><code class="docutils literal notranslate"><span class="pre">ElementaryTerm.gt()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.ElementaryTerm.evaluate"><code class="docutils literal notranslate"><span class="pre">ElementaryTerm.evaluate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.ElementaryTerm.update_presentation"><code class="docutils literal notranslate"><span class="pre">ElementaryTerm.update_presentation()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.arithmetic.ConstantETerm"><code class="docutils literal notranslate"><span class="pre">ConstantETerm</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.ConstantETerm.get_variables"><code class="docutils literal notranslate"><span class="pre">ConstantETerm.get_variables()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.ConstantETerm.update_presentation"><code class="docutils literal notranslate"><span class="pre">ConstantETerm.update_presentation()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.arithmetic.VariableETerm"><code class="docutils literal notranslate"><span class="pre">VariableETerm</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.VariableETerm.update_presentation"><code class="docutils literal notranslate"><span class="pre">VariableETerm.update_presentation()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.VariableETerm.get_variables"><code class="docutils literal notranslate"><span class="pre">VariableETerm.get_variables()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.VariableETerm.get_name"><code class="docutils literal notranslate"><span class="pre">VariableETerm.get_name()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.arithmetic.NegatedETerm"><code class="docutils literal notranslate"><span class="pre">NegatedETerm</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.NegatedETerm.update_presentation"><code class="docutils literal notranslate"><span class="pre">NegatedETerm.update_presentation()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.NegatedETerm.get_variables"><code class="docutils literal notranslate"><span class="pre">NegatedETerm.get_variables()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.arithmetic.AdditionETerm"><code class="docutils literal notranslate"><span class="pre">AdditionETerm</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.AdditionETerm.update_presentation"><code class="docutils literal notranslate"><span class="pre">AdditionETerm.update_presentation()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.arithmetic.AdditionETerm.get_variables"><code class="docutils literal notranslate"><span class="pre">AdditionETerm.get_variables()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="autstr.html#module-autstr.composition">autstr.composition module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.composition.prefix"><code class="docutils literal notranslate"><span class="pre">prefix()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.composition.disjoint_union"><code class="docutils literal notranslate"><span class="pre">disjoint_union()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.composition.direct_product"><code class="docutils literal notranslate"><span class="pre">direct_product()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.composition.class_union"><code class="docutils literal notranslate"><span class="pre">class_union()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.composition.tagged_advice"><code class="docutils literal notranslate"><span class="pre">tagged_advice()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.composition.tagged_element"><code class="docutils literal notranslate"><span class="pre">tagged_element()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.composition.direct_product_closure"><code class="docutils literal notranslate"><span class="pre">direct_product_closure()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.composition.blocks"><code class="docutils literal notranslate"><span class="pre">blocks()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="autstr.html#module-autstr.graphs">autstr.graphs module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.graphs.StringGraph"><code class="docutils literal notranslate"><span class="pre">StringGraph</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.graphs.StringGraph.num_nodes"><code class="docutils literal notranslate"><span class="pre">StringGraph.num_nodes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.graphs.StringGraph.edges"><code class="docutils literal notranslate"><span class="pre">StringGraph.edges()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.graphs.StringGraph.encode_set"><code class="docutils literal notranslate"><span class="pre">StringGraph.encode_set()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.graphs.StringGraph.to_networkx"><code class="docutils literal notranslate"><span class="pre">StringGraph.to_networkx()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.graphs.StringGraph.to_graphviz"><code class="docutils literal notranslate"><span class="pre">StringGraph.to_graphviz()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.graphs.TreeDepthGraph"><code class="docutils literal notranslate"><span class="pre">TreeDepthGraph</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.graphs.TreeDepthGraph.height"><code class="docutils literal notranslate"><span class="pre">TreeDepthGraph.height</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.graphs.TreeDepthGraph.edges"><code class="docutils literal notranslate"><span class="pre">TreeDepthGraph.edges()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.graphs.TreeDepthGraph.from_networkx"><code class="docutils literal notranslate"><span class="pre">TreeDepthGraph.from_networkx()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.graphs.PathWidthGraph"><code class="docutils literal notranslate"><span class="pre">PathWidthGraph</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.graphs.PathWidthGraph.width"><code class="docutils literal notranslate"><span class="pre">PathWidthGraph.width</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.graphs.PathWidthGraph.edges"><code class="docutils literal notranslate"><span class="pre">PathWidthGraph.edges()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.graphs.PathWidthGraph.from_networkx"><code class="docutils literal notranslate"><span class="pre">PathWidthGraph.from_networkx()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.graphs.TreeDepthClass"><code class="docutils literal notranslate"><span class="pre">TreeDepthClass</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.graphs.TreeDepthClass.advice"><code class="docutils literal notranslate"><span class="pre">TreeDepthClass.advice()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.graphs.PathWidthClass"><code class="docutils literal notranslate"><span class="pre">PathWidthClass</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.graphs.PathWidthClass.advice"><code class="docutils literal notranslate"><span class="pre">PathWidthClass.advice()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="autstr.html#module-autstr.groups">autstr.groups module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.groups.IndexTwoCyclicGroups"><code class="docutils literal notranslate"><span class="pre">IndexTwoCyclicGroups</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.groups.IndexTwoCyclicGroups.FAMILY_SYMBOLS"><code class="docutils literal notranslate"><span class="pre">IndexTwoCyclicGroups.FAMILY_SYMBOLS</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.groups.IndexTwoCyclicGroups.advice"><code class="docutils literal notranslate"><span class="pre">IndexTwoCyclicGroups.advice()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.groups.IndexTwoCyclicGroups.dihedral"><code class="docutils literal notranslate"><span class="pre">IndexTwoCyclicGroups.dihedral()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.groups.IndexTwoCyclicGroups.dicyclic"><code class="docutils literal notranslate"><span class="pre">IndexTwoCyclicGroups.dicyclic()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.groups.IndexTwoCyclicGroups.semidihedral"><code class="docutils literal notranslate"><span class="pre">IndexTwoCyclicGroups.semidihedral()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.groups.IndexTwoCyclicGroups.modular"><code class="docutils literal notranslate"><span class="pre">IndexTwoCyclicGroups.modular()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.groups.IndexTwoCyclicGroups.cyclic"><code class="docutils literal notranslate"><span class="pre">IndexTwoCyclicGroups.cyclic()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.groups.IndexTwoCyclicGroups.abelian"><code class="docutils literal notranslate"><span class="pre">IndexTwoCyclicGroups.abelian()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.groups.IndexTwoCyclicGroups.parameters"><code class="docutils literal notranslate"><span class="pre">IndexTwoCyclicGroups.parameters()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.groups.IndexTwoCyclicGroups.encode"><code class="docutils literal notranslate"><span class="pre">IndexTwoCyclicGroups.encode()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.groups.IndexTwoCyclicGroups.multiply"><code class="docutils literal notranslate"><span class="pre">IndexTwoCyclicGroups.multiply()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.groups.IndexTwoCyclicGroups.evaluate"><code class="docutils literal notranslate"><span class="pre">IndexTwoCyclicGroups.evaluate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.groups.IndexTwoCyclicGroups.check"><code class="docutils literal notranslate"><span class="pre">IndexTwoCyclicGroups.check()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.groups.IndexTwoCyclicGroups.get_structure"><code class="docutils literal notranslate"><span class="pre">IndexTwoCyclicGroups.get_structure()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.groups.ExtraspecialGroups"><code class="docutils literal notranslate"><span class="pre">ExtraspecialGroups</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.groups.ExtraspecialGroups.advice"><code class="docutils literal notranslate"><span class="pre">ExtraspecialGroups.advice()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.groups.ExtraspecialGroups.encode"><code class="docutils literal notranslate"><span class="pre">ExtraspecialGroups.encode()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.groups.ExtraspecialGroups.multiply"><code class="docutils literal notranslate"><span class="pre">ExtraspecialGroups.multiply()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.groups.ExtraspecialGroups.evaluate"><code class="docutils literal notranslate"><span class="pre">ExtraspecialGroups.evaluate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.groups.ExtraspecialGroups.check"><code class="docutils literal notranslate"><span class="pre">ExtraspecialGroups.check()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.groups.ExtraspecialGroups.get_structure"><code class="docutils literal notranslate"><span class="pre">ExtraspecialGroups.get_structure()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.groups.FiniteAbelianGroups"><code class="docutils literal notranslate"><span class="pre">FiniteAbelianGroups</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.groups.FiniteAbelianGroups.advice"><code class="docutils literal notranslate"><span class="pre">FiniteAbelianGroups.advice()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.groups.FiniteAbelianGroups.encode"><code class="docutils literal notranslate"><span class="pre">FiniteAbelianGroups.encode()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.groups.FiniteAbelianGroups.evaluate"><code class="docutils literal notranslate"><span class="pre">FiniteAbelianGroups.evaluate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.groups.FiniteAbelianGroups.check"><code class="docutils literal notranslate"><span class="pre">FiniteAbelianGroups.check()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.groups.FiniteAbelianGroups.get_structure"><code class="docutils literal notranslate"><span class="pre">FiniteAbelianGroups.get_structure()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="autstr.html#module-autstr.mtbdd">autstr.mtbdd module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.mtbdd.num_bits"><code class="docutils literal notranslate"><span class="pre">num_bits()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.mtbdd.ComputedTable"><code class="docutils literal notranslate"><span class="pre">ComputedTable</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.mtbdd.ComputedTable.mask"><code class="docutils literal notranslate"><span class="pre">ComputedTable.mask</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.mtbdd.ComputedTable.shift"><code class="docutils literal notranslate"><span class="pre">ComputedTable.shift</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.mtbdd.ComputedTable.keys"><code class="docutils literal notranslate"><span class="pre">ComputedTable.keys</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.mtbdd.ComputedTable.vals"><code class="docutils literal notranslate"><span class="pre">ComputedTable.vals</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.mtbdd.ComputedTable.get"><code class="docutils literal notranslate"><span class="pre">ComputedTable.get()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.mtbdd.ComputedTable.remap"><code class="docutils literal notranslate"><span class="pre">ComputedTable.remap()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.mtbdd.bits_of"><code class="docutils literal notranslate"><span class="pre">bits_of()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.mtbdd.NodeStore"><code class="docutils literal notranslate"><span class="pre">NodeStore</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.mtbdd.NodeStore.terminal"><code class="docutils literal notranslate"><span class="pre">NodeStore.terminal()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.mtbdd.NodeStore.make"><code class="docutils literal notranslate"><span class="pre">NodeStore.make()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.mtbdd.NodeStore.is_terminal"><code class="docutils literal notranslate"><span class="pre">NodeStore.is_terminal()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.mtbdd.NodeStore.letter"><code class="docutils literal notranslate"><span class="pre">NodeStore.letter()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.mtbdd.NodeStore.const"><code class="docutils literal notranslate"><span class="pre">NodeStore.const()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.mtbdd.NodeStore.build_rows"><code class="docutils literal notranslate"><span class="pre">NodeStore.build_rows()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.mtbdd.NodeStore.map_letters"><code class="docutils literal notranslate"><span class="pre">NodeStore.map_letters()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.mtbdd.NodeStore.recode_letters"><code class="docutils literal notranslate"><span class="pre">NodeStore.recode_letters()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.mtbdd.NodeStore.set_path"><code class="docutils literal notranslate"><span class="pre">NodeStore.set_path()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.mtbdd.NodeStore.cofactor"><code class="docutils literal notranslate"><span class="pre">NodeStore.cofactor()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.mtbdd.NodeStore.mux"><code class="docutils literal notranslate"><span class="pre">NodeStore.mux()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.mtbdd.NodeStore.rename"><code class="docutils literal notranslate"><span class="pre">NodeStore.rename()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.mtbdd.NodeStore.apply2"><code class="docutils literal notranslate"><span class="pre">NodeStore.apply2()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.mtbdd.NodeStore.apply1"><code class="docutils literal notranslate"><span class="pre">NodeStore.apply1()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.mtbdd.NodeStore.quantify_letter"><code class="docutils literal notranslate"><span class="pre">NodeStore.quantify_letter()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.mtbdd.NodeStore.terminals"><code class="docutils literal notranslate"><span class="pre">NodeStore.terminals()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.mtbdd.NodeStore.reset"><code class="docutils literal notranslate"><span class="pre">NodeStore.reset()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.mtbdd.NodeStore.collect"><code class="docutils literal notranslate"><span class="pre">NodeStore.collect()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.mtbdd.NodeStore.export"><code class="docutils literal notranslate"><span class="pre">NodeStore.export()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.mtbdd.NodeStore.import_nodes"><code class="docutils literal notranslate"><span class="pre">NodeStore.import_nodes()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.mtbdd.NodeStore.size"><code class="docutils literal notranslate"><span class="pre">NodeStore.size()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.mtbdd.NodeStore.eval_batch"><code class="docutils literal notranslate"><span class="pre">NodeStore.eval_batch()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.mtbdd.var_tables"><code class="docutils literal notranslate"><span class="pre">var_tables()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="autstr.html#module-autstr.presentations">autstr.presentations module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.presentations.AutomaticPresentationSerializer"><code class="docutils literal notranslate"><span class="pre">AutomaticPresentationSerializer</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.presentations.AutomaticPresentationSerializer.MAGIC"><code class="docutils literal notranslate"><span class="pre">AutomaticPresentationSerializer.MAGIC</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.presentations.AutomaticPresentationSerializer.VERSION"><code class="docutils literal notranslate"><span class="pre">AutomaticPresentationSerializer.VERSION</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.presentations.AutomaticPresentationSerializer.HEADER_FORMAT"><code class="docutils literal notranslate"><span class="pre">AutomaticPresentationSerializer.HEADER_FORMAT</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.presentations.AutomaticPresentationSerializer.HEADER_SIZE"><code class="docutils literal notranslate"><span class="pre">AutomaticPresentationSerializer.HEADER_SIZE</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.presentations.AutomaticPresentationSerializer.serialize"><code class="docutils literal notranslate"><span class="pre">AutomaticPresentationSerializer.serialize()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.presentations.AutomaticPresentationSerializer.deserialize"><code class="docutils literal notranslate"><span class="pre">AutomaticPresentationSerializer.deserialize()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.presentations.AutomaticPresentation"><code class="docutils literal notranslate"><span class="pre">AutomaticPresentation</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.presentations.AutomaticPresentation.automatic_presentation_to_file"><code class="docutils literal notranslate"><span class="pre">AutomaticPresentation.automatic_presentation_to_file()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.presentations.AutomaticPresentation.automatic_presentation_from_file"><code class="docutils literal notranslate"><span class="pre">AutomaticPresentation.automatic_presentation_from_file()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.presentations.AutomaticPresentation.get_relation_symbols"><code class="docutils literal notranslate"><span class="pre">AutomaticPresentation.get_relation_symbols()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.presentations.AutomaticPresentation.update"><code class="docutils literal notranslate"><span class="pre">AutomaticPresentation.update()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.presentations.AutomaticPresentation.check"><code class="docutils literal notranslate"><span class="pre">AutomaticPresentation.check()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.presentations.AutomaticPresentation.evaluate"><code class="docutils literal notranslate"><span class="pre">AutomaticPresentation.evaluate()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="autstr.html#module-autstr.sparse_automata">autstr.sparse_automata module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFASerializer"><code class="docutils literal notranslate"><span class="pre">SparseDFASerializer</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFASerializer.VERSION"><code class="docutils literal notranslate"><span class="pre">SparseDFASerializer.VERSION</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFASerializer.HEADER_FORMAT"><code class="docutils literal notranslate"><span class="pre">SparseDFASerializer.HEADER_FORMAT</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFASerializer.HEADER_SIZE"><code class="docutils literal notranslate"><span class="pre">SparseDFASerializer.HEADER_SIZE</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFASerializer.METADATA_FORMAT"><code class="docutils literal notranslate"><span class="pre">SparseDFASerializer.METADATA_FORMAT</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFASerializer.METADATA_SIZE"><code class="docutils literal notranslate"><span class="pre">SparseDFASerializer.METADATA_SIZE</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFASerializer.serialize"><code class="docutils literal notranslate"><span class="pre">SparseDFASerializer.serialize()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFASerializer.deserialize"><code class="docutils literal notranslate"><span class="pre">SparseDFASerializer.deserialize()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFASerializer.to_bytes"><code class="docutils literal notranslate"><span class="pre">SparseDFASerializer.to_bytes()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFASerializer.from_bytes"><code class="docutils literal notranslate"><span class="pre">SparseDFASerializer.from_bytes()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFA"><code class="docutils literal notranslate"><span class="pre">SparseDFA</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFA.num_symbols"><code class="docutils literal notranslate"><span class="pre">SparseDFA.num_symbols</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFA.num_nodes"><code class="docutils literal notranslate"><span class="pre">SparseDFA.num_nodes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFA.encode_symbol"><code class="docutils literal notranslate"><span class="pre">SparseDFA.encode_symbol()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFA.decode_symbol"><code class="docutils literal notranslate"><span class="pre">SparseDFA.decode_symbol()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFA.dense_next"><code class="docutils literal notranslate"><span class="pre">SparseDFA.dense_next()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFA.default_states"><code class="docutils literal notranslate"><span class="pre">SparseDFA.default_states</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFA.exception_symbols"><code class="docutils literal notranslate"><span class="pre">SparseDFA.exception_symbols</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFA.exception_states"><code class="docutils literal notranslate"><span class="pre">SparseDFA.exception_states</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFA.max_exceptions"><code class="docutils literal notranslate"><span class="pre">SparseDFA.max_exceptions</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFA.transition"><code class="docutils literal notranslate"><span class="pre">SparseDFA.transition()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFA.compute"><code class="docutils literal notranslate"><span class="pre">SparseDFA.compute()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFA.accepts"><code class="docutils literal notranslate"><span class="pre">SparseDFA.accepts()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFA.accepts_batch"><code class="docutils literal notranslate"><span class="pre">SparseDFA.accepts_batch()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFA.successors"><code class="docutils literal notranslate"><span class="pre">SparseDFA.successors()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFA.reverse_transition"><code class="docutils literal notranslate"><span class="pre">SparseDFA.reverse_transition()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFA.is_empty"><code class="docutils literal notranslate"><span class="pre">SparseDFA.is_empty()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFA.is_finite"><code class="docutils literal notranslate"><span class="pre">SparseDFA.is_finite()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFA.complement"><code class="docutils literal notranslate"><span class="pre">SparseDFA.complement()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFA.intersection"><code class="docutils literal notranslate"><span class="pre">SparseDFA.intersection()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFA.union"><code class="docutils literal notranslate"><span class="pre">SparseDFA.union()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFA.alphabet_projection"><code class="docutils literal notranslate"><span class="pre">SparseDFA.alphabet_projection()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFA.intersect_subtapes"><code class="docutils literal notranslate"><span class="pre">SparseDFA.intersect_subtapes()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFA.regular_right_quotient"><code class="docutils literal notranslate"><span class="pre">SparseDFA.regular_right_quotient()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFA.fill_defaults"><code class="docutils literal notranslate"><span class="pre">SparseDFA.fill_defaults()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFA.sparsify"><code class="docutils literal notranslate"><span class="pre">SparseDFA.sparsify()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFA.minimize"><code class="docutils literal notranslate"><span class="pre">SparseDFA.minimize()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFA.show_diagram"><code class="docutils literal notranslate"><span class="pre">SparseDFA.show_diagram()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFA.sparse_dfa_to_file"><code class="docutils literal notranslate"><span class="pre">SparseDFA.sparse_dfa_to_file()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseDFA.sparse_dfa_from_file"><code class="docutils literal notranslate"><span class="pre">SparseDFA.sparse_dfa_from_file()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.sparse_automata.recode"><code class="docutils literal notranslate"><span class="pre">recode()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.sparse_automata.reduce_set_nfa"><code class="docutils literal notranslate"><span class="pre">reduce_set_nfa()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseNFA"><code class="docutils literal notranslate"><span class="pre">SparseNFA</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseNFA.subset_id"><code class="docutils literal notranslate"><span class="pre">SparseNFA.subset_id()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseNFA.compute"><code class="docutils literal notranslate"><span class="pre">SparseNFA.compute()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseNFA.accepts"><code class="docutils literal notranslate"><span class="pre">SparseNFA.accepts()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseNFA.determinize"><code class="docutils literal notranslate"><span class="pre">SparseNFA.determinize()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_automata.SparseNFA.show_diagram"><code class="docutils literal notranslate"><span class="pre">SparseNFA.show_diagram()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="autstr.html#module-autstr.sparse_tree_automata">autstr.sparse_tree_automata module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.sparse_tree_automata.Tree"><code class="docutils literal notranslate"><span class="pre">Tree</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_tree_automata.Tree.label"><code class="docutils literal notranslate"><span class="pre">Tree.label</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_tree_automata.Tree.left"><code class="docutils literal notranslate"><span class="pre">Tree.left</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_tree_automata.Tree.right"><code class="docutils literal notranslate"><span class="pre">Tree.right</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_tree_automata.Tree.size"><code class="docutils literal notranslate"><span class="pre">Tree.size()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.sparse_tree_automata.tree_to_arrays"><code class="docutils literal notranslate"><span class="pre">tree_to_arrays()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.sparse_tree_automata.convolve_trees"><code class="docutils literal notranslate"><span class="pre">convolve_trees()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.sparse_tree_automata.SparseTreeAutomaton"><code class="docutils literal notranslate"><span class="pre">SparseTreeAutomaton</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_tree_automata.SparseTreeAutomaton.BOT"><code class="docutils literal notranslate"><span class="pre">SparseTreeAutomaton.BOT</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_tree_automata.SparseTreeAutomaton.num_symbols"><code class="docutils literal notranslate"><span class="pre">SparseTreeAutomaton.num_symbols</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_tree_automata.SparseTreeAutomaton.num_nodes"><code class="docutils literal notranslate"><span class="pre">SparseTreeAutomaton.num_nodes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_tree_automata.SparseTreeAutomaton.pair_node"><code class="docutils literal notranslate"><span class="pre">SparseTreeAutomaton.pair_node()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_tree_automata.SparseTreeAutomaton.transitions"><code class="docutils literal notranslate"><span class="pre">SparseTreeAutomaton.transitions()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_tree_automata.SparseTreeAutomaton.dense_delta"><code class="docutils literal notranslate"><span class="pre">SparseTreeAutomaton.dense_delta()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_tree_automata.SparseTreeAutomaton.exceptions"><code class="docutils literal notranslate"><span class="pre">SparseTreeAutomaton.exceptions()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_tree_automata.SparseTreeAutomaton.run"><code class="docutils literal notranslate"><span class="pre">SparseTreeAutomaton.run()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_tree_automata.SparseTreeAutomaton.accepts"><code class="docutils literal notranslate"><span class="pre">SparseTreeAutomaton.accepts()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_tree_automata.SparseTreeAutomaton.complement"><code class="docutils literal notranslate"><span class="pre">SparseTreeAutomaton.complement()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_tree_automata.SparseTreeAutomaton.intersection"><code class="docutils literal notranslate"><span class="pre">SparseTreeAutomaton.intersection()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_tree_automata.SparseTreeAutomaton.union"><code class="docutils literal notranslate"><span class="pre">SparseTreeAutomaton.union()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_tree_automata.SparseTreeAutomaton.reachable_states"><code class="docutils literal notranslate"><span class="pre">SparseTreeAutomaton.reachable_states()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.sparse_tree_automata.SparseTreeAutomaton.is_empty"><code class="docutils literal notranslate"><span class="pre">SparseTreeAutomaton.is_empty()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="autstr.html#module-autstr.tree_graphs">autstr.tree_graphs module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.tree_graphs.TreeWidthGraph"><code class="docutils literal notranslate"><span class="pre">TreeWidthGraph</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.tree_graphs.TreeWidthGraph.num_nodes"><code class="docutils literal notranslate"><span class="pre">TreeWidthGraph.num_nodes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.tree_graphs.TreeWidthGraph.width"><code class="docutils literal notranslate"><span class="pre">TreeWidthGraph.width</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.tree_graphs.TreeWidthGraph.edges"><code class="docutils literal notranslate"><span class="pre">TreeWidthGraph.edges()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.tree_graphs.TreeWidthGraph.encode_set"><code class="docutils literal notranslate"><span class="pre">TreeWidthGraph.encode_set()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.tree_graphs.TreeWidthGraph.to_networkx"><code class="docutils literal notranslate"><span class="pre">TreeWidthGraph.to_networkx()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.tree_graphs.TreeWidthGraph.from_networkx"><code class="docutils literal notranslate"><span class="pre">TreeWidthGraph.from_networkx()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.tree_graphs.TreeWidthClass"><code class="docutils literal notranslate"><span class="pre">TreeWidthClass</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.tree_graphs.TreeWidthClass.advice"><code class="docutils literal notranslate"><span class="pre">TreeWidthClass.advice()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.tree_graphs.TreeWidthClass.evaluate"><code class="docutils literal notranslate"><span class="pre">TreeWidthClass.evaluate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.tree_graphs.TreeWidthClass.check"><code class="docutils literal notranslate"><span class="pre">TreeWidthClass.check()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.tree_graphs.TreeWidthClass.get_structure"><code class="docutils literal notranslate"><span class="pre">TreeWidthClass.get_structure()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.tree_graphs.CliqueWidthGraph"><code class="docutils literal notranslate"><span class="pre">CliqueWidthGraph</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.tree_graphs.CliqueWidthGraph.encode_set"><code class="docutils literal notranslate"><span class="pre">CliqueWidthGraph.encode_set()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.tree_graphs.CliqueWidthGraph.to_networkx"><code class="docutils literal notranslate"><span class="pre">CliqueWidthGraph.to_networkx()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.tree_graphs.CliqueWidthGraph.clique"><code class="docutils literal notranslate"><span class="pre">CliqueWidthGraph.clique()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.tree_graphs.CliqueWidthGraph.complete_bipartite"><code class="docutils literal notranslate"><span class="pre">CliqueWidthGraph.complete_bipartite()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.tree_graphs.CliqueWidthGraph.path"><code class="docutils literal notranslate"><span class="pre">CliqueWidthGraph.path()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.tree_graphs.CliqueWidthGraph.cycle"><code class="docutils literal notranslate"><span class="pre">CliqueWidthGraph.cycle()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.tree_graphs.CliqueWidthClass"><code class="docutils literal notranslate"><span class="pre">CliqueWidthClass</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.tree_graphs.CliqueWidthClass.advice"><code class="docutils literal notranslate"><span class="pre">CliqueWidthClass.advice()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.tree_graphs.CliqueWidthClass.evaluate"><code class="docutils literal notranslate"><span class="pre">CliqueWidthClass.evaluate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.tree_graphs.CliqueWidthClass.check"><code class="docutils literal notranslate"><span class="pre">CliqueWidthClass.check()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.tree_graphs.CliqueWidthClass.get_structure"><code class="docutils literal notranslate"><span class="pre">CliqueWidthClass.get_structure()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="autstr.html#module-autstr.tree_groups">autstr.tree_groups module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.tree_groups.TreeExtraspecialGroups"><code class="docutils literal notranslate"><span class="pre">TreeExtraspecialGroups</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.tree_groups.TreeExtraspecialGroups.spine"><code class="docutils literal notranslate"><span class="pre">TreeExtraspecialGroups.spine()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.tree_groups.TreeExtraspecialGroups.advice"><code class="docutils literal notranslate"><span class="pre">TreeExtraspecialGroups.advice()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.tree_groups.TreeExtraspecialGroups.encode"><code class="docutils literal notranslate"><span class="pre">TreeExtraspecialGroups.encode()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.tree_groups.TreeExtraspecialGroups.evaluate"><code class="docutils literal notranslate"><span class="pre">TreeExtraspecialGroups.evaluate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.tree_groups.TreeExtraspecialGroups.check"><code class="docutils literal notranslate"><span class="pre">TreeExtraspecialGroups.check()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.tree_groups.TreeExtraspecialGroups.get_structure"><code class="docutils literal notranslate"><span class="pre">TreeExtraspecialGroups.get_structure()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="autstr.html#module-autstr.tree_presentations">autstr.tree_presentations module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.tree_presentations.tree_one"><code class="docutils literal notranslate"><span class="pre">tree_one()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.tree_presentations.tree_zero"><code class="docutils literal notranslate"><span class="pre">tree_zero()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.tree_presentations.TreeAutomaticPresentation"><code class="docutils literal notranslate"><span class="pre">TreeAutomaticPresentation</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.tree_presentations.TreeAutomaticPresentation.get_relation_symbols"><code class="docutils literal notranslate"><span class="pre">TreeAutomaticPresentation.get_relation_symbols()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.tree_presentations.TreeAutomaticPresentation.update"><code class="docutils literal notranslate"><span class="pre">TreeAutomaticPresentation.update()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.tree_presentations.TreeAutomaticPresentation.check"><code class="docutils literal notranslate"><span class="pre">TreeAutomaticPresentation.check()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.tree_presentations.TreeAutomaticPresentation.evaluate"><code class="docutils literal notranslate"><span class="pre">TreeAutomaticPresentation.evaluate()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="autstr.html#module-autstr.tree_uniform">autstr.tree_uniform module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.tree_uniform.sta_from_delta"><code class="docutils literal notranslate"><span class="pre">sta_from_delta()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.tree_uniform.UniformlyTreeAutomaticClass"><code class="docutils literal notranslate"><span class="pre">UniformlyTreeAutomaticClass</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.tree_uniform.UniformlyTreeAutomaticClass.check"><code class="docutils literal notranslate"><span class="pre">UniformlyTreeAutomaticClass.check()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.tree_uniform.UniformlyTreeAutomaticClass.define"><code class="docutils literal notranslate"><span class="pre">UniformlyTreeAutomaticClass.define()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.tree_uniform.UniformlyTreeAutomaticClass.get_structure"><code class="docutils literal notranslate"><span class="pre">UniformlyTreeAutomaticClass.get_structure()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="autstr.html#module-autstr.uniform">autstr.uniform module</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.uniform.dfa_from_delta"><code class="docutils literal notranslate"><span class="pre">dfa_from_delta()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="autstr.html#autstr.uniform.UniformlyAutomaticClass"><code class="docutils literal notranslate"><span class="pre">UniformlyAutomaticClass</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.uniform.UniformlyAutomaticClass.get_relation_symbols"><code class="docutils literal notranslate"><span class="pre">UniformlyAutomaticClass.get_relation_symbols()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.uniform.UniformlyAutomaticClass.evaluate"><code class="docutils literal notranslate"><span class="pre">UniformlyAutomaticClass.evaluate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.uniform.UniformlyAutomaticClass.check"><code class="docutils literal notranslate"><span class="pre">UniformlyAutomaticClass.check()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.uniform.UniformlyAutomaticClass.define"><code class="docutils literal notranslate"><span class="pre">UniformlyAutomaticClass.define()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="autstr.html#autstr.uniform.UniformlyAutomaticClass.get_structure"><code class="docutils literal notranslate"><span class="pre">UniformlyAutomaticClass.get_structure()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="autstr.html#module-autstr">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="autstr.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">autstr package</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="../index.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">Home</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2022-2026, Faried Abu Zaid
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer no-toc">
+      
+      
+      
+    </aside>
+  </div>
+</div><script src="../_static/documentation_options.js?v=acc74ff5"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>

@@ -1,0 +1,1237 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
+
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+        <title>autstr.tree_graphs - AutStr 3.0.0</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../index.html"><div class="brand">AutStr 3.0.0</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
+  
+  <span class="sidebar-brand-text">AutStr 3.0.0</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">API reference</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../api/modules.html">autstr</a><input aria-label="Toggle navigation of autstr" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../api/autstr.html">autstr package</a><input aria-label="Toggle navigation of autstr package" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/autstr.buildin.html">autstr.buildin package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/autstr.utils.html">autstr.utils package</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <h1>Source code for autstr.tree_graphs</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Graphs of bounded tree-width and bounded clique-width as uniformly</span>
+<span class="sd">tree-automatic classes.</span>
+
+<span class="sd">The class presents graphs over *sets* of vertices (as in MSO0), so</span>
+<span class="sd">first-order logic over the presentation is monadic second-order logic over</span>
+<span class="sd">the graph — evaluating an MSO query once yields a tree automaton that decides</span>
+<span class="sd">it on every member graph in linear time (Courcelle&#39;s theorem).</span>
+
+<span class="sd">**Practical envelope.** Transitions are decision diagrams over the symbol&#39;s</span>
+<span class="sd">digits (`autstr.mtbdd`), so the *width* of the convolution alphabet no longer</span>
+<span class="sd">drives the cost: a query with several free tapes is as cheap as the digits its</span>
+<span class="sd">transitions actually test. What remains is the subset explosion of</span>
+<span class="sd">determinizing an existential quantifier. Element (path) quantifiers project</span>
+<span class="sd">onto small subset automata and are cheap; *set* quantifiers (MSO proper)</span>
+<span class="sd">determinize over subsets of the intermediate automaton&#39;s states, and each such</span>
+<span class="sd">subset carries its own diagram. Two-colourability compiles at w = 1; deeper</span>
+<span class="sd">set-quantifier nesting is bounded by memory, not by the alphabet. Deciding a</span>
+<span class="sd">compiled automaton on a graph is always linear and fast — compilation is the</span>
+<span class="sd">bottleneck.</span>
+
+<span class="sd">The signature is shared with the string graph classes:</span>
+
+<span class="sd">    Sing(x)      x is a singleton</span>
+<span class="sd">    Subset(x,y)  x is a subset of y</span>
+<span class="sd">    E(x,y)       x = {u}, y = {v} and u,v are adjacent</span>
+
+<span class="sd">**Tree-width &lt;= w** (`TreeWidthClass`): the advice is a binary tree with one</span>
+<span class="sd">node per vertex, labelled (register in {0..w}, adjacency profile), plus a</span>
+<span class="sd">structural letter &#39;n&#39; that introduces no vertex (used to route branch</span>
+<span class="sd">points). Introducing a vertex at register r replaces the nearest occupant of</span>
+<span class="sd">r above; the profile lists registers of the vertex&#39;s neighbors among the</span>
+<span class="sd">current occupants on its root path. The live registers along any path form</span>
+<span class="sd">bags of size &lt;= w+1 — exactly a tree decomposition of width w — and every</span>
+<span class="sd">graph of tree-width &lt;= w arises this way from a nice decomposition.</span>
+
+<span class="sd">**Clique-width &lt;= k** (`CliqueWidthClass`): the advice is a k-expression --</span>
+<span class="sd">leaves create a labelled vertex, `u` takes a disjoint union, `r{i}{j}`</span>
+<span class="sd">relabels, and `e{i}{j}` joins every label-i vertex to every label-j vertex.</span>
+<span class="sd">The vertices are the leaves. Adjacency is much cheaper to recognize than for</span>
+<span class="sd">tree-width: two vertices are joined exactly when some `e{i}{j}` node sees one</span>
+<span class="sd">holding label i and the other label j, so the automaton need only carry each</span>
+<span class="sd">marked vertex&#39;s current label. The advice alphabet is correspondingly small,</span>
+<span class="sd">and MSO queries compile far faster -- two-colourability is a 9-state automaton</span>
+<span class="sd">at k = 2, against a minute at tree-width 1.</span>
+
+<span class="sd">Vertex sets are encoded synchronously over the advice: the element tree is</span>
+<span class="sd">the union of the root paths to the set&#39;s members, labelled &#39;1&#39; on members</span>
+<span class="sd">and &#39;0&#39; on the way (the empty set is the single node &#39;0&#39;). For tree-width</span>
+<span class="sd">every node is a vertex; for clique-width only the leaves are.</span>
+<span class="sd">`TreeWidthGraph` and `CliqueWidthGraph` encapsulate single graphs and convert</span>
+<span class="sd">to networkx.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">itertools</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">it</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Set</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">autstr.sparse_tree_automata</span><span class="w"> </span><span class="kn">import</span> <span class="n">SparseTreeAutomaton</span><span class="p">,</span> <span class="n">Tree</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">autstr.tree_presentations</span><span class="w"> </span><span class="kn">import</span> <span class="n">TreeAutomaticPresentation</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">autstr.tree_uniform</span><span class="w"> </span><span class="kn">import</span> <span class="n">UniformlyTreeAutomaticClass</span><span class="p">,</span> <span class="n">sta_from_delta</span>
+
+<span class="n">PAD</span> <span class="o">=</span> <span class="s1">&#39;*&#39;</span>
+<span class="n">NOP</span> <span class="o">=</span> <span class="s1">&#39;n&#39;</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_register_symbol</span><span class="p">(</span><span class="n">register</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">profile</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Advice alphabet symbol for a (register, profile) vertex letter.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;r</span><span class="si">{</span><span class="n">register</span><span class="si">}</span><span class="s2">s&quot;</span> <span class="o">+</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">profile</span><span class="p">)</span>
+
+
+<span class="c1"># ====================================================================</span>
+<span class="c1"># Tree-encoded graphs</span>
+<span class="c1"># ====================================================================</span>
+
+<div class="viewcode-block" id="TreeWidthGraph">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.tree_graphs.TreeWidthGraph">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">TreeWidthGraph</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A graph in its tree representation: a binary tree with one</span>
+<span class="sd">    (register, profile) letter per vertex (and &#39;n&#39; for structural nodes).</span>
+<span class="sd">    A vertex&#39;s profile lists the registers of its already-introduced</span>
+<span class="sd">    neighbors, resolved to the nearest writer above on the root path.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">letters</span><span class="p">:</span> <span class="n">Tree</span><span class="p">,</span> <span class="n">nodes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tree</span> <span class="o">=</span> <span class="n">letters</span>
+        <span class="n">vertex_addrs</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">stack</span> <span class="o">=</span> <span class="p">[(</span><span class="n">letters</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="nb">frozenset</span><span class="p">())]</span>
+        <span class="k">while</span> <span class="n">stack</span><span class="p">:</span>
+            <span class="n">node</span><span class="p">,</span> <span class="n">addr</span><span class="p">,</span> <span class="n">occupied</span> <span class="o">=</span> <span class="n">stack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+            <span class="n">label</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">label</span>
+            <span class="k">if</span> <span class="n">label</span> <span class="o">!=</span> <span class="n">NOP</span><span class="p">:</span>
+                <span class="n">r</span><span class="p">,</span> <span class="n">profile</span> <span class="o">=</span> <span class="n">label</span>
+                <span class="n">profile</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">profile</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">r</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="nb">any</span><span class="p">(</span><span class="n">s</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">profile</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;node </span><span class="si">{</span><span class="n">addr</span><span class="si">!r}</span><span class="s2">: negative register&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">profile</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;node </span><span class="si">{</span><span class="n">addr</span><span class="si">!r}</span><span class="s2">: profile contains the &quot;</span>
+                                     <span class="sa">f</span><span class="s2">&quot;vertex&#39;s own register </span><span class="si">{</span><span class="n">r</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">profile</span><span class="p">))</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">profile</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;node </span><span class="si">{</span><span class="n">addr</span><span class="si">!r}</span><span class="s2">: duplicate registers&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">set</span><span class="p">(</span><span class="n">profile</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">occupied</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;node </span><span class="si">{</span><span class="n">addr</span><span class="si">!r}</span><span class="s2">: profile references unoccupied &quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;registers </span><span class="si">{</span><span class="nb">set</span><span class="p">(</span><span class="n">profile</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">occupied</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">vertex_addrs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">addr</span><span class="p">)</span>
+                <span class="n">occupied</span> <span class="o">=</span> <span class="n">occupied</span> <span class="o">|</span> <span class="p">{</span><span class="n">r</span><span class="p">}</span>
+            <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">left</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">node</span><span class="o">.</span><span class="n">left</span><span class="p">,</span> <span class="n">addr</span> <span class="o">+</span> <span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="n">occupied</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">right</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">node</span><span class="o">.</span><span class="n">right</span><span class="p">,</span> <span class="n">addr</span> <span class="o">+</span> <span class="s1">&#39;1&#39;</span><span class="p">,</span> <span class="n">occupied</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vertex_addrs</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">vertex_addrs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">nodes</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">nodes</span> <span class="o">=</span> <span class="p">{</span><span class="n">a</span><span class="p">:</span> <span class="n">a</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">vertex_addrs</span><span class="p">}</span>
+        <span class="k">if</span> <span class="nb">set</span><span class="p">(</span><span class="n">nodes</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vertex_addrs</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;nodes must be keyed by the vertex addresses&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name_of</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">nodes</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">addr_of</span> <span class="o">=</span> <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="n">addr</span> <span class="k">for</span> <span class="n">addr</span><span class="p">,</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">name_of</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nodes</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">name_of</span><span class="p">[</span><span class="n">a</span><span class="p">]</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">vertex_addrs</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">num_nodes</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vertex_addrs</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">width</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Maximal register index (&gt;= tree-width of the graph).&quot;&quot;&quot;</span>
+        <span class="n">best</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">stack</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">tree</span><span class="p">]</span>
+        <span class="k">while</span> <span class="n">stack</span><span class="p">:</span>
+            <span class="n">node</span> <span class="o">=</span> <span class="n">stack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">label</span> <span class="o">!=</span> <span class="n">NOP</span><span class="p">:</span>
+                <span class="n">best</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">best</span><span class="p">,</span> <span class="n">node</span><span class="o">.</span><span class="n">label</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">stack</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">left</span><span class="p">,</span> <span class="n">node</span><span class="o">.</span><span class="n">right</span><span class="p">)</span> <span class="k">if</span> <span class="n">c</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">best</span>
+
+<div class="viewcode-block" id="TreeWidthGraph.edges">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.tree_graphs.TreeWidthGraph.edges">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">edges</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Edge list (node names) decoded from the letters.&quot;&quot;&quot;</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">stack</span> <span class="o">=</span> <span class="p">[(</span><span class="bp">self</span><span class="o">.</span><span class="n">tree</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="p">{})]</span>
+        <span class="k">while</span> <span class="n">stack</span><span class="p">:</span>
+            <span class="n">node</span><span class="p">,</span> <span class="n">addr</span><span class="p">,</span> <span class="n">occupant</span> <span class="o">=</span> <span class="n">stack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">label</span> <span class="o">!=</span> <span class="n">NOP</span><span class="p">:</span>
+                <span class="n">r</span><span class="p">,</span> <span class="n">profile</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">label</span>
+                <span class="n">me</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">name_of</span><span class="p">[</span><span class="n">addr</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">profile</span><span class="p">:</span>
+                    <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">occupant</span><span class="p">[</span><span class="n">s</span><span class="p">],</span> <span class="n">me</span><span class="p">))</span>
+                <span class="n">occupant</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">occupant</span><span class="p">,</span> <span class="n">r</span><span class="p">:</span> <span class="n">me</span><span class="p">}</span>
+            <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">left</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">node</span><span class="o">.</span><span class="n">left</span><span class="p">,</span> <span class="n">addr</span> <span class="o">+</span> <span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="n">occupant</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">right</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">node</span><span class="o">.</span><span class="n">right</span><span class="p">,</span> <span class="n">addr</span> <span class="o">+</span> <span class="s1">&#39;1&#39;</span><span class="p">,</span> <span class="n">occupant</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">out</span></div>
+
+
+<div class="viewcode-block" id="TreeWidthGraph.encode_set">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.tree_graphs.TreeWidthGraph.encode_set">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">encode_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tree</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Encode a set of nodes as a marked tree over the advice shape.&quot;&quot;&quot;</span>
+        <span class="n">subset</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">subset</span><span class="p">)</span>
+        <span class="n">unknown</span> <span class="o">=</span> <span class="n">subset</span> <span class="o">-</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">unknown</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;not nodes of this graph: </span><span class="si">{</span><span class="n">unknown</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">marked</span> <span class="o">=</span> <span class="p">{</span><span class="bp">self</span><span class="o">.</span><span class="n">addr_of</span><span class="p">[</span><span class="n">v</span><span class="p">]</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">subset</span><span class="p">}</span>
+        <span class="n">domain</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;&#39;</span><span class="p">}</span> <span class="o">|</span> <span class="p">{</span><span class="n">a</span><span class="p">[:</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">marked</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)}</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">build</span><span class="p">(</span><span class="n">addr</span><span class="p">):</span>
+            <span class="n">left</span> <span class="o">=</span> <span class="n">build</span><span class="p">(</span><span class="n">addr</span> <span class="o">+</span> <span class="s1">&#39;0&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="n">addr</span> <span class="o">+</span> <span class="s1">&#39;0&#39;</span> <span class="ow">in</span> <span class="n">domain</span> <span class="k">else</span> <span class="kc">None</span>
+            <span class="n">right</span> <span class="o">=</span> <span class="n">build</span><span class="p">(</span><span class="n">addr</span> <span class="o">+</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="n">addr</span> <span class="o">+</span> <span class="s1">&#39;1&#39;</span> <span class="ow">in</span> <span class="n">domain</span> <span class="k">else</span> <span class="kc">None</span>
+            <span class="k">return</span> <span class="n">Tree</span><span class="p">(</span><span class="s1">&#39;1&#39;</span> <span class="k">if</span> <span class="n">addr</span> <span class="ow">in</span> <span class="n">marked</span> <span class="k">else</span> <span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="n">left</span><span class="p">,</span> <span class="n">right</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">build</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="TreeWidthGraph.to_networkx">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.tree_graphs.TreeWidthGraph.to_networkx">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_networkx</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert back to a networkx graph (node names preserved).&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="kn">import</span><span class="w"> </span><span class="nn">networkx</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nx</span>
+        <span class="k">except</span> <span class="ne">ImportError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span><span class="s2">&quot;to_networkx requires networkx &quot;</span>
+                              <span class="s2">&quot;(pip install autstr[graphs])&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
+        <span class="n">graph</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">Graph</span><span class="p">()</span>
+        <span class="n">graph</span><span class="o">.</span><span class="n">add_nodes_from</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">)</span>
+        <span class="n">graph</span><span class="o">.</span><span class="n">add_edges_from</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">edges</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">graph</span></div>
+
+
+<div class="viewcode-block" id="TreeWidthGraph.from_networkx">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.tree_graphs.TreeWidthGraph.from_networkx">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_networkx</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">graph</span><span class="p">,</span> <span class="n">decomposition</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;TreeWidthGraph&#39;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build the tree representation from a networkx graph.</span>
+
+<span class="sd">        :param graph: undirected networkx graph (at least one vertex).</span>
+<span class="sd">        :param decomposition: optional tree decomposition as a networkx tree</span>
+<span class="sd">            whose nodes are frozensets of vertices (bags). If omitted, the</span>
+<span class="sd">            min-fill-in heuristic computes one (valid, possibly wider than</span>
+<span class="sd">            the tree-width).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">graph</span><span class="o">.</span><span class="n">number_of_nodes</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;the empty graph has no tree representation&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">decomposition</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">networkx.algorithms.approximation</span><span class="w"> </span><span class="kn">import</span> \
+                <span class="n">treewidth_min_fill_in</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">decomposition</span> <span class="o">=</span> <span class="n">treewidth_min_fill_in</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+        <span class="n">bags</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">decomposition</span><span class="o">.</span><span class="n">nodes</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">b</span><span class="p">:</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">b</span><span class="p">)))</span>
+        <span class="n">root</span> <span class="o">=</span> <span class="n">bags</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">fanout</span><span class="p">(</span><span class="n">subtrees</span><span class="p">):</span>
+            <span class="n">subtrees</span> <span class="o">=</span> <span class="p">[</span><span class="n">t</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">subtrees</span> <span class="k">if</span> <span class="n">t</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">subtrees</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">subtrees</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">subtrees</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">return</span> <span class="n">Tree</span><span class="p">(</span><span class="n">NOP</span><span class="p">,</span> <span class="n">subtrees</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">fanout</span><span class="p">(</span><span class="n">subtrees</span><span class="p">[</span><span class="mi">1</span><span class="p">:]))</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">build</span><span class="p">(</span><span class="n">bag</span><span class="p">,</span> <span class="n">parent</span><span class="p">,</span> <span class="n">placed</span><span class="p">):</span>
+            <span class="n">placed</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">placed</span><span class="p">)</span>               <span class="c1"># name -&gt; register (this bag)</span>
+            <span class="n">letters</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">bag</span> <span class="o">-</span> <span class="nb">set</span><span class="p">(</span><span class="n">placed</span><span class="p">),</span> <span class="n">key</span><span class="o">=</span><span class="nb">str</span><span class="p">):</span>
+                <span class="n">used</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">placed</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+                <span class="n">r</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">it</span><span class="o">.</span><span class="n">count</span><span class="p">()</span> <span class="k">if</span> <span class="n">i</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">used</span><span class="p">)</span>
+                <span class="n">profile</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span>
+                    <span class="n">placed</span><span class="p">[</span><span class="n">u</span><span class="p">]</span> <span class="k">for</span> <span class="n">u</span> <span class="ow">in</span> <span class="n">graph</span><span class="o">.</span><span class="n">neighbors</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">if</span> <span class="n">u</span> <span class="ow">in</span> <span class="n">placed</span><span class="p">))</span>
+                <span class="n">letters</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">r</span><span class="p">,</span> <span class="n">profile</span><span class="p">,</span> <span class="n">v</span><span class="p">))</span>
+                <span class="n">placed</span><span class="p">[</span><span class="n">v</span><span class="p">]</span> <span class="o">=</span> <span class="n">r</span>
+            <span class="n">children</span> <span class="o">=</span> <span class="p">[</span><span class="n">b</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">decomposition</span><span class="o">.</span><span class="n">neighbors</span><span class="p">(</span><span class="n">bag</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">b</span> <span class="o">!=</span> <span class="n">parent</span><span class="p">]</span>
+            <span class="n">cur</span> <span class="o">=</span> <span class="n">fanout</span><span class="p">([</span><span class="n">build</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">bag</span><span class="p">,</span>
+                                <span class="p">{</span><span class="n">u</span><span class="p">:</span> <span class="n">placed</span><span class="p">[</span><span class="n">u</span><span class="p">]</span> <span class="k">for</span> <span class="n">u</span> <span class="ow">in</span> <span class="n">b</span> <span class="k">if</span> <span class="n">u</span> <span class="ow">in</span> <span class="n">placed</span><span class="p">})</span>
+                          <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">children</span><span class="p">])</span>
+            <span class="k">for</span> <span class="n">r</span><span class="p">,</span> <span class="n">profile</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">letters</span><span class="p">):</span>
+                <span class="n">cur</span> <span class="o">=</span> <span class="n">Tree</span><span class="p">((</span><span class="n">r</span><span class="p">,</span> <span class="n">profile</span><span class="p">,</span> <span class="n">v</span><span class="p">),</span> <span class="n">cur</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">cur</span>
+
+        <span class="n">tagged</span> <span class="o">=</span> <span class="n">build</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="k">if</span> <span class="n">tagged</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;decomposition covers no vertex&quot;</span><span class="p">)</span>
+
+        <span class="n">names</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">strip</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">addr</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">node</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">label</span> <span class="o">==</span> <span class="n">NOP</span><span class="p">:</span>
+                <span class="n">label</span> <span class="o">=</span> <span class="n">NOP</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">r</span><span class="p">,</span> <span class="n">profile</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">label</span>
+                <span class="n">names</span><span class="p">[</span><span class="n">addr</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+                <span class="n">label</span> <span class="o">=</span> <span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">profile</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">Tree</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">strip</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">left</span><span class="p">,</span> <span class="n">addr</span> <span class="o">+</span> <span class="s1">&#39;0&#39;</span><span class="p">),</span>
+                        <span class="n">strip</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">right</span><span class="p">,</span> <span class="n">addr</span> <span class="o">+</span> <span class="s1">&#39;1&#39;</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">strip</span><span class="p">(</span><span class="n">tagged</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">),</span> <span class="n">nodes</span><span class="o">=</span><span class="n">names</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;TreeWidthGraph(</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">num_nodes</span><span class="si">}</span><span class="s2"> nodes, width </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">width</span><span class="si">}</span><span class="s2">)&quot;</span></div>
+
+
+
+<span class="c1"># ====================================================================</span>
+<span class="c1"># The uniformly tree-automatic class</span>
+<span class="c1"># ====================================================================</span>
+
+<div class="viewcode-block" id="TreeWidthClass">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.tree_graphs.TreeWidthClass">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">TreeWidthClass</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The uniformly tree-automatic class of graphs of tree-width &lt;= w,</span>
+<span class="sd">    presented over set-valued elements (MSO0 style).&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">w</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">max_states</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">w</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;width bound must be &gt;= 0&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">w</span> <span class="o">=</span> <span class="n">w</span>
+        <span class="n">registers</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="n">w</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">letters</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">profile</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">registers</span>
+            <span class="k">for</span> <span class="n">size</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">w</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">profile</span> <span class="ow">in</span> <span class="n">it</span><span class="o">.</span><span class="n">combinations</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">registers</span> <span class="k">if</span> <span class="n">s</span> <span class="o">!=</span> <span class="n">r</span><span class="p">],</span> <span class="n">size</span><span class="p">)</span>
+        <span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">symbol_of</span> <span class="o">=</span> <span class="p">{</span><span class="n">letter</span><span class="p">:</span> <span class="n">_register_symbol</span><span class="p">(</span><span class="o">*</span><span class="n">letter</span><span class="p">)</span>
+                          <span class="k">for</span> <span class="n">letter</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">letters</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">letter_of</span> <span class="o">=</span> <span class="p">{</span><span class="n">sym</span><span class="p">:</span> <span class="n">letter</span> <span class="k">for</span> <span class="n">letter</span><span class="p">,</span> <span class="n">sym</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">symbol_of</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigma</span> <span class="o">=</span> <span class="p">{</span><span class="n">PAD</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">,</span> <span class="n">NOP</span><span class="p">}</span> <span class="o">|</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">symbol_of</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">advice_letters</span> <span class="o">=</span> <span class="p">{</span><span class="n">NOP</span><span class="p">}</span> <span class="o">|</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">symbol_of</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">marks</span> <span class="o">=</span> <span class="p">{</span><span class="n">PAD</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">}</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">cls</span> <span class="o">=</span> <span class="n">UniformlyTreeAutomaticClass</span><span class="p">({</span>
+            <span class="s1">&#39;U&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_universe_automaton</span><span class="p">(),</span>
+            <span class="s1">&#39;Sing&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sing_automaton</span><span class="p">(),</span>
+            <span class="s1">&#39;Subset&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_subset_automaton</span><span class="p">(),</span>
+            <span class="s1">&#39;E&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_edge_automaton</span><span class="p">(),</span>
+        <span class="p">},</span> <span class="n">padding_symbol</span><span class="o">=</span><span class="n">PAD</span><span class="p">,</span> <span class="n">max_states</span><span class="o">=</span><span class="n">max_states</span><span class="p">)</span>
+
+    <span class="c1"># ---------------- the automata ----------------</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_advice_letter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">a</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;(register, profile) for vertex letters, NOP for &#39;n&#39;, None else.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">a</span> <span class="o">==</span> <span class="n">NOP</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">NOP</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">letter_of</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_universe_automaton</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseTreeAutomaton</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;U(advice, x): the advice is valid (profiles only reference</span>
+<span class="sd">        registers written above) and x is a set encoding over its vertices.</span>
+<span class="sd">        State = (registers required from above, set-encoding phase) with</span>
+<span class="sd">        phases A (no set domain below), S (valid marked domain), Z (an</span>
+<span class="sd">        unmarked leaf: only the root may be one, encoding the empty set).&quot;&quot;&quot;</span>
+        <span class="n">registers</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">w</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="n">reqs</span> <span class="o">=</span> <span class="p">[</span><span class="nb">frozenset</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">size</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">w</span> <span class="o">+</span> <span class="mi">2</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">it</span><span class="o">.</span><span class="n">combinations</span><span class="p">(</span><span class="n">registers</span><span class="p">,</span> <span class="n">size</span><span class="p">)]</span>
+        <span class="n">states</span> <span class="o">=</span> <span class="p">[(</span><span class="n">req</span><span class="p">,</span> <span class="n">xs</span><span class="p">)</span> <span class="k">for</span> <span class="n">req</span> <span class="ow">in</span> <span class="n">reqs</span> <span class="k">for</span> <span class="n">xs</span> <span class="ow">in</span> <span class="s1">&#39;ASZ&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="s1">&#39;dead&#39;</span><span class="p">]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">lq</span><span class="p">,</span> <span class="n">rq</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">sym</span>
+            <span class="n">letter</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_advice_letter</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">letter</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="n">req</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">()</span>
+            <span class="n">phases</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">q</span> <span class="ow">in</span> <span class="p">(</span><span class="n">lq</span><span class="p">,</span> <span class="n">rq</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">q</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">req</span> <span class="o">|=</span> <span class="n">q</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="n">phases</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">q</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">if</span> <span class="s1">&#39;Z&#39;</span> <span class="ow">in</span> <span class="n">phases</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">letter</span> <span class="o">!=</span> <span class="n">NOP</span><span class="p">:</span>
+                <span class="n">r</span><span class="p">,</span> <span class="n">profile</span> <span class="o">=</span> <span class="n">letter</span>
+                <span class="n">req</span> <span class="o">=</span> <span class="p">(</span><span class="n">req</span> <span class="o">-</span> <span class="p">{</span><span class="n">r</span><span class="p">})</span> <span class="o">|</span> <span class="nb">set</span><span class="p">(</span><span class="n">profile</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">x</span> <span class="o">==</span> <span class="n">PAD</span><span class="p">:</span>
+                <span class="n">xs</span> <span class="o">=</span> <span class="s1">&#39;A&#39;</span> <span class="k">if</span> <span class="s1">&#39;S&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">phases</span> <span class="k">else</span> <span class="kc">None</span>
+            <span class="k">elif</span> <span class="n">x</span> <span class="o">==</span> <span class="s1">&#39;1&#39;</span><span class="p">:</span>
+                <span class="n">xs</span> <span class="o">=</span> <span class="s1">&#39;S&#39;</span> <span class="k">if</span> <span class="n">letter</span> <span class="o">!=</span> <span class="n">NOP</span> <span class="k">else</span> <span class="kc">None</span>
+            <span class="k">elif</span> <span class="n">x</span> <span class="o">==</span> <span class="s1">&#39;0&#39;</span><span class="p">:</span>
+                <span class="n">xs</span> <span class="o">=</span> <span class="s1">&#39;S&#39;</span> <span class="k">if</span> <span class="s1">&#39;S&#39;</span> <span class="ow">in</span> <span class="n">phases</span> <span class="k">else</span> <span class="s1">&#39;Z&#39;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">xs</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">return</span> <span class="s1">&#39;dead&#39;</span> <span class="k">if</span> <span class="n">xs</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">(</span><span class="n">req</span><span class="p">,</span> <span class="n">xs</span><span class="p">)</span>
+
+        <span class="n">finals</span> <span class="o">=</span> <span class="p">{(</span><span class="nb">frozenset</span><span class="p">(),</span> <span class="s1">&#39;S&#39;</span><span class="p">),</span> <span class="p">(</span><span class="nb">frozenset</span><span class="p">(),</span> <span class="s1">&#39;Z&#39;</span><span class="p">)}</span>
+        <span class="k">return</span> <span class="n">sta_from_delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="n">states</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="n">finals</span><span class="p">,</span>
+                              <span class="n">tapes</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">advice_letters</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">marks</span><span class="p">])</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_sing_automaton</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseTreeAutomaton</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Sing(advice, X): exactly one mark, at the tip of the path.&quot;&quot;&quot;</span>
+        <span class="n">states</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;M&#39;</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">lq</span><span class="p">,</span> <span class="n">rq</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">sym</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_advice_letter</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="n">marks</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">q</span> <span class="ow">in</span> <span class="p">(</span><span class="n">lq</span><span class="p">,</span> <span class="n">rq</span><span class="p">)</span> <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;M&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">x</span> <span class="o">==</span> <span class="n">PAD</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;A&#39;</span> <span class="k">if</span> <span class="n">marks</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">x</span> <span class="o">==</span> <span class="s1">&#39;1&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;M&#39;</span> <span class="k">if</span> <span class="n">marks</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">a</span> <span class="o">!=</span> <span class="n">NOP</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">x</span> <span class="o">==</span> <span class="s1">&#39;0&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;M&#39;</span> <span class="k">if</span> <span class="n">marks</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+
+        <span class="k">return</span> <span class="n">sta_from_delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="n">states</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;M&#39;</span><span class="p">},</span>
+                              <span class="n">tapes</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">advice_letters</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">marks</span><span class="p">])</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_subset_automaton</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseTreeAutomaton</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Subset(advice, X, Y): positionwise X &lt;= Y.&quot;&quot;&quot;</span>
+        <span class="n">allowed</span> <span class="o">=</span> <span class="p">{(</span><span class="n">PAD</span><span class="p">,</span> <span class="n">PAD</span><span class="p">),</span> <span class="p">(</span><span class="n">PAD</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">),</span> <span class="p">(</span><span class="n">PAD</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">),</span>
+                   <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;1&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)}</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">lq</span><span class="p">,</span> <span class="n">rq</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">sym</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_advice_letter</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">allowed</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">return</span> <span class="s1">&#39;ok&#39;</span>
+
+        <span class="k">return</span> <span class="n">sta_from_delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;ok&#39;</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">],</span> <span class="mi">3</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;ok&#39;</span><span class="p">},</span>
+                              <span class="n">tapes</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">advice_letters</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">marks</span><span class="p">,</span>
+                                     <span class="bp">self</span><span class="o">.</span><span class="n">marks</span><span class="p">])</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_edge_automaton</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseTreeAutomaton</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;E(advice, X, Y): X = {u}, Y = {v}, u != v adjacent. Edges only</span>
+<span class="sd">        join nested vertices: the deeper mark&#39;s profile becomes the pending</span>
+<span class="sd">        register set, killed register by register as writers intervene on</span>
+<span class="sd">        the way up; the higher mark is adjacent iff its own register is</span>
+<span class="sd">        still pending when reached.&quot;&quot;&quot;</span>
+        <span class="n">registers</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">w</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="n">pendings</span> <span class="o">=</span> <span class="p">[</span><span class="nb">frozenset</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">size</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">w</span> <span class="o">+</span> <span class="mi">2</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">it</span><span class="o">.</span><span class="n">combinations</span><span class="p">(</span><span class="n">registers</span><span class="p">,</span> <span class="n">size</span><span class="p">)]</span>
+        <span class="n">states</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;D&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[(</span><span class="s1">&#39;P&#39;</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">S</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="s1">&#39;xy&#39;</span> <span class="k">for</span> <span class="n">S</span> <span class="ow">in</span> <span class="n">pendings</span><span class="p">]</span>
+        <span class="n">states</span> <span class="o">+=</span> <span class="p">[</span><span class="s1">&#39;dead&#39;</span><span class="p">]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">lq</span><span class="p">,</span> <span class="n">rq</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">sym</span>
+            <span class="n">letter</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_advice_letter</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">letter</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="n">kids</span> <span class="o">=</span> <span class="p">[</span><span class="n">q</span> <span class="k">for</span> <span class="n">q</span> <span class="ow">in</span> <span class="p">(</span><span class="n">lq</span><span class="p">,</span> <span class="n">rq</span><span class="p">)</span> <span class="k">if</span> <span class="n">q</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
+            <span class="n">carriers</span> <span class="o">=</span> <span class="p">[</span><span class="n">q</span> <span class="k">for</span> <span class="n">q</span> <span class="ow">in</span> <span class="n">kids</span>
+                        <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;D&#39;</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)</span> <span class="ow">and</span> <span class="n">q</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;P&#39;</span><span class="p">)]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">carriers</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="nb">any</span><span class="p">(</span><span class="n">q</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;A&#39;</span><span class="p">,)</span> <span class="ow">and</span> <span class="n">q</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">carriers</span>
+                                        <span class="k">for</span> <span class="n">q</span> <span class="ow">in</span> <span class="n">kids</span><span class="p">):</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="n">carrier</span> <span class="o">=</span> <span class="n">carriers</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">carriers</span> <span class="k">else</span> <span class="kc">None</span>
+            <span class="n">vertex</span> <span class="o">=</span> <span class="n">letter</span> <span class="k">if</span> <span class="n">letter</span> <span class="o">!=</span> <span class="n">NOP</span> <span class="k">else</span> <span class="kc">None</span>
+
+            <span class="k">if</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="n">PAD</span><span class="p">,</span> <span class="n">PAD</span><span class="p">):</span>
+                <span class="k">return</span> <span class="s1">&#39;A&#39;</span> <span class="k">if</span> <span class="n">carrier</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="ow">in</span> <span class="p">((</span><span class="s1">&#39;1&#39;</span><span class="p">,</span> <span class="n">PAD</span><span class="p">),</span> <span class="p">(</span><span class="n">PAD</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)):</span>
+                <span class="k">if</span> <span class="n">carrier</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">vertex</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+                <span class="n">tape</span> <span class="o">=</span> <span class="s1">&#39;x&#39;</span> <span class="k">if</span> <span class="n">x</span> <span class="o">==</span> <span class="s1">&#39;1&#39;</span> <span class="k">else</span> <span class="s1">&#39;y&#39;</span>
+                <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;P&#39;</span><span class="p">,</span> <span class="n">tape</span><span class="p">,</span> <span class="nb">frozenset</span><span class="p">(</span><span class="n">vertex</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="ow">in</span> <span class="p">((</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="n">PAD</span><span class="p">),</span> <span class="p">(</span><span class="n">PAD</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">)):</span>
+                <span class="n">tape</span> <span class="o">=</span> <span class="s1">&#39;x&#39;</span> <span class="k">if</span> <span class="n">x</span> <span class="o">==</span> <span class="s1">&#39;0&#39;</span> <span class="k">else</span> <span class="s1">&#39;y&#39;</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">carrier</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)</span> <span class="ow">and</span> <span class="n">carrier</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="n">tape</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+                <span class="n">S</span> <span class="o">=</span> <span class="n">carrier</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+                <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;P&#39;</span><span class="p">,</span> <span class="n">tape</span><span class="p">,</span> <span class="n">S</span> <span class="o">-</span> <span class="p">{</span><span class="n">vertex</span><span class="p">[</span><span class="mi">0</span><span class="p">]}</span> <span class="k">if</span> <span class="n">vertex</span> <span class="k">else</span> <span class="n">S</span><span class="p">)</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="ow">in</span> <span class="p">((</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;1&#39;</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">)):</span>
+                <span class="n">deeper</span> <span class="o">=</span> <span class="s1">&#39;x&#39;</span> <span class="k">if</span> <span class="n">y</span> <span class="o">==</span> <span class="s1">&#39;1&#39;</span> <span class="k">else</span> <span class="s1">&#39;y&#39;</span>
+                <span class="k">if</span> <span class="n">vertex</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> \
+                        <span class="ow">not</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">carrier</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)</span>
+                             <span class="ow">and</span> <span class="n">carrier</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="n">deeper</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+                <span class="k">return</span> <span class="s1">&#39;D&#39;</span> <span class="k">if</span> <span class="n">vertex</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="n">carrier</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">):</span>
+                <span class="k">return</span> <span class="s1">&#39;D&#39;</span> <span class="k">if</span> <span class="n">carrier</span> <span class="o">==</span> <span class="s1">&#39;D&#39;</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+
+        <span class="k">return</span> <span class="n">sta_from_delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="n">states</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;D&#39;</span><span class="p">},</span>
+                              <span class="n">tapes</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">advice_letters</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">marks</span><span class="p">,</span>
+                                     <span class="bp">self</span><span class="o">.</span><span class="n">marks</span><span class="p">])</span>
+
+    <span class="c1"># ---------------- class-level operations ----------------</span>
+
+<div class="viewcode-block" id="TreeWidthClass.advice">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.tree_graphs.TreeWidthClass.advice">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">advice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">graph</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">TreeWidthGraph</span><span class="p">,</span> <span class="n">Tree</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Tree</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;The advice tree of a graph (its letters as alphabet symbols).&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">TreeWidthGraph</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">graph</span>
+        <span class="k">if</span> <span class="n">graph</span><span class="o">.</span><span class="n">width</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">w</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;graph has layout width </span><span class="si">{</span><span class="n">graph</span><span class="o">.</span><span class="n">width</span><span class="si">}</span><span class="s2"> &quot;</span>
+                             <span class="sa">f</span><span class="s2">&quot;&gt; w = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">w</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">convert</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">node</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">None</span>
+            <span class="n">label</span> <span class="o">=</span> <span class="n">NOP</span> <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">label</span> <span class="o">==</span> <span class="n">NOP</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">symbol_of</span><span class="p">[</span><span class="n">node</span><span class="o">.</span><span class="n">label</span><span class="p">]</span>
+            <span class="k">return</span> <span class="n">Tree</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">convert</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">left</span><span class="p">),</span> <span class="n">convert</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">right</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">convert</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">tree</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="TreeWidthClass.evaluate">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.tree_graphs.TreeWidthClass.evaluate">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">evaluate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">phi</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Evaluate an MSO query over the class; see</span>
+<span class="sd">        UniformlyTreeAutomaticClass.evaluate. Variables range over vertex</span>
+<span class="sd">        sets.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="TreeWidthClass.check">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.tree_graphs.TreeWidthClass.check">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">check</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">phi</span><span class="p">,</span> <span class="n">graph</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">TreeWidthGraph</span><span class="p">,</span> <span class="n">Tree</span><span class="p">],</span> <span class="o">**</span><span class="n">sets</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Model check an MSO query against a single graph.</span>
+
+<span class="sd">        :param phi: formula over Sing/Subset/E; free variables can be</span>
+<span class="sd">            assigned via `sets` (name = set of nodes), unassigned ones are</span>
+<span class="sd">            quantified existentially.</span>
+<span class="sd">        :param graph: a TreeWidthGraph (or a raw advice tree).</span>
+<span class="sd">        :param sets: assignments for free variables, as sets of nodes.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">advice</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">advice</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">sets</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls</span><span class="o">.</span><span class="n">check</span><span class="p">(</span><span class="n">phi</span><span class="p">,</span> <span class="n">advice</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">TreeWidthGraph</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;set assignments require a graph object&quot;</span><span class="p">)</span>
+        <span class="n">trees</span> <span class="o">=</span> <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="n">graph</span><span class="o">.</span><span class="n">encode_set</span><span class="p">(</span><span class="n">subset</span><span class="p">)</span>
+                 <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">subset</span> <span class="ow">in</span> <span class="n">sets</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls</span><span class="o">.</span><span class="n">check</span><span class="p">(</span><span class="n">phi</span><span class="p">,</span> <span class="n">advice</span><span class="p">,</span> <span class="o">**</span><span class="n">trees</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="TreeWidthClass.get_structure">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.tree_graphs.TreeWidthClass.get_structure">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_structure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">graph</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TreeAutomaticPresentation</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;The MSO0-style tree-automatic presentation of a single graph.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls</span><span class="o">.</span><span class="n">get_structure</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">advice</span><span class="p">(</span><span class="n">graph</span><span class="p">))</span></div>
+</div>
+
+
+
+<span class="c1"># ====================================================================</span>
+<span class="c1"># Bounded clique-width</span>
+<span class="c1"># ====================================================================</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_union_symbol</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">return</span> <span class="s1">&#39;u&#39;</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_vertex_symbol</span><span class="p">(</span><span class="n">label</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;v</span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2">&quot;</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_relabel_symbol</span><span class="p">(</span><span class="n">source</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;r</span><span class="si">{</span><span class="n">source</span><span class="si">}{</span><span class="n">target</span><span class="si">}</span><span class="s2">&quot;</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_join_symbol</span><span class="p">(</span><span class="n">first</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">second</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;e</span><span class="si">{</span><span class="n">first</span><span class="si">}{</span><span class="n">second</span><span class="si">}</span><span class="s2">&quot;</span>
+
+
+<div class="viewcode-block" id="CliqueWidthGraph">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.tree_graphs.CliqueWidthGraph">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">CliqueWidthGraph</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A graph given by a k-expression, held as a binary tree.</span>
+
+<span class="sd">    The expression&#39;s leaves create vertices, so the vertices *are* the leaves,</span>
+<span class="sd">    numbered left to right. Inner nodes are the three clique-width operations:</span>
+
+<span class="sd">        u        disjoint union of the two children</span>
+<span class="sd">        r{i}{j}  relabel every label-i vertex to label j</span>
+<span class="sd">        e{i}{j}  join: add every edge between label i and label j</span>
+
+<span class="sd">    `u` is binary; `r` and `e` are unary (left child only).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">expression</span><span class="p">:</span> <span class="n">Tree</span><span class="p">,</span> <span class="n">k</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="mi">2</span> <span class="o">&lt;=</span> <span class="n">k</span> <span class="o">&lt;=</span> <span class="mi">9</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;clique-width bound must be in [2, 9]&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">k</span> <span class="o">=</span> <span class="n">k</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tree</span> <span class="o">=</span> <span class="n">expression</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vertices</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">edges</span><span class="p">:</span> <span class="n">Set</span><span class="p">[</span><span class="nb">frozenset</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_labels_of</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_decode</span><span class="p">()</span>
+
+    <span class="c1"># ---------------- decoding ----------------</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_leaves</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">node</span><span class="p">:</span> <span class="n">Tree</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Tree</span><span class="p">]:</span>
+        <span class="n">found</span><span class="p">,</span> <span class="n">stack</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[</span><span class="n">node</span><span class="p">]</span>
+        <span class="k">while</span> <span class="n">stack</span><span class="p">:</span>
+            <span class="n">current</span> <span class="o">=</span> <span class="n">stack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">current</span><span class="o">.</span><span class="n">left</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">current</span><span class="o">.</span><span class="n">right</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">found</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">current</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">current</span><span class="o">.</span><span class="n">right</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">current</span><span class="o">.</span><span class="n">right</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">current</span><span class="o">.</span><span class="n">left</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">current</span><span class="o">.</span><span class="n">left</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">found</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_decode</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Number the leaves left to right, then evaluate the expression</span>
+<span class="sd">        bottom-up carrying, per node, the vertex set of each label.&quot;&quot;&quot;</span>
+        <span class="n">index</span> <span class="o">=</span> <span class="p">{</span><span class="nb">id</span><span class="p">(</span><span class="n">leaf</span><span class="p">):</span> <span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">leaf</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_leaves</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tree</span><span class="p">))}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vertices</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">index</span><span class="p">)))</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">evaluate</span><span class="p">(</span><span class="n">node</span><span class="p">:</span> <span class="n">Tree</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Set</span><span class="p">[</span><span class="nb">int</span><span class="p">]]:</span>
+            <span class="n">label</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">label</span>
+            <span class="n">left</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">left</span>
+            <span class="n">right</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">right</span>
+            <span class="k">if</span> <span class="n">left</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">right</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">label</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;v&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">label</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;leaf must create a vertex, got </span><span class="si">{</span><span class="n">label</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">colour</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">label</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                <span class="k">if</span> <span class="n">colour</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">k</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;label </span><span class="si">{</span><span class="n">colour</span><span class="si">}</span><span class="s2"> exceeds k = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">k</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">vertex</span> <span class="o">=</span> <span class="n">index</span><span class="p">[</span><span class="nb">id</span><span class="p">(</span><span class="n">node</span><span class="p">)]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_labels_of</span><span class="p">[</span><span class="n">vertex</span><span class="p">]</span> <span class="o">=</span> <span class="n">colour</span>
+                <span class="k">return</span> <span class="p">{</span><span class="n">colour</span><span class="p">:</span> <span class="p">{</span><span class="n">vertex</span><span class="p">}}</span>
+
+            <span class="k">if</span> <span class="n">label</span> <span class="o">==</span> <span class="s1">&#39;u&#39;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">left</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">right</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;union needs two children&quot;</span><span class="p">)</span>
+                <span class="n">classes</span> <span class="o">=</span> <span class="n">evaluate</span><span class="p">(</span><span class="n">left</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">colour</span><span class="p">,</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">evaluate</span><span class="p">(</span><span class="n">right</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="n">classes</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">colour</span><span class="p">,</span> <span class="nb">set</span><span class="p">())</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">group</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">classes</span>
+
+            <span class="k">if</span> <span class="n">right</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">left</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">label</span><span class="si">!r}</span><span class="s2"> is unary: left child only&quot;</span><span class="p">)</span>
+            <span class="n">classes</span> <span class="o">=</span> <span class="n">evaluate</span><span class="p">(</span><span class="n">left</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">label</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">label</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+                <span class="n">source</span><span class="p">,</span> <span class="n">target</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">label</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="nb">int</span><span class="p">(</span><span class="n">label</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+                <span class="k">if</span> <span class="n">source</span> <span class="o">==</span> <span class="n">target</span> <span class="ow">or</span> <span class="nb">max</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">k</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;bad relabel </span><span class="si">{</span><span class="n">label</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">moved</span> <span class="o">=</span> <span class="n">classes</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="nb">set</span><span class="p">())</span>
+                <span class="n">classes</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="nb">set</span><span class="p">())</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">moved</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">classes</span>
+
+            <span class="k">if</span> <span class="n">label</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;e&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">label</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+                <span class="n">first</span><span class="p">,</span> <span class="n">second</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">label</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="nb">int</span><span class="p">(</span><span class="n">label</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+                <span class="k">if</span> <span class="n">first</span> <span class="o">&gt;=</span> <span class="n">second</span> <span class="ow">or</span> <span class="n">second</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">k</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;bad join </span><span class="si">{</span><span class="n">label</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">u</span> <span class="ow">in</span> <span class="n">classes</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">first</span><span class="p">,</span> <span class="p">()):</span>
+                    <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">classes</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">second</span><span class="p">,</span> <span class="p">()):</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">edges</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="nb">frozenset</span><span class="p">((</span><span class="n">u</span><span class="p">,</span> <span class="n">v</span><span class="p">)))</span>
+                <span class="k">return</span> <span class="n">classes</span>
+
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;unknown operation </span><span class="si">{</span><span class="n">label</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># recursion depth is the expression depth; the builders below are</span>
+        <span class="c1"># left-deep, so iterate rather than recurse on the spine</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+        <span class="n">limit</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">getrecursionlimit</span><span class="p">()</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">setrecursionlimit</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">limit</span><span class="p">,</span> <span class="mi">10</span> <span class="o">*</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vertices</span><span class="p">)</span> <span class="o">+</span> <span class="mi">10</span><span class="p">)))</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">evaluate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tree</span><span class="p">)</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">setrecursionlimit</span><span class="p">(</span><span class="n">limit</span><span class="p">)</span>
+
+    <span class="c1"># ---------------- sets ----------------</span>
+
+<div class="viewcode-block" id="CliqueWidthGraph.encode_set">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.tree_graphs.CliqueWidthGraph.encode_set">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">encode_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tree</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;The set as a tree of marks: &#39;1&#39; at the chosen leaves, &#39;0&#39; on the</span>
+<span class="sd">        paths above them, absent elsewhere. The empty set is a single &#39;0&#39;.&quot;&quot;&quot;</span>
+        <span class="n">wanted</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">subset</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">wanted</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">Tree</span><span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">)</span>
+        <span class="n">index</span> <span class="o">=</span> <span class="p">{</span><span class="nb">id</span><span class="p">(</span><span class="n">leaf</span><span class="p">):</span> <span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">leaf</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_leaves</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tree</span><span class="p">))}</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">build</span><span class="p">(</span><span class="n">node</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">node</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">False</span>
+            <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">left</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">node</span><span class="o">.</span><span class="n">right</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">marked</span> <span class="o">=</span> <span class="n">index</span><span class="p">[</span><span class="nb">id</span><span class="p">(</span><span class="n">node</span><span class="p">)]</span> <span class="ow">in</span> <span class="n">wanted</span>
+                <span class="k">return</span> <span class="p">(</span><span class="n">Tree</span><span class="p">(</span><span class="s1">&#39;1&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="n">marked</span> <span class="k">else</span> <span class="kc">None</span><span class="p">),</span> <span class="n">marked</span>
+            <span class="n">left</span><span class="p">,</span> <span class="n">has_left</span> <span class="o">=</span> <span class="n">build</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">left</span><span class="p">)</span>
+            <span class="n">right</span><span class="p">,</span> <span class="n">has_right</span> <span class="o">=</span> <span class="n">build</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">right</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">has_left</span> <span class="ow">or</span> <span class="n">has_right</span><span class="p">):</span>
+                <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">False</span>
+            <span class="k">return</span> <span class="n">Tree</span><span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="n">left</span><span class="p">,</span> <span class="n">right</span><span class="p">),</span> <span class="kc">True</span>
+
+        <span class="n">tree</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">build</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tree</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">tree</span></div>
+
+
+<div class="viewcode-block" id="CliqueWidthGraph.to_networkx">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.tree_graphs.CliqueWidthGraph.to_networkx">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_networkx</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">networkx</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nx</span>
+        <span class="n">graph</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">Graph</span><span class="p">()</span>
+        <span class="n">graph</span><span class="o">.</span><span class="n">add_nodes_from</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vertices</span><span class="p">)</span>
+        <span class="n">graph</span><span class="o">.</span><span class="n">add_edges_from</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">edge</span><span class="p">)</span> <span class="k">for</span> <span class="n">edge</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">edges</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">graph</span></div>
+
+
+    <span class="c1"># ---------------- standard families ----------------</span>
+
+<div class="viewcode-block" id="CliqueWidthGraph.clique">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.tree_graphs.CliqueWidthGraph.clique">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">clique</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;CliqueWidthGraph&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;K_n, clique-width 2: absorb each new vertex into label 0.&quot;&quot;&quot;</span>
+        <span class="n">tree</span> <span class="o">=</span> <span class="n">Tree</span><span class="p">(</span><span class="n">_vertex_symbol</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">tree</span> <span class="o">=</span> <span class="n">Tree</span><span class="p">(</span><span class="n">_union_symbol</span><span class="p">(),</span> <span class="n">tree</span><span class="p">,</span> <span class="n">Tree</span><span class="p">(</span><span class="n">_vertex_symbol</span><span class="p">(</span><span class="mi">1</span><span class="p">)))</span>
+            <span class="n">tree</span> <span class="o">=</span> <span class="n">Tree</span><span class="p">(</span><span class="n">_join_symbol</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">tree</span><span class="p">)</span>
+            <span class="n">tree</span> <span class="o">=</span> <span class="n">Tree</span><span class="p">(</span><span class="n">_relabel_symbol</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">tree</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">tree</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CliqueWidthGraph.complete_bipartite">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.tree_graphs.CliqueWidthGraph.complete_bipartite">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">complete_bipartite</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">left</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">right</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;CliqueWidthGraph&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;K_{left,right}, clique-width 2: join the two colour classes once.&quot;&quot;&quot;</span>
+        <span class="n">tree</span> <span class="o">=</span> <span class="n">Tree</span><span class="p">(</span><span class="n">_vertex_symbol</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">left</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">tree</span> <span class="o">=</span> <span class="n">Tree</span><span class="p">(</span><span class="n">_union_symbol</span><span class="p">(),</span> <span class="n">tree</span><span class="p">,</span> <span class="n">Tree</span><span class="p">(</span><span class="n">_vertex_symbol</span><span class="p">(</span><span class="mi">0</span><span class="p">)))</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">right</span><span class="p">):</span>
+            <span class="n">tree</span> <span class="o">=</span> <span class="n">Tree</span><span class="p">(</span><span class="n">_union_symbol</span><span class="p">(),</span> <span class="n">tree</span><span class="p">,</span> <span class="n">Tree</span><span class="p">(</span><span class="n">_vertex_symbol</span><span class="p">(</span><span class="mi">1</span><span class="p">)))</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">Tree</span><span class="p">(</span><span class="n">_join_symbol</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">tree</span><span class="p">),</span> <span class="mi">2</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CliqueWidthGraph.path">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.tree_graphs.CliqueWidthGraph.path">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">path</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;CliqueWidthGraph&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;P_n, clique-width 3: label 0 is the growing end, 1 the new vertex,</span>
+<span class="sd">        2 the settled interior.&quot;&quot;&quot;</span>
+        <span class="n">tree</span> <span class="o">=</span> <span class="n">Tree</span><span class="p">(</span><span class="n">_vertex_symbol</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">tree</span> <span class="o">=</span> <span class="n">Tree</span><span class="p">(</span><span class="n">_union_symbol</span><span class="p">(),</span> <span class="n">tree</span><span class="p">,</span> <span class="n">Tree</span><span class="p">(</span><span class="n">_vertex_symbol</span><span class="p">(</span><span class="mi">1</span><span class="p">)))</span>
+            <span class="n">tree</span> <span class="o">=</span> <span class="n">Tree</span><span class="p">(</span><span class="n">_join_symbol</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">tree</span><span class="p">)</span>
+            <span class="n">tree</span> <span class="o">=</span> <span class="n">Tree</span><span class="p">(</span><span class="n">_relabel_symbol</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">tree</span><span class="p">)</span>
+            <span class="n">tree</span> <span class="o">=</span> <span class="n">Tree</span><span class="p">(</span><span class="n">_relabel_symbol</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">tree</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">tree</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CliqueWidthGraph.cycle">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.tree_graphs.CliqueWidthGraph.cycle">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">cycle</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;CliqueWidthGraph&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;C_n, clique-width 4: as the path, but the first vertex keeps label</span>
+<span class="sd">        3 so the closing edge can be added at the root.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">n</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;a cycle needs at least three vertices&quot;</span><span class="p">)</span>
+        <span class="n">tree</span> <span class="o">=</span> <span class="n">Tree</span><span class="p">(</span><span class="n">_vertex_symbol</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span>                 <span class="c1"># the first vertex</span>
+        <span class="n">tree</span> <span class="o">=</span> <span class="n">Tree</span><span class="p">(</span><span class="n">_union_symbol</span><span class="p">(),</span> <span class="n">tree</span><span class="p">,</span> <span class="n">Tree</span><span class="p">(</span><span class="n">_vertex_symbol</span><span class="p">(</span><span class="mi">0</span><span class="p">)))</span>
+        <span class="n">tree</span> <span class="o">=</span> <span class="n">Tree</span><span class="p">(</span><span class="n">_join_symbol</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">tree</span><span class="p">)</span>          <span class="c1"># first -- second</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="mi">2</span><span class="p">):</span>
+            <span class="n">tree</span> <span class="o">=</span> <span class="n">Tree</span><span class="p">(</span><span class="n">_union_symbol</span><span class="p">(),</span> <span class="n">tree</span><span class="p">,</span> <span class="n">Tree</span><span class="p">(</span><span class="n">_vertex_symbol</span><span class="p">(</span><span class="mi">1</span><span class="p">)))</span>
+            <span class="n">tree</span> <span class="o">=</span> <span class="n">Tree</span><span class="p">(</span><span class="n">_join_symbol</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">tree</span><span class="p">)</span>      <span class="c1"># end -- new</span>
+            <span class="n">tree</span> <span class="o">=</span> <span class="n">Tree</span><span class="p">(</span><span class="n">_relabel_symbol</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">tree</span><span class="p">)</span>   <span class="c1"># end settles</span>
+            <span class="n">tree</span> <span class="o">=</span> <span class="n">Tree</span><span class="p">(</span><span class="n">_relabel_symbol</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">tree</span><span class="p">)</span>   <span class="c1"># new becomes the end</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">Tree</span><span class="p">(</span><span class="n">_join_symbol</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">tree</span><span class="p">),</span> <span class="mi">4</span><span class="p">)</span>  <span class="c1"># close the cycle</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="CliqueWidthClass">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.tree_graphs.CliqueWidthClass">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">CliqueWidthClass</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The uniformly tree-automatic class of graphs of clique-width &lt;= k,</span>
+<span class="sd">    presented over set-valued elements (MSO0 style).</span>
+
+<span class="sd">    The advice is a k-expression (see `CliqueWidthGraph`); the vertices are its</span>
+<span class="sd">    leaves, and a vertex set is encoded synchronously as the union of the root</span>
+<span class="sd">    paths to its members, &#39;1&#39; on members and &#39;0&#39; on the way.</span>
+
+<span class="sd">    Adjacency is far simpler here than for tree-width: two vertices are joined</span>
+<span class="sd">    exactly when some `e{i}{j}` node sees one of them holding label i and the</span>
+<span class="sd">    other label j. A bottom-up automaton therefore only has to remember the</span>
+<span class="sd">    current label of each marked vertex, and whether the join has happened.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">max_states</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="mi">2</span> <span class="o">&lt;=</span> <span class="n">k</span> <span class="o">&lt;=</span> <span class="mi">9</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;clique-width bound must be in [2, 9]&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">k</span> <span class="o">=</span> <span class="n">k</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">labels</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigma</span> <span class="o">=</span> <span class="p">({</span><span class="n">PAD</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">,</span> <span class="n">_union_symbol</span><span class="p">()}</span> <span class="o">|</span>
+                      <span class="p">{</span><span class="n">_vertex_symbol</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="p">}</span> <span class="o">|</span>
+                      <span class="p">{</span><span class="n">_relabel_symbol</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">labels</span>
+                       <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">labels</span> <span class="k">if</span> <span class="n">i</span> <span class="o">!=</span> <span class="n">j</span><span class="p">}</span> <span class="o">|</span>
+                      <span class="p">{</span><span class="n">_join_symbol</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">labels</span>
+                       <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">labels</span> <span class="k">if</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">j</span><span class="p">})</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">advice_letters</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma</span> <span class="o">-</span> <span class="p">{</span><span class="n">PAD</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">marks</span> <span class="o">=</span> <span class="p">{</span><span class="n">PAD</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">}</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">cls</span> <span class="o">=</span> <span class="n">UniformlyTreeAutomaticClass</span><span class="p">({</span>
+            <span class="s1">&#39;U&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_universe_automaton</span><span class="p">(),</span>
+            <span class="s1">&#39;Sing&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sing_automaton</span><span class="p">(),</span>
+            <span class="s1">&#39;Subset&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_subset_automaton</span><span class="p">(),</span>
+            <span class="s1">&#39;E&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_edge_automaton</span><span class="p">(),</span>
+        <span class="p">},</span> <span class="n">padding_symbol</span><span class="o">=</span><span class="n">PAD</span><span class="p">,</span> <span class="n">max_states</span><span class="o">=</span><span class="n">max_states</span><span class="p">)</span>
+
+    <span class="c1"># ---------------- letters ----------------</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_kind</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">a</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;(&#39;v&#39;, i) | (&#39;u&#39;,) | (&#39;r&#39;, i, j) | (&#39;e&#39;, i, j), or None.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">a</span> <span class="o">==</span> <span class="n">_union_symbol</span><span class="p">():</span>
+            <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;u&#39;</span><span class="p">,)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span> <span class="ow">and</span> <span class="n">a</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;v&#39;</span> <span class="ow">and</span> <span class="n">a</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">isdigit</span><span class="p">():</span>
+            <span class="n">i</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;v&#39;</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span> <span class="k">if</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">k</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span> <span class="ow">and</span> <span class="n">a</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="s1">&#39;re&#39;</span> <span class="ow">and</span> <span class="n">a</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span><span class="o">.</span><span class="n">isdigit</span><span class="p">():</span>
+            <span class="n">i</span><span class="p">,</span> <span class="n">j</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="nb">int</span><span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+            <span class="k">if</span> <span class="nb">max</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">k</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="n">a</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;r&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">)</span> <span class="k">if</span> <span class="n">i</span> <span class="o">!=</span> <span class="n">j</span> <span class="k">else</span> <span class="kc">None</span>
+            <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;e&#39;</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">)</span> <span class="k">if</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">j</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_shape_ok</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kind</span><span class="p">,</span> <span class="n">left</span><span class="p">,</span> <span class="n">right</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;`u` is binary, `v` a leaf, `r` and `e` unary (left only).&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">kind</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;v&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">left</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">right</span> <span class="ow">is</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">kind</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;u&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">left</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">right</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="n">left</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">right</span> <span class="ow">is</span> <span class="kc">None</span>
+
+    <span class="c1"># ---------------- the automata ----------------</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_universe_automaton</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseTreeAutomaton</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;U(advice, x): the advice is a well-formed k-expression and x is a</span>
+<span class="sd">        set encoding over its leaves. Phases A (no set domain below), S (a</span>
+<span class="sd">        marked domain), Z (an unmarked node with nothing below: the empty</span>
+<span class="sd">        set, and only at the root).&quot;&quot;&quot;</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">lq</span><span class="p">,</span> <span class="n">rq</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">sym</span>
+            <span class="n">kind</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_kind</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">kind</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shape_ok</span><span class="p">(</span><span class="n">kind</span><span class="p">,</span> <span class="n">lq</span><span class="p">,</span> <span class="n">rq</span><span class="p">):</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="n">phases</span> <span class="o">=</span> <span class="p">[</span><span class="n">q</span> <span class="k">for</span> <span class="n">q</span> <span class="ow">in</span> <span class="p">(</span><span class="n">lq</span><span class="p">,</span> <span class="n">rq</span><span class="p">)</span> <span class="k">if</span> <span class="n">q</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
+            <span class="k">if</span> <span class="s1">&#39;Z&#39;</span> <span class="ow">in</span> <span class="n">phases</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">x</span> <span class="o">==</span> <span class="n">PAD</span><span class="p">:</span>
+                <span class="n">xs</span> <span class="o">=</span> <span class="s1">&#39;A&#39;</span> <span class="k">if</span> <span class="s1">&#39;S&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">phases</span> <span class="k">else</span> <span class="kc">None</span>
+            <span class="k">elif</span> <span class="n">x</span> <span class="o">==</span> <span class="s1">&#39;1&#39;</span><span class="p">:</span>
+                <span class="n">xs</span> <span class="o">=</span> <span class="s1">&#39;S&#39;</span> <span class="k">if</span> <span class="n">kind</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;v&#39;</span> <span class="k">else</span> <span class="kc">None</span>    <span class="c1"># only leaves are vertices</span>
+            <span class="k">elif</span> <span class="n">x</span> <span class="o">==</span> <span class="s1">&#39;0&#39;</span><span class="p">:</span>
+                <span class="n">xs</span> <span class="o">=</span> <span class="s1">&#39;S&#39;</span> <span class="k">if</span> <span class="s1">&#39;S&#39;</span> <span class="ow">in</span> <span class="n">phases</span> <span class="k">else</span> <span class="s1">&#39;Z&#39;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">xs</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">return</span> <span class="s1">&#39;dead&#39;</span> <span class="k">if</span> <span class="n">xs</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">xs</span>
+
+        <span class="k">return</span> <span class="n">sta_from_delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;S&#39;</span><span class="p">,</span> <span class="s1">&#39;Z&#39;</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">],</span> <span class="mi">2</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span>
+                              <span class="p">{</span><span class="s1">&#39;S&#39;</span><span class="p">,</span> <span class="s1">&#39;Z&#39;</span><span class="p">},</span>
+                              <span class="n">tapes</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">advice_letters</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">marks</span><span class="p">])</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_sing_automaton</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseTreeAutomaton</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Sing(advice, X): exactly one mark, on a leaf.&quot;&quot;&quot;</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">lq</span><span class="p">,</span> <span class="n">rq</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">sym</span>
+            <span class="n">kind</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_kind</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">kind</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="n">marks</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">q</span> <span class="ow">in</span> <span class="p">(</span><span class="n">lq</span><span class="p">,</span> <span class="n">rq</span><span class="p">)</span> <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;M&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">x</span> <span class="o">==</span> <span class="n">PAD</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;A&#39;</span> <span class="k">if</span> <span class="n">marks</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">x</span> <span class="o">==</span> <span class="s1">&#39;1&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;M&#39;</span> <span class="k">if</span> <span class="n">marks</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">kind</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;v&#39;</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">x</span> <span class="o">==</span> <span class="s1">&#39;0&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;M&#39;</span> <span class="k">if</span> <span class="n">marks</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+
+        <span class="k">return</span> <span class="n">sta_from_delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;M&#39;</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">],</span> <span class="mi">2</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;M&#39;</span><span class="p">},</span>
+                              <span class="n">tapes</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">advice_letters</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">marks</span><span class="p">])</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_subset_automaton</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseTreeAutomaton</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Subset(advice, X, Y): positionwise X &lt;= Y.&quot;&quot;&quot;</span>
+        <span class="n">allowed</span> <span class="o">=</span> <span class="p">{(</span><span class="n">PAD</span><span class="p">,</span> <span class="n">PAD</span><span class="p">),</span> <span class="p">(</span><span class="n">PAD</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">),</span> <span class="p">(</span><span class="n">PAD</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">),</span>
+                   <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;1&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)}</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">lq</span><span class="p">,</span> <span class="n">rq</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">sym</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_kind</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">allowed</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">return</span> <span class="s1">&#39;ok&#39;</span>
+
+        <span class="k">return</span> <span class="n">sta_from_delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;ok&#39;</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">],</span> <span class="mi">3</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;ok&#39;</span><span class="p">},</span>
+                              <span class="n">tapes</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">advice_letters</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">marks</span><span class="p">,</span>
+                                     <span class="bp">self</span><span class="o">.</span><span class="n">marks</span><span class="p">])</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_edge_automaton</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseTreeAutomaton</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;E(advice, X, Y): X = {u}, Y = {v}, u != v adjacent.</span>
+
+<span class="sd">        State: which of the two marked vertices lies below, the label each one</span>
+<span class="sd">        currently carries, and whether a join has already connected them.</span>
+<span class="sd">        &#39;D&#39; has seen the join, so the labels no longer matter.&quot;&quot;&quot;</span>
+        <span class="n">states</span> <span class="o">=</span> <span class="p">([</span><span class="s1">&#39;A&#39;</span><span class="p">,</span> <span class="s1">&#39;D&#39;</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">]</span> <span class="o">+</span>
+                  <span class="p">[(</span><span class="s1">&#39;X&#39;</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="p">]</span> <span class="o">+</span>
+                  <span class="p">[(</span><span class="s1">&#39;Y&#39;</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="p">]</span> <span class="o">+</span>
+                  <span class="p">[(</span><span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">labels</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="p">])</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">parts</span><span class="p">(</span><span class="n">q</span><span class="p">):</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;(x below, x&#39;s label, y below, y&#39;s label, joined)&quot;&quot;&quot;</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;A&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">False</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;D&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">True</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">True</span>
+            <span class="k">if</span> <span class="n">q</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;X&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">True</span><span class="p">,</span> <span class="n">q</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">False</span>
+            <span class="k">if</span> <span class="n">q</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;Y&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="n">q</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="kc">False</span>
+            <span class="k">return</span> <span class="kc">True</span><span class="p">,</span> <span class="n">q</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="kc">True</span><span class="p">,</span> <span class="n">q</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="kc">False</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">state</span><span class="p">(</span><span class="n">hx</span><span class="p">,</span> <span class="n">lx</span><span class="p">,</span> <span class="n">hy</span><span class="p">,</span> <span class="n">ly</span><span class="p">,</span> <span class="n">joined</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">joined</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;D&#39;</span>
+            <span class="k">if</span> <span class="n">hx</span> <span class="ow">and</span> <span class="n">hy</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="n">lx</span><span class="p">,</span> <span class="n">ly</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">hx</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;X&#39;</span><span class="p">,</span> <span class="n">lx</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">hy</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;Y&#39;</span><span class="p">,</span> <span class="n">ly</span><span class="p">)</span>
+            <span class="k">return</span> <span class="s1">&#39;A&#39;</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">lq</span><span class="p">,</span> <span class="n">rq</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">sym</span>
+            <span class="n">kind</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_kind</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">kind</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_shape_ok</span><span class="p">(</span><span class="n">kind</span><span class="p">,</span> <span class="n">lq</span><span class="p">,</span> <span class="n">rq</span><span class="p">):</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+
+            <span class="k">if</span> <span class="n">kind</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;v&#39;</span><span class="p">:</span>                      <span class="c1"># a vertex is created here</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="n">PAD</span><span class="p">,</span> <span class="n">PAD</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="s1">&#39;A&#39;</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="s1">&#39;1&#39;</span><span class="p">,</span> <span class="n">PAD</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;X&#39;</span><span class="p">,</span> <span class="n">kind</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="n">PAD</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;Y&#39;</span><span class="p">,</span> <span class="n">kind</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>                       <span class="c1"># &#39;0&#39; on a leaf, or u = v</span>
+
+            <span class="n">hx</span> <span class="o">=</span> <span class="n">hy</span> <span class="o">=</span> <span class="n">joined</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">lx</span> <span class="o">=</span> <span class="n">ly</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">for</span> <span class="n">q</span> <span class="ow">in</span> <span class="p">(</span><span class="n">lq</span><span class="p">,</span> <span class="n">rq</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">q</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="n">qhx</span><span class="p">,</span> <span class="n">qlx</span><span class="p">,</span> <span class="n">qhy</span><span class="p">,</span> <span class="n">qly</span><span class="p">,</span> <span class="n">qjoined</span> <span class="o">=</span> <span class="n">parts</span><span class="p">(</span><span class="n">q</span><span class="p">)</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">qhx</span> <span class="ow">and</span> <span class="n">hx</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">qhy</span> <span class="ow">and</span> <span class="n">hy</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>                   <span class="c1"># X or Y marked twice</span>
+                <span class="k">if</span> <span class="n">qhx</span><span class="p">:</span>
+                    <span class="n">hx</span><span class="p">,</span> <span class="n">lx</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">qlx</span>
+                <span class="k">if</span> <span class="n">qhy</span><span class="p">:</span>
+                    <span class="n">hy</span><span class="p">,</span> <span class="n">ly</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">qly</span>
+                <span class="n">joined</span> <span class="o">=</span> <span class="n">joined</span> <span class="ow">or</span> <span class="n">qjoined</span>
+
+            <span class="c1"># an inner node lies in a set&#39;s domain exactly when a member is</span>
+            <span class="c1"># below it</span>
+            <span class="k">if</span> <span class="n">x</span> <span class="o">!=</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span> <span class="k">if</span> <span class="n">hx</span> <span class="k">else</span> <span class="n">PAD</span><span class="p">)</span> <span class="ow">or</span> <span class="n">y</span> <span class="o">!=</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span> <span class="k">if</span> <span class="n">hy</span> <span class="k">else</span> <span class="n">PAD</span><span class="p">):</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+
+            <span class="k">if</span> <span class="n">kind</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;r&#39;</span><span class="p">:</span>
+                <span class="n">source</span><span class="p">,</span> <span class="n">target</span> <span class="o">=</span> <span class="n">kind</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">kind</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+                <span class="n">lx</span> <span class="o">=</span> <span class="n">target</span> <span class="k">if</span> <span class="n">lx</span> <span class="o">==</span> <span class="n">source</span> <span class="k">else</span> <span class="n">lx</span>
+                <span class="n">ly</span> <span class="o">=</span> <span class="n">target</span> <span class="k">if</span> <span class="n">ly</span> <span class="o">==</span> <span class="n">source</span> <span class="k">else</span> <span class="n">ly</span>
+            <span class="k">elif</span> <span class="n">kind</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;e&#39;</span> <span class="ow">and</span> <span class="n">hx</span> <span class="ow">and</span> <span class="n">hy</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">joined</span><span class="p">:</span>
+                <span class="k">if</span> <span class="p">{</span><span class="n">lx</span><span class="p">,</span> <span class="n">ly</span><span class="p">}</span> <span class="o">==</span> <span class="p">{</span><span class="n">kind</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">kind</span><span class="p">[</span><span class="mi">2</span><span class="p">]}:</span>
+                    <span class="n">joined</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">return</span> <span class="n">state</span><span class="p">(</span><span class="n">hx</span><span class="p">,</span> <span class="n">lx</span><span class="p">,</span> <span class="n">hy</span><span class="p">,</span> <span class="n">ly</span><span class="p">,</span> <span class="n">joined</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">sta_from_delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="n">states</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;D&#39;</span><span class="p">},</span>
+                              <span class="n">tapes</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">advice_letters</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">marks</span><span class="p">,</span>
+                                     <span class="bp">self</span><span class="o">.</span><span class="n">marks</span><span class="p">])</span>
+
+    <span class="c1"># ---------------- class-level operations ----------------</span>
+
+<div class="viewcode-block" id="CliqueWidthClass.advice">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.tree_graphs.CliqueWidthClass.advice">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">advice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">graph</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">CliqueWidthGraph</span><span class="p">,</span> <span class="n">Tree</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Tree</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;The advice tree of a graph (its k-expression).&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">CliqueWidthGraph</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">graph</span>
+        <span class="k">if</span> <span class="n">graph</span><span class="o">.</span><span class="n">k</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">k</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;graph needs </span><span class="si">{</span><span class="n">graph</span><span class="o">.</span><span class="n">k</span><span class="si">}</span><span class="s2"> labels &gt; k = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">k</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">graph</span><span class="o">.</span><span class="n">tree</span></div>
+
+
+<div class="viewcode-block" id="CliqueWidthClass.evaluate">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.tree_graphs.CliqueWidthClass.evaluate">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">evaluate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">phi</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Evaluate an MSO query over the class; variables range over vertex</span>
+<span class="sd">        sets. See UniformlyTreeAutomaticClass.evaluate.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CliqueWidthClass.check">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.tree_graphs.CliqueWidthClass.check">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">check</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">phi</span><span class="p">,</span> <span class="n">graph</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">CliqueWidthGraph</span><span class="p">,</span> <span class="n">Tree</span><span class="p">],</span> <span class="o">**</span><span class="n">sets</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Model check an MSO query against a single graph.&quot;&quot;&quot;</span>
+        <span class="n">advice</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">advice</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">sets</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls</span><span class="o">.</span><span class="n">check</span><span class="p">(</span><span class="n">phi</span><span class="p">,</span> <span class="n">advice</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">CliqueWidthGraph</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;set assignments require a graph object&quot;</span><span class="p">)</span>
+        <span class="n">trees</span> <span class="o">=</span> <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="n">graph</span><span class="o">.</span><span class="n">encode_set</span><span class="p">(</span><span class="n">subset</span><span class="p">)</span>
+                 <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">subset</span> <span class="ow">in</span> <span class="n">sets</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls</span><span class="o">.</span><span class="n">check</span><span class="p">(</span><span class="n">phi</span><span class="p">,</span> <span class="n">advice</span><span class="p">,</span> <span class="o">**</span><span class="n">trees</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CliqueWidthClass.get_structure">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.tree_graphs.CliqueWidthClass.get_structure">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_structure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">graph</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TreeAutomaticPresentation</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;The MSO0-style tree-automatic presentation of a single graph.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls</span><span class="o">.</span><span class="n">get_structure</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">advice</span><span class="p">(</span><span class="n">graph</span><span class="p">))</span></div>
+</div>
+
+</pre></div>
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2022-2026, Faried Abu Zaid
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer no-toc">
+      
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=acc74ff5"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>

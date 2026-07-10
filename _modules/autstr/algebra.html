@@ -1,0 +1,772 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
+
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+        <title>autstr.algebra - AutStr 3.0.0</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../index.html"><div class="brand">AutStr 3.0.0</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
+  
+  <span class="sidebar-brand-text">AutStr 3.0.0</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">API reference</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../api/modules.html">autstr</a><input aria-label="Toggle navigation of autstr" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../api/autstr.html">autstr package</a><input aria-label="Toggle navigation of autstr package" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/autstr.buildin.html">autstr.buildin package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/autstr.utils.html">autstr.utils package</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <h1>Source code for autstr.algebra</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Finite boolean algebras and the localizations Z[1/p] as automatic</span>
+<span class="sd">structures.</span>
+
+<span class="sd">**Finite boolean algebras** (`FiniteBooleanAlgebras`): the algebra with n</span>
+<span class="sd">atoms is (up to isomorphism) the powerset algebra of [n]. The advice is</span>
+<span class="sd">simply the unary word 1^n; elements are subsets of [n] as bitvectors of</span>
+<span class="sd">length n, and all operations are positionwise. Signature:</span>
+
+<span class="sd">    Leq(x,y)      x &lt;= y            Meet(x,y,z)   z = x AND y</span>
+<span class="sd">    Join(x,y,z)   z = x OR y        Compl(x,y)    y = NOT x</span>
+<span class="sd">    Atom(x)       x is an atom</span>
+
+<span class="sd">**The localizations Z[1/p]** (`Z1pLocalization`): a single automatic structure,</span>
+<span class="sd">not a class. An element is written with a sign and a radix-aligned pair of</span>
+<span class="sd">integer and fractional digits, and addition is recognized by a Buechi-style</span>
+<span class="sd">carry automaton.</span>
+
+<span class="sd">The finite abelian groups live in `autstr.groups` beside the other group</span>
+<span class="sd">classes.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">itertools</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">it</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">nltk.sem</span><span class="w"> </span><span class="kn">import</span> <span class="n">logic</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">autstr.presentations</span><span class="w"> </span><span class="kn">import</span> <span class="n">AutomaticPresentation</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">autstr.sparse_automata</span><span class="w"> </span><span class="kn">import</span> <span class="n">SparseDFA</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">autstr.uniform</span><span class="w"> </span><span class="kn">import</span> <span class="n">UniformlyAutomaticClass</span><span class="p">,</span> <span class="n">dfa_from_delta</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">autstr.utils.logic</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_free_elementary_vars</span>
+
+<span class="n">PAD</span> <span class="o">=</span> <span class="s1">&#39;*&#39;</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_is_prime</span><span class="p">(</span><span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return True iff n is a prime number &gt;= 2.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">n</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">if</span> <span class="n">n</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">n</span> <span class="o">==</span> <span class="mi">2</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="mi">3</span>
+    <span class="k">while</span> <span class="n">d</span> <span class="o">*</span> <span class="n">d</span> <span class="o">&lt;=</span> <span class="n">n</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">n</span> <span class="o">%</span> <span class="n">d</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="n">d</span> <span class="o">+=</span> <span class="mi">2</span>
+    <span class="k">return</span> <span class="kc">True</span>
+
+
+<div class="viewcode-block" id="Z1pElement">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.algebra.Z1pElement">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Z1pElement</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Canonical element of Z[1/p] represented as num / p**exp.</span>
+
+<span class="sd">    In canonical form, either num == 0 and exp == 0, or p does not divide num.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">num</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">exp</span><span class="p">:</span> <span class="nb">int</span></div>
+
+
+
+<div class="viewcode-block" id="Z1pLocalization">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.algebra.Z1pLocalization">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">Z1pLocalization</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Factory-backed arithmetic model for the fixed localization Z[1/p].</span>
+
+<span class="sd">    This class provides a canonical representation and exact arithmetic for a</span>
+<span class="sd">    fixed prime p. It is designed as the API layer that a dedicated automatic</span>
+<span class="sd">    presentation can be attached to.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">_is_prime</span><span class="p">(</span><span class="n">p</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;p must be prime, got </span><span class="si">{</span><span class="n">p</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_presentation</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="Z1pLocalization.normalize">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.algebra.Z1pLocalization.normalize">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">normalize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">exp</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Z1pElement</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the canonical representative of num / p**exp.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">exp</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;exponent must be &gt;= 0&quot;</span><span class="p">)</span>
+        <span class="n">num</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">num</span><span class="p">)</span>
+        <span class="n">exp</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">exp</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">num</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">Z1pElement</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="k">while</span> <span class="n">exp</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">num</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">num</span> <span class="o">//=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span>
+            <span class="n">exp</span> <span class="o">-=</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="n">Z1pElement</span><span class="p">(</span><span class="n">num</span><span class="p">,</span> <span class="n">exp</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Z1pLocalization.element">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.algebra.Z1pLocalization.element">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">element</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">exp</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Z1pElement</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a canonical element from num / p**exp.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="n">num</span><span class="p">,</span> <span class="n">exp</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Z1pLocalization.from_fraction">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.algebra.Z1pLocalization.from_fraction">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_fraction</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">den</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Z1pElement</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create an element from a reduced or unreduced fraction num/den.</span>
+
+<span class="sd">        The denominator must be a positive power of p.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">den</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;denominator must be &gt; 0&quot;</span><span class="p">)</span>
+        <span class="n">exp</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">den</span><span class="p">)</span>
+        <span class="k">while</span> <span class="n">d</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">d</span> <span class="o">//=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span>
+            <span class="n">exp</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">d</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;denominator </span><span class="si">{</span><span class="n">den</span><span class="si">}</span><span class="s2"> is not a power of </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">num</span><span class="p">),</span> <span class="n">exp</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Z1pLocalization.add">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.algebra.Z1pLocalization.add">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">add</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Z1pElement</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">Z1pElement</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Z1pElement</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return x + y in canonical form.&quot;&quot;&quot;</span>
+        <span class="n">m</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">exp</span><span class="p">,</span> <span class="n">y</span><span class="o">.</span><span class="n">exp</span><span class="p">)</span>
+        <span class="n">nx</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">num</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p</span> <span class="o">**</span> <span class="p">(</span><span class="n">m</span> <span class="o">-</span> <span class="n">x</span><span class="o">.</span><span class="n">exp</span><span class="p">))</span>
+        <span class="n">ny</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">num</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p</span> <span class="o">**</span> <span class="p">(</span><span class="n">m</span> <span class="o">-</span> <span class="n">y</span><span class="o">.</span><span class="n">exp</span><span class="p">))</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="n">nx</span> <span class="o">+</span> <span class="n">ny</span><span class="p">,</span> <span class="n">m</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Z1pLocalization.neg">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.algebra.Z1pLocalization.neg">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">neg</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Z1pElement</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Z1pElement</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return -x in canonical form.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="o">-</span><span class="n">x</span><span class="o">.</span><span class="n">num</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">exp</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Z1pLocalization.sub">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.algebra.Z1pLocalization.sub">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">sub</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Z1pElement</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">Z1pElement</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Z1pElement</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return x - y in canonical form.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">neg</span><span class="p">(</span><span class="n">y</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="Z1pLocalization.equals">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.algebra.Z1pLocalization.equals">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">equals</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Z1pElement</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">Z1pElement</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Semantic equality in Z[1/p] (canonical reps compare directly).&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">x</span> <span class="o">==</span> <span class="n">y</span></div>
+
+
+    <span class="c1"># ---------------- automatic presentation ----------------</span>
+    <span class="c1">#</span>
+    <span class="c1"># An element x = ±(A + C) with integer part A and fractional part</span>
+    <span class="c1"># C in [0,1) (finite base-p expansion) is encoded as</span>
+    <span class="c1">#</span>
+    <span class="c1">#     [sign]  (a_1,c_1) (a_2,c_2) ... (a_L,c_L)</span>
+    <span class="c1">#</span>
+    <span class="c1"># where a_i is the digit of A at p^(i-1) and c_i the digit of C at</span>
+    <span class="c1"># p^(-i): both expansions grow rightward from the radix point, so</span>
+    <span class="c1"># convolution padding stays trailing. The last pair is nonzero (unique</span>
+    <span class="c1"># encodings); zero is the bare sign &#39;+&#39;.</span>
+    <span class="c1">#</span>
+    <span class="c1"># Magnitude addition A0 is regular: the integer track adds LSB-first</span>
+    <span class="c1"># (carry runs forward); the fractional track adds MSB-first, so the</span>
+    <span class="c1"># overflow g in {0,1} of C_x + C_y is guessed at the radix point and</span>
+    <span class="c1"># both guesses are tracked deterministically — g is simultaneously the</span>
+    <span class="c1"># carry into the integer units digit. Full signed addition A is then</span>
+    <span class="c1"># defined by first-order case analysis over the signs (Büchi-Z style),</span>
+    <span class="c1"># and Z / Eq are defined from A.</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_pair_symbol</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">d</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">e</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">d</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">sigma</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">set</span><span class="p">:</span>
+        <span class="n">pairs</span> <span class="o">=</span> <span class="p">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_pair_symbol</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+                 <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="p">)}</span>
+        <span class="k">return</span> <span class="p">{</span><span class="n">PAD</span><span class="p">,</span> <span class="s1">&#39;+&#39;</span><span class="p">,</span> <span class="s1">&#39;-&#39;</span><span class="p">}</span> <span class="o">|</span> <span class="n">pairs</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_pair_digits</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_pair_symbol</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">e</span><span class="p">):</span> <span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="p">)}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_universe_automaton</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseDFA</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;U(x): a sign followed by digit pairs whose last pair is nonzero;</span>
+<span class="sd">        zero is the bare &#39;+&#39; (no &#39;-0&#39;).&quot;&quot;&quot;</span>
+        <span class="n">pair_of</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pair_digits</span><span class="p">()</span>
+        <span class="n">states</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="s1">&#39;zero_plus&#39;</span><span class="p">,</span> <span class="s1">&#39;minus&#39;</span><span class="p">,</span> <span class="s1">&#39;nz&#39;</span><span class="p">,</span> <span class="s1">&#39;zz&#39;</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+            <span class="n">a</span> <span class="o">=</span> <span class="n">sym</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;dead&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;start&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;+&#39;</span><span class="p">:</span> <span class="s1">&#39;zero_plus&#39;</span><span class="p">,</span> <span class="s1">&#39;-&#39;</span><span class="p">:</span> <span class="s1">&#39;minus&#39;</span><span class="p">}</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">)</span>
+            <span class="n">pair</span> <span class="o">=</span> <span class="n">pair_of</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">pair</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">return</span> <span class="s1">&#39;zz&#39;</span> <span class="k">if</span> <span class="n">pair</span> <span class="o">==</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;nz&#39;</span>
+
+        <span class="k">return</span> <span class="n">dfa_from_delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="n">states</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;zero_plus&#39;</span><span class="p">,</span> <span class="s1">&#39;nz&#39;</span><span class="p">})</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_sign_automaton</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseDFA</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;N0(x): x &gt;= 0 (sign &#39;+&#39;; zero is nonnegative).&quot;&quot;&quot;</span>
+        <span class="n">pair_of</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pair_digits</span><span class="p">()</span>
+        <span class="n">states</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="s1">&#39;yes&#39;</span><span class="p">,</span> <span class="s1">&#39;no&#39;</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+            <span class="n">a</span> <span class="o">=</span> <span class="n">sym</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;start&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;+&#39;</span><span class="p">:</span> <span class="s1">&#39;yes&#39;</span><span class="p">,</span> <span class="s1">&#39;-&#39;</span><span class="p">:</span> <span class="s1">&#39;no&#39;</span><span class="p">}</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;yes&#39;</span><span class="p">,</span> <span class="s1">&#39;no&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">pair_of</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">q</span>
+            <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+
+        <span class="k">return</span> <span class="n">dfa_from_delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="n">states</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;yes&#39;</span><span class="p">})</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_magnitude_addition_automaton</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseDFA</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;A0(x, y, z): |x| + |y| = |z| (signs are ignored). Branch g guesses</span>
+<span class="sd">        the fractional overflow; each branch tracks (integer carry, expected</span>
+<span class="sd">        fractional carry) and must close at (0, 0).&quot;&quot;&quot;</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span>
+        <span class="n">pair_of</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pair_digits</span><span class="p">()</span>
+        <span class="n">branch_states</span> <span class="o">=</span> <span class="p">[(</span><span class="n">k</span><span class="p">,</span> <span class="n">g</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)]</span> <span class="o">+</span> <span class="p">[</span><span class="s1">&#39;F&#39;</span><span class="p">]</span>
+        <span class="n">states</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[(</span><span class="s1">&#39;c&#39;</span><span class="p">,</span> <span class="n">b0</span><span class="p">,</span> <span class="n">b1</span><span class="p">)</span>
+                                      <span class="k">for</span> <span class="n">b0</span> <span class="ow">in</span> <span class="n">branch_states</span> <span class="k">for</span> <span class="n">b1</span> <span class="ow">in</span> <span class="n">branch_states</span><span class="p">]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">digits</span><span class="p">(</span><span class="n">component</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">component</span> <span class="o">==</span> <span class="n">PAD</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>  <span class="c1"># this tape already ended</span>
+            <span class="k">return</span> <span class="n">pair_of</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">component</span><span class="p">)</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">step</span><span class="p">(</span><span class="n">branch</span><span class="p">,</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">dz</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">branch</span> <span class="o">==</span> <span class="s1">&#39;F&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;F&#39;</span>
+            <span class="n">kappa</span><span class="p">,</span> <span class="n">gamma</span> <span class="o">=</span> <span class="n">branch</span>
+            <span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">cx</span><span class="p">),</span> <span class="p">(</span><span class="n">ay</span><span class="p">,</span> <span class="n">cy</span><span class="p">),</span> <span class="p">(</span><span class="n">az</span><span class="p">,</span> <span class="n">cz</span><span class="p">)</span> <span class="o">=</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">dz</span>
+            <span class="c1"># integer track, LSB-first: a_x + a_y + kappa = a_z + p*kappa&#39;</span>
+            <span class="n">kappa_next</span><span class="p">,</span> <span class="n">remainder</span> <span class="o">=</span> <span class="nb">divmod</span><span class="p">(</span><span class="n">ax</span> <span class="o">+</span> <span class="n">ay</span> <span class="o">+</span> <span class="n">kappa</span> <span class="o">-</span> <span class="n">az</span><span class="p">,</span> <span class="n">p</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">remainder</span> <span class="o">!=</span> <span class="mi">0</span> <span class="ow">or</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">kappa_next</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;F&#39;</span>
+            <span class="c1"># fractional track, MSB-first: c_x + c_y + gamma&#39; = c_z + p*gamma</span>
+            <span class="n">gamma_next</span> <span class="o">=</span> <span class="n">cz</span> <span class="o">+</span> <span class="n">p</span> <span class="o">*</span> <span class="n">gamma</span> <span class="o">-</span> <span class="n">cx</span> <span class="o">-</span> <span class="n">cy</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">gamma_next</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;F&#39;</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">kappa_next</span><span class="p">,</span> <span class="n">gamma_next</span><span class="p">)</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;dead&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;start&#39;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">s</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;+&#39;</span><span class="p">,</span> <span class="s1">&#39;-&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">sym</span><span class="p">):</span>
+                    <span class="c1"># branch g: fractional overflow g is also the carry into</span>
+                    <span class="c1"># the integer units digit</span>
+                    <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;c&#39;</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">dz</span> <span class="o">=</span> <span class="p">(</span><span class="n">digits</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">sym</span><span class="p">)</span>
+            <span class="k">if</span> <span class="kc">None</span> <span class="ow">in</span> <span class="p">(</span><span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">dz</span><span class="p">):</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="n">b0</span><span class="p">,</span> <span class="n">b1</span> <span class="o">=</span> <span class="n">step</span><span class="p">(</span><span class="n">q</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">dz</span><span class="p">),</span> <span class="n">step</span><span class="p">(</span><span class="n">q</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">,</span> <span class="n">dz</span><span class="p">)</span>
+            <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;c&#39;</span><span class="p">,</span> <span class="n">b0</span><span class="p">,</span> <span class="n">b1</span><span class="p">)</span> <span class="k">if</span> <span class="p">(</span><span class="n">b0</span><span class="p">,</span> <span class="n">b1</span><span class="p">)</span> <span class="o">!=</span> <span class="p">(</span><span class="s1">&#39;F&#39;</span><span class="p">,</span> <span class="s1">&#39;F&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+
+        <span class="n">finals</span> <span class="o">=</span> <span class="p">{(</span><span class="s1">&#39;c&#39;</span><span class="p">,</span> <span class="n">b0</span><span class="p">,</span> <span class="n">b1</span><span class="p">)</span> <span class="k">for</span> <span class="n">b0</span> <span class="ow">in</span> <span class="n">branch_states</span> <span class="k">for</span> <span class="n">b1</span> <span class="ow">in</span> <span class="n">branch_states</span>
+                  <span class="k">if</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">in</span> <span class="p">(</span><span class="n">b0</span><span class="p">,</span> <span class="n">b1</span><span class="p">)}</span>
+        <span class="k">return</span> <span class="n">dfa_from_delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="n">states</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="n">finals</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">presentation</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AutomaticPresentation</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;The automatic presentation of (Z[1/p], +), built on first use.</span>
+<span class="sd">        Signature: A(x,y,z) [z = x + y], N0(x) [x &gt;= 0], Z(x) [x = 0],</span>
+<span class="sd">        Eq(x,y).&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_presentation</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">pres</span> <span class="o">=</span> <span class="n">AutomaticPresentation</span><span class="p">({</span>
+                <span class="s1">&#39;U&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_universe_automaton</span><span class="p">(),</span>
+                <span class="s1">&#39;A0&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_magnitude_addition_automaton</span><span class="p">(),</span>
+                <span class="s1">&#39;N0&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sign_automaton</span><span class="p">(),</span>
+            <span class="p">},</span> <span class="n">padding_symbol</span><span class="o">=</span><span class="n">PAD</span><span class="p">)</span>
+            <span class="n">pres</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">Z</span><span class="o">=</span><span class="s1">&#39;A0(x,x,x)&#39;</span><span class="p">)</span>
+            <span class="c1"># Sign case analysis; the (+,+,-) and (-,-,+) cases are impossible</span>
+            <span class="n">cases</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="s1">&#39;(N0(x) and N0(y) and N0(z) and A0(x,y,z))&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;(N0(x) and (not N0(y)) and N0(z) and A0(z,y,x))&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;(N0(x) and (not N0(y)) and (not N0(z)) and A0(z,x,y))&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;((not N0(x)) and N0(y) and N0(z) and A0(x,z,y))&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;((not N0(x)) and N0(y) and (not N0(z)) and A0(z,y,x))&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;((not N0(x)) and (not N0(y)) and (not N0(z)) and A0(x,y,z))&#39;</span><span class="p">,</span>
+            <span class="p">]</span>
+            <span class="n">pres</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">A</span><span class="o">=</span><span class="s1">&#39; or &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cases</span><span class="p">))</span>
+            <span class="n">pres</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">Eq</span><span class="o">=</span><span class="s1">&#39;exists z.(Z(z) and A(x,z,y))&#39;</span><span class="p">)</span>
+            <span class="k">del</span> <span class="n">pres</span><span class="o">.</span><span class="n">automata</span><span class="p">[</span><span class="s1">&#39;A0&#39;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_presentation</span> <span class="o">=</span> <span class="n">pres</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_presentation</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_coerce</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Z1pElement</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">Z1pElement</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">num</span><span class="p">,</span> <span class="n">value</span><span class="o">.</span><span class="n">exp</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">))</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalize</span><span class="p">(</span><span class="o">*</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;cannot interpret </span><span class="si">{</span><span class="n">value</span><span class="si">!r}</span><span class="s2"> as an element of Z[1/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="si">}</span><span class="s2">]&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Z1pLocalization.encode">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.algebra.Z1pLocalization.encode">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Encode an element as a word of the presentation.&quot;&quot;&quot;</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_coerce</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="n">sign</span> <span class="o">=</span> <span class="s1">&#39;+&#39;</span> <span class="k">if</span> <span class="n">x</span><span class="o">.</span><span class="n">num</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="k">else</span> <span class="s1">&#39;-&#39;</span>
+        <span class="n">magnitude</span><span class="p">,</span> <span class="n">k</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">num</span><span class="p">),</span> <span class="n">x</span><span class="o">.</span><span class="n">exp</span>
+        <span class="n">integer_part</span><span class="p">,</span> <span class="n">frac</span> <span class="o">=</span> <span class="nb">divmod</span><span class="p">(</span><span class="n">magnitude</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span> <span class="o">**</span> <span class="n">k</span><span class="p">)</span>
+
+        <span class="n">int_digits</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">while</span> <span class="n">integer_part</span><span class="p">:</span>
+            <span class="n">integer_part</span><span class="p">,</span> <span class="n">d</span> <span class="o">=</span> <span class="nb">divmod</span><span class="p">(</span><span class="n">integer_part</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="p">)</span>
+            <span class="n">int_digits</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+        <span class="n">frac_digits</span> <span class="o">=</span> <span class="p">[(</span><span class="n">frac</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span> <span class="o">**</span> <span class="p">(</span><span class="n">k</span> <span class="o">-</span> <span class="n">i</span><span class="p">))</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">k</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)]</span>
+
+        <span class="n">length</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">int_digits</span><span class="p">),</span> <span class="n">k</span><span class="p">)</span>
+        <span class="n">pairs</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_pair_symbol</span><span class="p">(</span>
+                <span class="n">int_digits</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">if</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">int_digits</span><span class="p">)</span> <span class="k">else</span> <span class="mi">0</span><span class="p">,</span>
+                <span class="n">frac_digits</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">if</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">k</span> <span class="k">else</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">length</span><span class="p">)</span>
+        <span class="p">]</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">sign</span><span class="p">]</span> <span class="o">+</span> <span class="n">pairs</span></div>
+
+
+<div class="viewcode-block" id="Z1pLocalization.evaluate">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.algebra.Z1pLocalization.evaluate">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">evaluate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">phi</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseDFA</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Evaluate a first-order query; see AutomaticPresentation.evaluate.</span>
+<span class="sd">        The result&#39;s tapes are the free variables in sorted order.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">presentation</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Z1pLocalization.check">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.algebra.Z1pLocalization.check">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">check</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">phi</span><span class="p">,</span> <span class="o">**</span><span class="n">elements</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Model check a formula against (Z[1/p], +). Free variables can be</span>
+<span class="sd">        assigned elements (Z1pElement, int, or (num, exp) pairs); unassigned</span>
+<span class="sd">        free variables are existentially quantified.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">elements</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">presentation</span><span class="o">.</span><span class="n">check</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">phi</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">phi</span> <span class="o">=</span> <span class="n">logic</span><span class="o">.</span><span class="n">Expression</span><span class="o">.</span><span class="n">fromstring</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span>
+        <span class="n">free_vars</span> <span class="o">=</span> <span class="n">get_free_elementary_vars</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span>
+        <span class="n">unknown</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">elements</span><span class="p">)</span> <span class="o">-</span> <span class="nb">set</span><span class="p">(</span><span class="n">free_vars</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">unknown</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;assignments for non-free variables: </span><span class="si">{</span><span class="n">unknown</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">free_vars</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">v</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">elements</span><span class="p">:</span>
+                <span class="n">phi</span> <span class="o">=</span> <span class="n">logic</span><span class="o">.</span><span class="n">ExistsExpression</span><span class="p">(</span><span class="n">logic</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="n">v</span><span class="p">),</span> <span class="n">phi</span><span class="p">)</span>
+
+        <span class="n">dfa</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">presentation</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span>
+        <span class="n">order</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">elements</span><span class="p">)</span>
+        <span class="n">words</span> <span class="o">=</span> <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">elements</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+        <span class="n">length</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">w</span><span class="p">)</span> <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">words</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+        <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">words</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="n">w</span> <span class="o">+=</span> <span class="p">[</span><span class="n">PAD</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">length</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">w</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">dfa</span><span class="o">.</span><span class="n">accepts</span><span class="p">([</span>
+            <span class="nb">tuple</span><span class="p">(</span><span class="n">words</span><span class="p">[</span><span class="n">name</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">order</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">length</span><span class="p">)</span>
+        <span class="p">])</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="z1p_localization">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.algebra.z1p_localization">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">z1p_localization</span><span class="p">(</span><span class="n">p</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Z1pLocalization</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return a fixed-prime localization factory for Z[1/p].&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">Z1pLocalization</span><span class="p">(</span><span class="n">p</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># ====================================================================</span>
+<span class="c1"># Finite boolean algebras</span>
+<span class="c1"># ====================================================================</span>
+
+<div class="viewcode-block" id="FiniteBooleanAlgebras">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.algebra.FiniteBooleanAlgebras">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">FiniteBooleanAlgebras</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The uniformly automatic class of all finite boolean algebras. The</span>
+<span class="sd">    member with n atoms has advice 1^n; its elements are the subsets of</span>
+<span class="sd">    {0, ..., n-1}, encoded as bitvectors of length exactly n.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigma</span> <span class="o">=</span> <span class="p">{</span><span class="n">PAD</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cls</span> <span class="o">=</span> <span class="n">UniformlyAutomaticClass</span><span class="p">({</span>
+            <span class="s1">&#39;U&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_universe_automaton</span><span class="p">(),</span>
+            <span class="s1">&#39;Leq&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pointwise_automaton</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">x</span> <span class="o">&lt;=</span> <span class="n">y</span><span class="p">),</span>
+            <span class="s1">&#39;Meet&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pointwise_automaton</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="n">z</span> <span class="o">==</span> <span class="p">(</span><span class="n">x</span> <span class="o">&amp;</span> <span class="n">y</span><span class="p">)),</span>
+            <span class="s1">&#39;Join&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pointwise_automaton</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="n">z</span> <span class="o">==</span> <span class="p">(</span><span class="n">x</span> <span class="o">|</span> <span class="n">y</span><span class="p">)),</span>
+            <span class="s1">&#39;Compl&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pointwise_automaton</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">y</span> <span class="o">==</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">x</span><span class="p">),</span>
+            <span class="s1">&#39;Atom&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_atom_automaton</span><span class="p">(),</span>
+        <span class="p">},</span> <span class="n">padding_symbol</span><span class="o">=</span><span class="n">PAD</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_universe_automaton</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseDFA</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;U(p, x): p in 1* and x a {0,1}-word of exactly the same length</span>
+<span class="sd">        (unique encodings: no early padding).&quot;&quot;&quot;</span>
+        <span class="n">states</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;ok&#39;</span><span class="p">,</span> <span class="s1">&#39;pad&#39;</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">sym</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;dead&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;pad&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;pad&#39;</span> <span class="k">if</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="n">PAD</span><span class="p">,</span> <span class="n">PAD</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">a</span> <span class="o">==</span> <span class="s1">&#39;1&#39;</span> <span class="ow">and</span> <span class="n">x</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">):</span>
+                <span class="k">return</span> <span class="s1">&#39;ok&#39;</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="n">PAD</span><span class="p">,</span> <span class="n">PAD</span><span class="p">):</span>
+                <span class="k">return</span> <span class="s1">&#39;pad&#39;</span>
+            <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+
+        <span class="k">return</span> <span class="n">dfa_from_delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="n">states</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="s1">&#39;ok&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;ok&#39;</span><span class="p">,</span> <span class="s1">&#39;pad&#39;</span><span class="p">})</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_pointwise_automaton</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arity</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">relation</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseDFA</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;A relation that holds iff `relation` holds on the bits of every</span>
+<span class="sd">        position (advice digit must be 1).&quot;&quot;&quot;</span>
+        <span class="n">states</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;ok&#39;</span><span class="p">,</span> <span class="s1">&#39;pad&#39;</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">bits</span> <span class="o">=</span> <span class="n">sym</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">sym</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;dead&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;pad&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;pad&#39;</span> <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">s</span> <span class="o">==</span> <span class="n">PAD</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">sym</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">a</span> <span class="o">==</span> <span class="s1">&#39;1&#39;</span> <span class="ow">and</span> <span class="nb">all</span><span class="p">(</span><span class="n">b</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">bits</span><span class="p">):</span>
+                <span class="k">return</span> <span class="s1">&#39;ok&#39;</span> <span class="k">if</span> <span class="n">relation</span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">bits</span><span class="p">))</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">s</span> <span class="o">==</span> <span class="n">PAD</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">sym</span><span class="p">):</span>
+                <span class="k">return</span> <span class="s1">&#39;pad&#39;</span>
+            <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+
+        <span class="k">return</span> <span class="n">dfa_from_delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="n">states</span><span class="p">,</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">arity</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="s1">&#39;ok&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;ok&#39;</span><span class="p">,</span> <span class="s1">&#39;pad&#39;</span><span class="p">})</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_atom_automaton</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseDFA</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Atom(p, x): x contains exactly one 1.&quot;&quot;&quot;</span>
+        <span class="n">states</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;zero&#39;</span><span class="p">,</span> <span class="s1">&#39;one&#39;</span><span class="p">,</span> <span class="s1">&#39;pad&#39;</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">sym</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;dead&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;pad&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;pad&#39;</span> <span class="k">if</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="n">PAD</span><span class="p">,</span> <span class="n">PAD</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">a</span> <span class="o">==</span> <span class="s1">&#39;1&#39;</span> <span class="ow">and</span> <span class="n">x</span> <span class="o">==</span> <span class="s1">&#39;0&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">q</span>
+            <span class="k">if</span> <span class="n">a</span> <span class="o">==</span> <span class="s1">&#39;1&#39;</span> <span class="ow">and</span> <span class="n">x</span> <span class="o">==</span> <span class="s1">&#39;1&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;one&#39;</span> <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;zero&#39;</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="n">PAD</span><span class="p">,</span> <span class="n">PAD</span><span class="p">)</span> <span class="ow">and</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;one&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;pad&#39;</span>
+            <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+
+        <span class="k">return</span> <span class="n">dfa_from_delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="n">states</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="s1">&#39;zero&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;one&#39;</span><span class="p">,</span> <span class="s1">&#39;pad&#39;</span><span class="p">})</span>
+
+    <span class="c1"># ---------------- encodings and class operations ----------------</span>
+
+<div class="viewcode-block" id="FiniteBooleanAlgebras.advice">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.algebra.FiniteBooleanAlgebras.advice">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">advice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Advice string of the boolean algebra with n atoms.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span><span class="s1">&#39;1&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="n">n</span></div>
+
+
+<div class="viewcode-block" id="FiniteBooleanAlgebras.encode">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.algebra.FiniteBooleanAlgebras.encode">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subset</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Encode a subset of {0, ..., n-1} as an element word.&quot;&quot;&quot;</span>
+        <span class="n">subset</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">subset</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">subset</span> <span class="o">&lt;=</span> <span class="nb">set</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;not a subset of range(</span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2">): </span><span class="si">{</span><span class="n">subset</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[</span><span class="s1">&#39;1&#39;</span> <span class="k">if</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">subset</span> <span class="k">else</span> <span class="s1">&#39;0&#39;</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">)]</span></div>
+
+
+<div class="viewcode-block" id="FiniteBooleanAlgebras.evaluate">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.algebra.FiniteBooleanAlgebras.evaluate">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">evaluate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">phi</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">SparseDFA</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="FiniteBooleanAlgebras.check">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.algebra.FiniteBooleanAlgebras.check">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">check</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">phi</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">**</span><span class="n">subsets</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Model check against the algebra with n atoms; free variables can</span>
+<span class="sd">        be assigned subsets of {0, ..., n-1}.&quot;&quot;&quot;</span>
+        <span class="n">words</span> <span class="o">=</span> <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">subsets</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls</span><span class="o">.</span><span class="n">check</span><span class="p">(</span><span class="n">phi</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">advice</span><span class="p">(</span><span class="n">n</span><span class="p">),</span> <span class="o">**</span><span class="n">words</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="FiniteBooleanAlgebras.get_structure">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.algebra.FiniteBooleanAlgebras.get_structure">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_structure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AutomaticPresentation</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls</span><span class="o">.</span><span class="n">get_structure</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">advice</span><span class="p">(</span><span class="n">n</span><span class="p">))</span></div>
+</div>
+
+
+
+<span class="c1"># ====================================================================</span>
+<span class="c1"># Finite abelian groups</span>
+<span class="c1"># ====================================================================</span>
+</pre></div>
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2022-2026, Faried Abu Zaid
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer no-toc">
+      
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=acc74ff5"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>

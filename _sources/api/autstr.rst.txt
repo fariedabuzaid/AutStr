@@ -1,0 +1,134 @@
+autstr package
+==============
+
+Subpackages
+-----------
+
+.. toctree::
+   :maxdepth: 4
+
+   autstr.buildin
+   autstr.utils
+
+Submodules
+----------
+
+autstr.algebra module
+---------------------
+
+.. automodule:: autstr.algebra
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+autstr.arithmetic module
+------------------------
+
+.. automodule:: autstr.arithmetic
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+autstr.composition module
+-------------------------
+
+.. automodule:: autstr.composition
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+autstr.graphs module
+--------------------
+
+.. automodule:: autstr.graphs
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+autstr.groups module
+--------------------
+
+.. automodule:: autstr.groups
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+autstr.mtbdd module
+-------------------
+
+.. automodule:: autstr.mtbdd
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+autstr.presentations module
+---------------------------
+
+.. automodule:: autstr.presentations
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+autstr.sparse\_automata module
+------------------------------
+
+.. automodule:: autstr.sparse_automata
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+autstr.sparse\_tree\_automata module
+------------------------------------
+
+.. automodule:: autstr.sparse_tree_automata
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+autstr.tree\_graphs module
+--------------------------
+
+.. automodule:: autstr.tree_graphs
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+autstr.tree\_groups module
+--------------------------
+
+.. automodule:: autstr.tree_groups
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+autstr.tree\_presentations module
+---------------------------------
+
+.. automodule:: autstr.tree_presentations
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+autstr.tree\_uniform module
+---------------------------
+
+.. automodule:: autstr.tree_uniform
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+autstr.uniform module
+---------------------
+
+.. automodule:: autstr.uniform
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+Module contents
+---------------
+
+.. automodule:: autstr
+   :members:
+   :show-inheritance:
+   :undoc-members:

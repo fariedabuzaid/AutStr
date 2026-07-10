@@ -1,0 +1,1025 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
+
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+        <title>autstr.groups - AutStr 3.0.0</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../index.html"><div class="brand">AutStr 3.0.0</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
+  
+  <span class="sidebar-brand-text">AutStr 3.0.0</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">API reference</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../api/modules.html">autstr</a><input aria-label="Toggle navigation of autstr" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../api/autstr.html">autstr package</a><input aria-label="Toggle navigation of autstr package" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/autstr.buildin.html">autstr.buildin package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/autstr.utils.html">autstr.utils package</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <h1>Source code for autstr.groups</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Uniformly automatic classes of finite groups.</span>
+
+<span class="sd">**Finite abelian groups** (`FiniteAbelianGroups`): every finite abelian group</span>
+<span class="sd">is a direct sum of cyclic groups, so the advice is the &#39;#&#39;-separated list of</span>
+<span class="sd">their orders in LSB-first binary and addition is blockwise. This is the</span>
+<span class="sd">direct-product closure of the cyclic groups, made explicit -- compare</span>
+<span class="sd">`autstr.composition.direct_product_closure`.</span>
+
+
+<span class="sd">**Groups with a cyclic subgroup of index &lt;= 2** (`IndexTwoCyclicGroups`):</span>
+<span class="sd">every such group is &lt;r, s | r^n, s^2 = r^w, s r s^-1 = r^u&gt; with u^2 = 1</span>
+<span class="sd">(mod n), and the classification yields six families over the cyclic part</span>
+<span class="sd">Z_n:</span>
+
+<span class="sd">    abelian       Z_2 x Z_n            u = 1        w = 0</span>
+<span class="sd">    cyclic        C_2n                 u = 1        w = 1</span>
+<span class="sd">    dihedral      D_n                  u = -1       w = 0</span>
+<span class="sd">    dicyclic      Dic (Q_2n)           u = -1       w = n/2   (n even)</span>
+<span class="sd">    semidihedral  SD_2n                u = n/2 - 1  w = 0     (n = 2^k &gt;= 4)</span>
+<span class="sd">    modular       M_2n                 u = n/2 + 1  w = 0     (n = 2^k &gt;= 4)</span>
+
+<span class="sd">The advice is one family symbol followed by the LSB-first binary digits of</span>
+<span class="sd">n; an element r^a s^e is encoded as the twist bit e followed by the digits</span>
+<span class="sd">of a. Multiplication obeys</span>
+
+<span class="sd">    (r^a s^e)(r^b s^f) = r^{a + u^e b + [e and f] w} s^{e xor f},</span>
+
+<span class="sd">and every ingredient is regular: modular addition is the usual carry</span>
+<span class="sd">automaton, conjugation is the identity, negation, or +/-x + (x mod 2)*(n/2)</span>
+<span class="sd">(the n/2-shift is advice-recognizable), and w is an advice-definable</span>
+<span class="sd">constant. The relation M(x,y,z) is *defined* from these primitives by a</span>
+<span class="sd">first-order formula — the uniform analog of the Büchi-arithmetic bootstrap.</span>
+
+<span class="sd">**Extraspecial p-groups** (`ExtraspecialGroups(p)`, p a fixed prime): the</span>
+<span class="sd">Heisenberg-type group of order p^(1+2n) has elements (c, a, b) with</span>
+<span class="sd">c in Z_p, a, b in Z_p^n and multiplication</span>
+
+<span class="sd">    (c, a, b)(c&#39;, a&#39;, b&#39;) = (c + c&#39; + &lt;a, b&#39;&gt;, a + a&#39;, b + b&#39;).</span>
+
+<span class="sd">For fixed p the bilinear correction &lt;a, b&#39;&gt; pairs digits *positionwise*, so</span>
+<span class="sd">it is a running sum mod p in the automaton state — nilpotency class 2 with</span>
+<span class="sd">growing rank is uniformly automatic, in contrast to growing modulus</span>
+<span class="sd">(Heisenberg over Z_n interprets modular multiplication and is not).</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">autstr.presentations</span><span class="w"> </span><span class="kn">import</span> <span class="n">AutomaticPresentation</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">autstr.sparse_automata</span><span class="w"> </span><span class="kn">import</span> <span class="n">SparseDFA</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">autstr.uniform</span><span class="w"> </span><span class="kn">import</span> <span class="n">UniformlyAutomaticClass</span><span class="p">,</span> <span class="n">dfa_from_delta</span>
+
+<span class="n">PAD</span> <span class="o">=</span> <span class="s1">&#39;*&#39;</span>
+<span class="n">SEP</span> <span class="o">=</span> <span class="s1">&#39;#&#39;</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_lsbf_bits</span><span class="p">(</span><span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;LSB-first binary digits of n &gt;= 1.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="nb">bin</span><span class="p">(</span><span class="n">n</span><span class="p">)[</span><span class="mi">2</span><span class="p">:][::</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+
+
+<span class="c1"># ====================================================================</span>
+<span class="c1"># Groups with a cyclic subgroup of index &lt;= 2</span>
+<span class="c1"># ====================================================================</span>
+
+<div class="viewcode-block" id="IndexTwoCyclicGroups">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.groups.IndexTwoCyclicGroups">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">IndexTwoCyclicGroups</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The uniformly automatic class of finite groups with a cyclic subgroup</span>
+<span class="sd">    of index &lt;= 2, in one advice format. Signature: M(x,y,z) [z = x*y],</span>
+<span class="sd">    T(x) [x is a twisted element r^a s], Eq(x,y), plus the primitives the</span>
+<span class="sd">    bootstrap is built from (CAdd, Conj, IsW, family predicates, ...).&quot;&quot;&quot;</span>
+
+    <span class="n">FAMILY_SYMBOLS</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;abelian&#39;</span><span class="p">:</span> <span class="s1">&#39;fA&#39;</span><span class="p">,</span> <span class="s1">&#39;cyclic&#39;</span><span class="p">:</span> <span class="s1">&#39;fC&#39;</span><span class="p">,</span> <span class="s1">&#39;dihedral&#39;</span><span class="p">:</span> <span class="s1">&#39;fD&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;dicyclic&#39;</span><span class="p">:</span> <span class="s1">&#39;fQ&#39;</span><span class="p">,</span> <span class="s1">&#39;semidihedral&#39;</span><span class="p">:</span> <span class="s1">&#39;fS&#39;</span><span class="p">,</span> <span class="s1">&#39;modular&#39;</span><span class="p">:</span> <span class="s1">&#39;fM&#39;</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">families</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">FAMILY_SYMBOLS</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">family_of</span> <span class="o">=</span> <span class="p">{</span><span class="n">sym</span><span class="p">:</span> <span class="n">fam</span> <span class="k">for</span> <span class="n">fam</span><span class="p">,</span> <span class="n">sym</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">families</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigma</span> <span class="o">=</span> <span class="p">{</span><span class="n">PAD</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">}</span> <span class="o">|</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">families</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+
+        <span class="n">automata</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;U&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_universe_automaton</span><span class="p">(),</span>
+            <span class="s1">&#39;T&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_twist_automaton</span><span class="p">(),</span>
+            <span class="s1">&#39;Odd&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_odd_automaton</span><span class="p">(),</span>
+            <span class="s1">&#39;CZero&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_czero_automaton</span><span class="p">(),</span>
+            <span class="s1">&#39;COne&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cone_automaton</span><span class="p">(),</span>
+            <span class="s1">&#39;CHalf&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_chalf_automaton</span><span class="p">(),</span>
+            <span class="s1">&#39;CEq&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ceq_automaton</span><span class="p">(),</span>
+            <span class="s1">&#39;Eq&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_eq_automaton</span><span class="p">(),</span>
+            <span class="s1">&#39;CAdd&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cadd_automaton</span><span class="p">(),</span>
+        <span class="p">}</span>
+        <span class="k">for</span> <span class="n">family</span><span class="p">,</span> <span class="n">symbol</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">families</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">automata</span><span class="p">[</span><span class="s1">&#39;F&#39;</span> <span class="o">+</span> <span class="n">symbol</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_family_automaton</span><span class="p">(</span><span class="n">symbol</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cls</span> <span class="o">=</span> <span class="n">UniformlyAutomaticClass</span><span class="p">(</span><span class="n">automata</span><span class="p">,</span> <span class="n">padding_symbol</span><span class="o">=</span><span class="n">PAD</span><span class="p">)</span>
+
+        <span class="c1"># Bootstrap: negation, conjugation by u, the constant w, and finally</span>
+        <span class="c1"># the group multiplication, all defined first-order from the primitives</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cls</span><span class="o">.</span><span class="n">define</span><span class="p">(</span><span class="s1">&#39;CNeg&#39;</span><span class="p">,</span> <span class="s1">&#39;exists o.(CZero(o) and CAdd(x,y,o))&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cls</span><span class="o">.</span><span class="n">define</span><span class="p">(</span><span class="s1">&#39;Conj&#39;</span><span class="p">,</span> <span class="p">(</span>
+            <span class="s1">&#39;((FA(x) or FC(x)) and CEq(x,y)) or &#39;</span>
+            <span class="s1">&#39;((FD(x) or FQ(x)) and CNeg(x,y)) or &#39;</span>
+            <span class="s1">&#39;(FS(x) and (((not Odd(x)) and CNeg(x,y)) or &#39;</span>
+            <span class="s1">&#39;  (Odd(x) and (exists h.(CHalf(h) and &#39;</span>
+            <span class="s1">&#39;    (exists m.(CNeg(x,m) and CAdd(h,m,y)))))))) or &#39;</span>
+            <span class="s1">&#39;(FM(x) and (((not Odd(x)) and CEq(x,y)) or &#39;</span>
+            <span class="s1">&#39;  (Odd(x) and (exists h.(CHalf(h) and CAdd(h,x,y))))))&#39;</span>
+        <span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cls</span><span class="o">.</span><span class="n">define</span><span class="p">(</span><span class="s1">&#39;IsW&#39;</span><span class="p">,</span> <span class="p">(</span>
+            <span class="s1">&#39;((FA(x) or FD(x) or FS(x) or FM(x)) and CZero(x)) or &#39;</span>
+            <span class="s1">&#39;(FC(x) and COne(x)) or (FQ(x) and CHalf(x))&#39;</span>
+        <span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cls</span><span class="o">.</span><span class="n">define</span><span class="p">(</span><span class="s1">&#39;M&#39;</span><span class="p">,</span> <span class="p">(</span>
+            <span class="s1">&#39;((not T(x)) and ((T(y) and T(z)) or ((not T(y)) and (not T(z)))) &#39;</span>
+            <span class="s1">&#39;  and CAdd(x,y,z)) or &#39;</span>
+            <span class="s1">&#39;(T(x) and (not T(y)) and T(z) and &#39;</span>
+            <span class="s1">&#39;  (exists a.(Conj(y,a) and CAdd(a,x,z)))) or &#39;</span>
+            <span class="s1">&#39;(T(x) and T(y) and (not T(z)) and &#39;</span>
+            <span class="s1">&#39;  (exists a.(Conj(y,a) and (exists w.(IsW(w) and &#39;</span>
+            <span class="s1">&#39;    (exists s.(CAdd(a,x,s) and CAdd(s,w,z))))))))&#39;</span>
+        <span class="p">))</span>
+
+    <span class="c1"># ---------------- presentation automata ----------------</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_universe_automaton</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseDFA</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;U(p, x): p = [family][canonical LSB binary of n] with the family&#39;s</span>
+<span class="sd">        side conditions (dicyclic: n even; semidihedral/modular: n a power of</span>
+<span class="sd">        two &gt;= 4); x = [twist bit][digits of a] with a &lt; n, exact length.&quot;&quot;&quot;</span>
+        <span class="n">families</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">families</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+        <span class="n">states</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span>
+            <span class="p">(</span><span class="s1">&#39;u&#39;</span><span class="p">,</span> <span class="n">fam</span><span class="p">,</span> <span class="n">cmp</span><span class="p">,</span> <span class="n">last</span><span class="p">,</span> <span class="n">ones</span><span class="p">,</span> <span class="n">first</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">fam</span> <span class="ow">in</span> <span class="n">families</span>
+            <span class="k">for</span> <span class="n">cmp</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;EQ&#39;</span><span class="p">,</span> <span class="s1">&#39;LT&#39;</span><span class="p">,</span> <span class="s1">&#39;GT&#39;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">last</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">ones</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">first</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;-&#39;</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span>
+        <span class="p">]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">sym</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;dead&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;start&#39;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">families</span> <span class="ow">and</span> <span class="n">x</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;u&#39;</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="s1">&#39;EQ&#39;</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;-&#39;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">fam</span><span class="p">,</span> <span class="n">cmp</span><span class="p">,</span> <span class="n">last</span><span class="p">,</span> <span class="n">ones</span><span class="p">,</span> <span class="n">first</span> <span class="o">=</span> <span class="n">q</span>
+            <span class="k">if</span> <span class="n">a</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">x</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">x</span> <span class="o">!=</span> <span class="n">a</span><span class="p">:</span>
+                    <span class="n">cmp</span> <span class="o">=</span> <span class="s1">&#39;LT&#39;</span> <span class="k">if</span> <span class="n">x</span> <span class="o">==</span> <span class="s1">&#39;0&#39;</span> <span class="k">else</span> <span class="s1">&#39;GT&#39;</span>
+                <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;u&#39;</span><span class="p">,</span> <span class="n">fam</span><span class="p">,</span> <span class="n">cmp</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">ones</span> <span class="o">+</span> <span class="nb">int</span><span class="p">(</span><span class="n">a</span><span class="p">)),</span>
+                        <span class="n">a</span> <span class="k">if</span> <span class="n">first</span> <span class="o">==</span> <span class="s1">&#39;-&#39;</span> <span class="k">else</span> <span class="n">first</span><span class="p">)</span>
+            <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">is_final</span><span class="p">(</span><span class="n">q</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">q</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;-&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">False</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">fam</span><span class="p">,</span> <span class="n">cmp</span><span class="p">,</span> <span class="n">last</span><span class="p">,</span> <span class="n">ones</span><span class="p">,</span> <span class="n">first</span> <span class="o">=</span> <span class="n">q</span>
+            <span class="k">if</span> <span class="n">last</span> <span class="o">!=</span> <span class="s1">&#39;1&#39;</span> <span class="ow">or</span> <span class="n">cmp</span> <span class="o">!=</span> <span class="s1">&#39;LT&#39;</span><span class="p">:</span>  <span class="c1"># canonical n, element &lt; n</span>
+                <span class="k">return</span> <span class="kc">False</span>
+            <span class="n">family</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">family_of</span><span class="p">[</span><span class="n">fam</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">family</span> <span class="o">==</span> <span class="s1">&#39;dicyclic&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">first</span> <span class="o">==</span> <span class="s1">&#39;0&#39;</span>  <span class="c1"># n even (and hence &gt;= 2)</span>
+            <span class="k">if</span> <span class="n">family</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;semidihedral&#39;</span><span class="p">,</span> <span class="s1">&#39;modular&#39;</span><span class="p">):</span>
+                <span class="c1"># n a power of two: exactly one 1-digit (the last); n &gt;= 4</span>
+                <span class="k">return</span> <span class="n">ones</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">first</span> <span class="o">==</span> <span class="s1">&#39;0&#39;</span>
+            <span class="k">return</span> <span class="kc">True</span>
+
+        <span class="n">finals</span> <span class="o">=</span> <span class="p">{</span><span class="n">q</span> <span class="k">for</span> <span class="n">q</span> <span class="ow">in</span> <span class="n">states</span> <span class="k">if</span> <span class="n">is_final</span><span class="p">(</span><span class="n">q</span><span class="p">)}</span>
+        <span class="k">return</span> <span class="n">dfa_from_delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="n">states</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="n">finals</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_twist_automaton</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseDFA</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;T(p, x): the twist bit of x is 1.&quot;&quot;&quot;</span>
+        <span class="n">families</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">families</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+        <span class="n">states</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="s1">&#39;yes&#39;</span><span class="p">,</span> <span class="s1">&#39;no&#39;</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">sym</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;start&#39;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">families</span> <span class="ow">and</span> <span class="n">x</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="s1">&#39;yes&#39;</span> <span class="k">if</span> <span class="n">x</span> <span class="o">==</span> <span class="s1">&#39;1&#39;</span> <span class="k">else</span> <span class="s1">&#39;no&#39;</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;yes&#39;</span><span class="p">,</span> <span class="s1">&#39;no&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">a</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">x</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">q</span>
+            <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+
+        <span class="k">return</span> <span class="n">dfa_from_delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="n">states</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;yes&#39;</span><span class="p">})</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_odd_automaton</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseDFA</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Odd(p, x): the least significant digit of a is 1.&quot;&quot;&quot;</span>
+        <span class="n">families</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">families</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+        <span class="n">states</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="s1">&#39;head&#39;</span><span class="p">,</span> <span class="s1">&#39;yes&#39;</span><span class="p">,</span> <span class="s1">&#39;no&#39;</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">sym</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;start&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;head&#39;</span> <span class="k">if</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">families</span> <span class="ow">and</span> <span class="n">x</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">a</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">x</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;head&#39;</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="s1">&#39;yes&#39;</span> <span class="k">if</span> <span class="n">x</span> <span class="o">==</span> <span class="s1">&#39;1&#39;</span> <span class="k">else</span> <span class="s1">&#39;no&#39;</span>
+                <span class="k">if</span> <span class="n">q</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;yes&#39;</span><span class="p">,</span> <span class="s1">&#39;no&#39;</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="n">q</span>
+            <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+
+        <span class="k">return</span> <span class="n">dfa_from_delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="n">states</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;yes&#39;</span><span class="p">})</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_czero_automaton</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseDFA</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;CZero(p, x): a = 0.&quot;&quot;&quot;</span>
+        <span class="n">families</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">families</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+        <span class="n">states</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="s1">&#39;zero&#39;</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">sym</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;start&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;zero&#39;</span> <span class="k">if</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">families</span> <span class="ow">and</span> <span class="n">x</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;zero&#39;</span> <span class="ow">and</span> <span class="n">a</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">x</span> <span class="o">==</span> <span class="s1">&#39;0&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;zero&#39;</span>
+            <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+
+        <span class="k">return</span> <span class="n">dfa_from_delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="n">states</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;zero&#39;</span><span class="p">})</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_cone_automaton</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseDFA</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;COne(p, x): a = 1 mod n (i.e. digits 100..0, or a = 0 when n = 1).&quot;&quot;&quot;</span>
+        <span class="n">families</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">families</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+        <span class="n">states</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="s1">&#39;head&#39;</span><span class="p">,</span> <span class="s1">&#39;is0&#39;</span><span class="p">,</span> <span class="s1">&#39;is1&#39;</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">sym</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;start&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;head&#39;</span> <span class="k">if</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">families</span> <span class="ow">and</span> <span class="n">x</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">a</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">x</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;head&#39;</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="s1">&#39;is1&#39;</span> <span class="k">if</span> <span class="n">x</span> <span class="o">==</span> <span class="s1">&#39;1&#39;</span> <span class="k">else</span> <span class="s1">&#39;is0&#39;</span>  <span class="c1"># is0: a=0 so far</span>
+                <span class="k">if</span> <span class="n">q</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;is0&#39;</span><span class="p">,</span> <span class="s1">&#39;is1&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">x</span> <span class="o">==</span> <span class="s1">&#39;0&#39;</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="s1">&#39;is1&#39;</span> <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;is1&#39;</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+
+        <span class="c1"># a = 0 with a single digit means n = 1, where 0 = 1 mod n</span>
+        <span class="k">return</span> <span class="n">dfa_from_delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="n">states</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;is1&#39;</span><span class="p">,</span> <span class="s1">&#39;is0&#39;</span><span class="p">})</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_chalf_automaton</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseDFA</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;CHalf(p, x): 2a = n, i.e. n_0 = 0, n_{i+1} = a_i and the top digit</span>
+<span class="sd">        of a is 0. Only satisfiable when n is even.&quot;&quot;&quot;</span>
+        <span class="n">families</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">families</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+        <span class="n">states</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="s1">&#39;head&#39;</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;s&#39;</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;s&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">),</span> <span class="s1">&#39;dead&#39;</span><span class="p">]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">sym</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;start&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;head&#39;</span> <span class="k">if</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">families</span> <span class="ow">and</span> <span class="n">x</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">a</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">x</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;head&#39;</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;s&#39;</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="k">if</span> <span class="n">a</span> <span class="o">==</span> <span class="s1">&#39;0&#39;</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>  <span class="c1"># n_0 must be 0</span>
+                <span class="n">prev</span> <span class="o">=</span> <span class="n">q</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;s&#39;</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="k">if</span> <span class="n">a</span> <span class="o">==</span> <span class="n">prev</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>  <span class="c1"># n_i = a_{i-1}</span>
+            <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+
+        <span class="c1"># top digit of a pending in the state must be 0 (2a has no overflow)</span>
+        <span class="k">return</span> <span class="n">dfa_from_delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="n">states</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="p">{(</span><span class="s1">&#39;s&#39;</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">)})</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_ceq_automaton</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseDFA</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;CEq(p, x, y): the cyclic parts agree (twist bits are ignored).&quot;&quot;&quot;</span>
+        <span class="n">families</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">families</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+        <span class="n">states</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="s1">&#39;eq&#39;</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">sym</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;start&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;eq&#39;</span> <span class="k">if</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">families</span> <span class="ow">and</span> <span class="n">x</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">y</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;eq&#39;</span> <span class="ow">and</span> <span class="n">a</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">x</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">x</span> <span class="o">==</span> <span class="n">y</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;eq&#39;</span>
+            <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+
+        <span class="k">return</span> <span class="n">dfa_from_delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="n">states</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;eq&#39;</span><span class="p">})</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_eq_automaton</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseDFA</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Eq(p, x, y): x and y are the same element (identical words).&quot;&quot;&quot;</span>
+        <span class="n">families</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">families</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+        <span class="n">states</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="s1">&#39;eq&#39;</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">sym</span>
+            <span class="k">if</span> <span class="n">x</span> <span class="o">!=</span> <span class="n">y</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;start&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;eq&#39;</span> <span class="k">if</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">families</span> <span class="ow">and</span> <span class="n">x</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;eq&#39;</span> <span class="ow">and</span> <span class="n">a</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">x</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">):</span>
+                <span class="k">return</span> <span class="s1">&#39;eq&#39;</span>
+            <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+
+        <span class="k">return</span> <span class="n">dfa_from_delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="n">states</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;eq&#39;</span><span class="p">})</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_cadd_automaton</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseDFA</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;CAdd(p, x, y, z): a_x + a_y = a_z (mod n), twist bits ignored.</span>
+<span class="sd">        Verified as a_x + a_y = a_z + q*n for a guessed wrap q in {0,1},</span>
+<span class="sd">        digit by digit LSB-first with one signed carry per branch.&quot;&quot;&quot;</span>
+        <span class="n">families</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">families</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+        <span class="n">carries</span> <span class="o">=</span> <span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;F&#39;</span><span class="p">]</span>
+        <span class="n">states</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[(</span><span class="s1">&#39;c&#39;</span><span class="p">,</span> <span class="n">c0</span><span class="p">,</span> <span class="n">c1</span><span class="p">)</span> <span class="k">for</span> <span class="n">c0</span> <span class="ow">in</span> <span class="n">carries</span> <span class="k">for</span> <span class="n">c1</span> <span class="ow">in</span> <span class="n">carries</span><span class="p">]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">step</span><span class="p">(</span><span class="n">carry</span><span class="p">,</span> <span class="n">n_bit</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">q</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">carry</span> <span class="o">==</span> <span class="s1">&#39;F&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;F&#39;</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">carry</span> <span class="o">+</span> <span class="n">x</span> <span class="o">+</span> <span class="n">y</span> <span class="o">-</span> <span class="n">z</span> <span class="o">-</span> <span class="n">q</span> <span class="o">*</span> <span class="n">n_bit</span>
+            <span class="k">if</span> <span class="n">s</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;F&#39;</span>
+            <span class="n">s</span> <span class="o">//=</span> <span class="mi">2</span>
+            <span class="k">return</span> <span class="n">s</span> <span class="k">if</span> <span class="o">-</span><span class="mi">2</span> <span class="o">&lt;=</span> <span class="n">s</span> <span class="o">&lt;=</span> <span class="mi">2</span> <span class="k">else</span> <span class="s1">&#39;F&#39;</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span> <span class="o">=</span> <span class="n">sym</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;dead&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;start&#39;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">families</span> <span class="ow">and</span> <span class="nb">all</span><span class="p">(</span><span class="n">s</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">)):</span>
+                    <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;c&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">a</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">all</span><span class="p">(</span><span class="n">s</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">)):</span>
+                <span class="n">bits</span> <span class="o">=</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">a</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">y</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">z</span><span class="p">))</span>
+                <span class="n">c0</span><span class="p">,</span> <span class="n">c1</span> <span class="o">=</span> <span class="n">step</span><span class="p">(</span><span class="n">q</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="o">*</span><span class="n">bits</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">step</span><span class="p">(</span><span class="n">q</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="o">*</span><span class="n">bits</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;c&#39;</span><span class="p">,</span> <span class="n">c0</span><span class="p">,</span> <span class="n">c1</span><span class="p">)</span> <span class="k">if</span> <span class="p">(</span><span class="n">c0</span><span class="p">,</span> <span class="n">c1</span><span class="p">)</span> <span class="o">!=</span> <span class="p">(</span><span class="s1">&#39;F&#39;</span><span class="p">,</span> <span class="s1">&#39;F&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+
+        <span class="n">finals</span> <span class="o">=</span> <span class="p">{(</span><span class="s1">&#39;c&#39;</span><span class="p">,</span> <span class="n">c0</span><span class="p">,</span> <span class="n">c1</span><span class="p">)</span> <span class="k">for</span> <span class="n">c0</span> <span class="ow">in</span> <span class="n">carries</span> <span class="k">for</span> <span class="n">c1</span> <span class="ow">in</span> <span class="n">carries</span> <span class="k">if</span> <span class="mi">0</span> <span class="ow">in</span> <span class="p">(</span><span class="n">c0</span><span class="p">,</span> <span class="n">c1</span><span class="p">)}</span>
+        <span class="k">return</span> <span class="n">dfa_from_delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="n">states</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="n">finals</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_family_automaton</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">symbol</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseDFA</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;F*(p, x): the advice belongs to the given family (x is ignored).&quot;&quot;&quot;</span>
+        <span class="n">families</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">families</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+        <span class="n">states</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="s1">&#39;yes&#39;</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">sym</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;start&#39;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">families</span> <span class="ow">and</span> <span class="n">x</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="s1">&#39;yes&#39;</span> <span class="k">if</span> <span class="n">a</span> <span class="o">==</span> <span class="n">symbol</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;yes&#39;</span> <span class="ow">and</span> <span class="n">a</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">x</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">):</span>
+                <span class="k">return</span> <span class="s1">&#39;yes&#39;</span>
+            <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+
+        <span class="k">return</span> <span class="n">dfa_from_delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="n">states</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;yes&#39;</span><span class="p">})</span>
+
+    <span class="c1"># ---------------- encodings and class operations ----------------</span>
+
+<div class="viewcode-block" id="IndexTwoCyclicGroups.advice">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.groups.IndexTwoCyclicGroups.advice">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">advice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">family</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Advice string of the group in the given family over Z_n.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">family</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">families</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;unknown family </span><span class="si">{</span><span class="n">family</span><span class="si">!r}</span><span class="s2">; choose from </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">families</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">n</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;cyclic part order must be &gt;= 1&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">family</span> <span class="o">==</span> <span class="s1">&#39;dicyclic&#39;</span> <span class="ow">and</span> <span class="n">n</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;dicyclic groups need an even cyclic part&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">family</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;semidihedral&#39;</span><span class="p">,</span> <span class="s1">&#39;modular&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">n</span> <span class="o">&lt;</span> <span class="mi">4</span> <span class="ow">or</span> <span class="n">n</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">family</span><span class="si">}</span><span class="s2"> groups need n a power of two &gt;= 4&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">families</span><span class="p">[</span><span class="n">family</span><span class="p">]]</span> <span class="o">+</span> <span class="n">_lsbf_bits</span><span class="p">(</span><span class="n">n</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="IndexTwoCyclicGroups.dihedral">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.groups.IndexTwoCyclicGroups.dihedral">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">dihedral</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;D_n of order 2n.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">advice</span><span class="p">(</span><span class="s1">&#39;dihedral&#39;</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="IndexTwoCyclicGroups.dicyclic">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.groups.IndexTwoCyclicGroups.dicyclic">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">dicyclic</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Dicyclic group of order 2n over Z_n (n even); n = 4 is Q_8.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">advice</span><span class="p">(</span><span class="s1">&#39;dicyclic&#39;</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="IndexTwoCyclicGroups.semidihedral">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.groups.IndexTwoCyclicGroups.semidihedral">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">semidihedral</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;SD of order 2n over Z_n, n = 2^k &gt;= 4.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">advice</span><span class="p">(</span><span class="s1">&#39;semidihedral&#39;</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="IndexTwoCyclicGroups.modular">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.groups.IndexTwoCyclicGroups.modular">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">modular</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Modular maximal-cyclic group of order 2n over Z_n, n = 2^k &gt;= 4.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">advice</span><span class="p">(</span><span class="s1">&#39;modular&#39;</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="IndexTwoCyclicGroups.cyclic">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.groups.IndexTwoCyclicGroups.cyclic">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">cyclic</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;C_2n presented over the index-2 subgroup Z_n.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">advice</span><span class="p">(</span><span class="s1">&#39;cyclic&#39;</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="IndexTwoCyclicGroups.abelian">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.groups.IndexTwoCyclicGroups.abelian">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">abelian</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Z_2 x Z_n.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">advice</span><span class="p">(</span><span class="s1">&#39;abelian&#39;</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="IndexTwoCyclicGroups.parameters">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.groups.IndexTwoCyclicGroups.parameters">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">advice</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;(family, n) described by an advice string.&quot;&quot;&quot;</span>
+        <span class="n">family</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">family_of</span><span class="p">[</span><span class="n">advice</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="o">&lt;&lt;</span> <span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">advice</span><span class="p">[</span><span class="mi">1</span><span class="p">:]))</span>
+        <span class="k">return</span> <span class="n">family</span><span class="p">,</span> <span class="n">n</span></div>
+
+
+<div class="viewcode-block" id="IndexTwoCyclicGroups.encode">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.groups.IndexTwoCyclicGroups.encode">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span> <span class="n">advice</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Encode r^a s^e, given as (e, a), for the group of the advice.&quot;&quot;&quot;</span>
+        <span class="n">e</span><span class="p">,</span> <span class="n">a</span> <span class="o">=</span> <span class="n">element</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">n</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">(</span><span class="n">advice</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">e</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">a</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;(</span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">a</span><span class="si">}</span><span class="s2">) is not an element (twist in </span><span class="se">{{</span><span class="s2">0,1</span><span class="se">}}</span><span class="s2">, 0 &lt;= a &lt; </span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+        <span class="n">digits</span> <span class="o">=</span> <span class="n">_lsbf_bits</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="k">if</span> <span class="n">a</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="p">[</span><span class="s1">&#39;0&#39;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)]</span> <span class="o">+</span> <span class="n">digits</span> <span class="o">+</span> <span class="p">[</span><span class="s1">&#39;0&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">advice</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">digits</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="IndexTwoCyclicGroups.multiply">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.groups.IndexTwoCyclicGroups.multiply">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">multiply</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">advice</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">g</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span> <span class="n">h</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reference implementation of the group law (for testing/decoding).&quot;&quot;&quot;</span>
+        <span class="n">family</span><span class="p">,</span> <span class="n">n</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">(</span><span class="n">advice</span><span class="p">)</span>
+        <span class="n">u</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;abelian&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;cyclic&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;dihedral&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;dicyclic&#39;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+             <span class="s1">&#39;semidihedral&#39;</span><span class="p">:</span> <span class="n">n</span> <span class="o">//</span> <span class="mi">2</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;modular&#39;</span><span class="p">:</span> <span class="n">n</span> <span class="o">//</span> <span class="mi">2</span> <span class="o">+</span> <span class="mi">1</span><span class="p">}[</span><span class="n">family</span><span class="p">]</span>
+        <span class="n">w</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;abelian&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;cyclic&#39;</span><span class="p">:</span> <span class="mi">1</span> <span class="o">%</span> <span class="n">n</span><span class="p">,</span> <span class="s1">&#39;dihedral&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;dicyclic&#39;</span><span class="p">:</span> <span class="n">n</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span>
+             <span class="s1">&#39;semidihedral&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;modular&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}[</span><span class="n">family</span><span class="p">]</span>
+        <span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="n">a</span><span class="p">),</span> <span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span> <span class="o">=</span> <span class="n">g</span><span class="p">,</span> <span class="n">h</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="p">(</span><span class="n">a</span> <span class="o">+</span> <span class="p">(</span><span class="n">u</span> <span class="o">*</span> <span class="n">b</span> <span class="k">if</span> <span class="n">e</span> <span class="k">else</span> <span class="n">b</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">w</span> <span class="k">if</span> <span class="n">e</span> <span class="ow">and</span> <span class="n">f</span> <span class="k">else</span> <span class="mi">0</span><span class="p">))</span> <span class="o">%</span> <span class="n">n</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">e</span> <span class="o">^</span> <span class="n">f</span><span class="p">,</span> <span class="n">c</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="IndexTwoCyclicGroups.evaluate">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.groups.IndexTwoCyclicGroups.evaluate">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">evaluate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">phi</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">SparseDFA</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="IndexTwoCyclicGroups.check">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.groups.IndexTwoCyclicGroups.check">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">check</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">phi</span><span class="p">,</span> <span class="n">advice</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="o">**</span><span class="n">elements</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Model check against one group; free variables can be assigned</span>
+<span class="sd">        elements as (twist, exponent) pairs.&quot;&quot;&quot;</span>
+        <span class="n">words</span> <span class="o">=</span> <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">el</span><span class="p">,</span> <span class="n">advice</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">el</span> <span class="ow">in</span> <span class="n">elements</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls</span><span class="o">.</span><span class="n">check</span><span class="p">(</span><span class="n">phi</span><span class="p">,</span> <span class="n">advice</span><span class="p">,</span> <span class="o">**</span><span class="n">words</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="IndexTwoCyclicGroups.get_structure">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.groups.IndexTwoCyclicGroups.get_structure">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_structure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">advice</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">AutomaticPresentation</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls</span><span class="o">.</span><span class="n">get_structure</span><span class="p">(</span><span class="n">advice</span><span class="p">)</span></div>
+</div>
+
+
+
+<span class="c1"># ====================================================================</span>
+<span class="c1"># Extraspecial p-groups (fixed p, growing rank)</span>
+<span class="c1"># ====================================================================</span>
+
+<div class="viewcode-block" id="ExtraspecialGroups">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.groups.ExtraspecialGroups">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ExtraspecialGroups</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;For a fixed prime p, the uniformly automatic class of Heisenberg-type</span>
+<span class="sd">    groups of order p^(1+2n): elements (c, a, b) with c in Z_p and</span>
+<span class="sd">    a, b in Z_p^n, multiplied as (c,a,b)(c&#39;,a&#39;,b&#39;) =</span>
+<span class="sd">    (c + c&#39; + &lt;a,b&#39;&gt;, a + a&#39;, b + b&#39;). Advice: the unary word 1^(n+1).</span>
+<span class="sd">    Signature: M(x,y,z), Cen(x) [x is central], Eq(x,y).&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">p</span> <span class="o">&lt;</span> <span class="mi">2</span> <span class="ow">or</span> <span class="nb">any</span><span class="p">(</span><span class="n">p</span> <span class="o">%</span> <span class="n">d</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">p</span> <span class="o">**</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;p must be prime, got </span><span class="si">{</span><span class="n">p</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p</span> <span class="o">=</span> <span class="n">p</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">digits</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">p</span><span class="p">)]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pairs</span> <span class="o">=</span> <span class="p">{</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">d</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">p</span><span class="p">)}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigma</span> <span class="o">=</span> <span class="p">{</span><span class="n">PAD</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">}</span> <span class="o">|</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">digits</span><span class="p">)</span> <span class="o">|</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pairs</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">cls</span> <span class="o">=</span> <span class="n">UniformlyAutomaticClass</span><span class="p">({</span>
+            <span class="s1">&#39;U&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_universe_automaton</span><span class="p">(),</span>
+            <span class="s1">&#39;M&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_multiplication_automaton</span><span class="p">(),</span>
+            <span class="s1">&#39;Cen&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_center_automaton</span><span class="p">(),</span>
+            <span class="s1">&#39;Eq&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_eq_automaton</span><span class="p">(),</span>
+        <span class="p">},</span> <span class="n">padding_symbol</span><span class="o">=</span><span class="n">PAD</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_universe_automaton</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseDFA</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;U(p, x): x = [c-digit][(a_i, b_i) pairs], exactly advice length.&quot;&quot;&quot;</span>
+        <span class="n">states</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="s1">&#39;ok&#39;</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">sym</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;start&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;ok&#39;</span> <span class="k">if</span> <span class="n">a</span> <span class="o">==</span> <span class="s1">&#39;1&#39;</span> <span class="ow">and</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">digits</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;ok&#39;</span> <span class="ow">and</span> <span class="n">a</span> <span class="o">==</span> <span class="s1">&#39;1&#39;</span> <span class="ow">and</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">pairs</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;ok&#39;</span>
+            <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+
+        <span class="k">return</span> <span class="n">dfa_from_delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="n">states</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;ok&#39;</span><span class="p">})</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_multiplication_automaton</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseDFA</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;M(p, x, y, z): componentwise addition mod p, with the symplectic</span>
+<span class="sd">        correction &lt;a_x, b_y&gt; accumulated as a running deficit of the center</span>
+<span class="sd">        digit: accept iff c_z - c_x - c_y - sum_i a_x,i * b_y,i = 0 (mod p).&quot;&quot;&quot;</span>
+        <span class="n">states</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="p">[(</span><span class="s1">&#39;d&#39;</span><span class="p">,</span> <span class="n">r</span><span class="p">)</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="p">)]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span> <span class="o">=</span> <span class="n">sym</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;dead&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;start&#39;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">a</span> <span class="o">==</span> <span class="s1">&#39;1&#39;</span> <span class="ow">and</span> <span class="nb">all</span><span class="p">(</span><span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">digits</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">)):</span>
+                    <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;d&#39;</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">z</span><span class="p">)</span> <span class="o">-</span> <span class="nb">int</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">-</span> <span class="nb">int</span><span class="p">(</span><span class="n">y</span><span class="p">))</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="p">)</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">a</span> <span class="o">==</span> <span class="s1">&#39;1&#39;</span> <span class="ow">and</span> <span class="nb">all</span><span class="p">(</span><span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">pairs</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">)):</span>
+                <span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">bx</span><span class="p">),</span> <span class="p">(</span><span class="n">ay</span><span class="p">,</span> <span class="n">by</span><span class="p">),</span> <span class="p">(</span><span class="n">az</span><span class="p">,</span> <span class="n">bz</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pairs</span><span class="p">[</span><span class="n">x</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">pairs</span><span class="p">[</span><span class="n">y</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">pairs</span><span class="p">[</span><span class="n">z</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">az</span> <span class="o">!=</span> <span class="p">(</span><span class="n">ax</span> <span class="o">+</span> <span class="n">ay</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span> <span class="ow">or</span> <span class="n">bz</span> <span class="o">!=</span> <span class="p">(</span><span class="n">bx</span> <span class="o">+</span> <span class="n">by</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+                <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;d&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">q</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">ax</span> <span class="o">*</span> <span class="n">by</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="p">)</span>
+            <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+
+        <span class="k">return</span> <span class="n">dfa_from_delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="n">states</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="p">{(</span><span class="s1">&#39;d&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)})</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_center_automaton</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseDFA</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Cen(p, x): a = b = 0 (x is central).&quot;&quot;&quot;</span>
+        <span class="n">states</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="s1">&#39;ok&#39;</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">]</span>
+        <span class="n">zero_pair</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;0_0&quot;</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">sym</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;start&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;ok&#39;</span> <span class="k">if</span> <span class="n">a</span> <span class="o">==</span> <span class="s1">&#39;1&#39;</span> <span class="ow">and</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">digits</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;ok&#39;</span> <span class="ow">and</span> <span class="n">a</span> <span class="o">==</span> <span class="s1">&#39;1&#39;</span> <span class="ow">and</span> <span class="n">x</span> <span class="o">==</span> <span class="n">zero_pair</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;ok&#39;</span>
+            <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+
+        <span class="k">return</span> <span class="n">dfa_from_delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="n">states</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;ok&#39;</span><span class="p">})</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_eq_automaton</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseDFA</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Eq(p, x, y): identical elements.&quot;&quot;&quot;</span>
+        <span class="n">states</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="s1">&#39;eq&#39;</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">sym</span>
+            <span class="k">if</span> <span class="n">x</span> <span class="o">!=</span> <span class="n">y</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;start&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;eq&#39;</span> <span class="k">if</span> <span class="n">a</span> <span class="o">==</span> <span class="s1">&#39;1&#39;</span> <span class="ow">and</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">digits</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;eq&#39;</span> <span class="ow">and</span> <span class="n">a</span> <span class="o">==</span> <span class="s1">&#39;1&#39;</span> <span class="ow">and</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">pairs</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;eq&#39;</span>
+            <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+
+        <span class="k">return</span> <span class="n">dfa_from_delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="n">states</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="s1">&#39;start&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;eq&#39;</span><span class="p">})</span>
+
+    <span class="c1"># ---------------- encodings and class operations ----------------</span>
+
+<div class="viewcode-block" id="ExtraspecialGroups.advice">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.groups.ExtraspecialGroups.advice">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">advice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Advice string of the extraspecial group of order p^(1+2n).&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">n</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;rank must be &gt;= 0&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[</span><span class="s1">&#39;1&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">n</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ExtraspecialGroups.encode">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.groups.ExtraspecialGroups.encode">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Encode (c, a_vector, b_vector) for the rank-n group.&quot;&quot;&quot;</span>
+        <span class="n">c</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="o">=</span> <span class="n">element</span>
+        <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">a</span><span class="p">),</span> <span class="nb">list</span><span class="p">(</span><span class="n">b</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="o">!=</span> <span class="n">n</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="o">!=</span> <span class="n">n</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;vectors must have length </span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">c</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span> <span class="ow">and</span> <span class="nb">all</span><span class="p">(</span><span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">v</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">a</span> <span class="o">+</span> <span class="n">b</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;components must lie in Z_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">c</span><span class="p">)]</span> <span class="o">+</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">ai</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">bi</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">ai</span><span class="p">,</span> <span class="n">bi</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)]</span></div>
+
+
+<div class="viewcode-block" id="ExtraspecialGroups.multiply">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.groups.ExtraspecialGroups.multiply">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">multiply</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">g</span><span class="p">,</span> <span class="n">h</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reference implementation of the group law.&quot;&quot;&quot;</span>
+        <span class="p">(</span><span class="n">c1</span><span class="p">,</span> <span class="n">a1</span><span class="p">,</span> <span class="n">b1</span><span class="p">),</span> <span class="p">(</span><span class="n">c2</span><span class="p">,</span> <span class="n">a2</span><span class="p">,</span> <span class="n">b2</span><span class="p">)</span> <span class="o">=</span> <span class="n">g</span><span class="p">,</span> <span class="n">h</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="p">(</span><span class="n">c1</span> <span class="o">+</span> <span class="n">c2</span> <span class="o">+</span> <span class="nb">sum</span><span class="p">(</span><span class="n">x</span> <span class="o">*</span> <span class="n">y</span> <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">a1</span><span class="p">,</span> <span class="n">b2</span><span class="p">)))</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">((</span><span class="n">x</span> <span class="o">+</span> <span class="n">y</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span> <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">a1</span><span class="p">,</span> <span class="n">a2</span><span class="p">))</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">((</span><span class="n">x</span> <span class="o">+</span> <span class="n">y</span><span class="p">)</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span> <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">b1</span><span class="p">,</span> <span class="n">b2</span><span class="p">))</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ExtraspecialGroups.evaluate">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.groups.ExtraspecialGroups.evaluate">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">evaluate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">phi</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">SparseDFA</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ExtraspecialGroups.check">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.groups.ExtraspecialGroups.check">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">check</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">phi</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">**</span><span class="n">elements</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Model check against the rank-n group; free variables can be</span>
+<span class="sd">        assigned elements as (c, a_vector, b_vector) triples.&quot;&quot;&quot;</span>
+        <span class="n">words</span> <span class="o">=</span> <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">el</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">el</span> <span class="ow">in</span> <span class="n">elements</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls</span><span class="o">.</span><span class="n">check</span><span class="p">(</span><span class="n">phi</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">advice</span><span class="p">(</span><span class="n">n</span><span class="p">),</span> <span class="o">**</span><span class="n">words</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ExtraspecialGroups.get_structure">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.groups.ExtraspecialGroups.get_structure">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_structure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AutomaticPresentation</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls</span><span class="o">.</span><span class="n">get_structure</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">advice</span><span class="p">(</span><span class="n">n</span><span class="p">))</span></div>
+</div>
+
+
+
+<span class="c1"># ====================================================================</span>
+<span class="c1"># Finite abelian groups</span>
+<span class="c1"># ====================================================================</span>
+
+<div class="viewcode-block" id="FiniteAbelianGroups">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.groups.FiniteAbelianGroups">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">FiniteAbelianGroups</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The uniformly automatic class of all finite abelian groups, presented</span>
+<span class="sd">    by their cyclic decompositions: the group Z_{n_1} ⊕ ... ⊕ Z_{n_k} has</span>
+<span class="sd">    advice bin(n_1)# ... bin(n_k)# (LSB-first binary per block).&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigma</span> <span class="o">=</span> <span class="p">{</span><span class="n">PAD</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">,</span> <span class="n">SEP</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cls</span> <span class="o">=</span> <span class="n">UniformlyAutomaticClass</span><span class="p">({</span>
+            <span class="s1">&#39;U&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_universe_automaton</span><span class="p">(),</span>
+            <span class="s1">&#39;A&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_addition_automaton</span><span class="p">(),</span>
+        <span class="p">},</span> <span class="n">padding_symbol</span><span class="o">=</span><span class="n">PAD</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_universe_automaton</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseDFA</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;U(p, x): p is a sequence of canonical nonempty binary blocks (MSB</span>
+<span class="sd">        1 last, so each block denotes some n &gt;= 1) and per block the element</span>
+<span class="sd">        digits denote a value &lt; n. LSB-first comparison: the last differing</span>
+<span class="sd">        digit decides.&quot;&quot;&quot;</span>
+        <span class="n">states</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;between&#39;</span><span class="p">,</span> <span class="s1">&#39;pad&#39;</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">]</span>
+        <span class="n">states</span> <span class="o">+=</span> <span class="p">[(</span><span class="s1">&#39;c&#39;</span><span class="p">,</span> <span class="n">cmp</span><span class="p">,</span> <span class="n">msb</span><span class="p">)</span> <span class="k">for</span> <span class="n">cmp</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;EQ&#39;</span><span class="p">,</span> <span class="s1">&#39;LT&#39;</span><span class="p">,</span> <span class="s1">&#39;GT&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">msb</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">sym</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;dead&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;pad&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;pad&#39;</span> <span class="k">if</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="n">PAD</span><span class="p">,</span> <span class="n">PAD</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">a</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">x</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">):</span>
+                <span class="n">cmp</span> <span class="o">=</span> <span class="n">q</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="n">q</span> <span class="o">!=</span> <span class="s1">&#39;between&#39;</span> <span class="k">else</span> <span class="s1">&#39;EQ&#39;</span>
+                <span class="k">if</span> <span class="n">x</span> <span class="o">!=</span> <span class="n">a</span><span class="p">:</span>
+                    <span class="n">cmp</span> <span class="o">=</span> <span class="s1">&#39;LT&#39;</span> <span class="k">if</span> <span class="n">x</span> <span class="o">==</span> <span class="s1">&#39;0&#39;</span> <span class="k">else</span> <span class="s1">&#39;GT&#39;</span>
+                <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;c&#39;</span><span class="p">,</span> <span class="n">cmp</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">a</span><span class="p">))</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="n">SEP</span><span class="p">,</span> <span class="n">SEP</span><span class="p">):</span>
+                <span class="c1"># block ends: canonical (msb 1) and element value &lt; n</span>
+                <span class="k">if</span> <span class="n">q</span> <span class="o">!=</span> <span class="s1">&#39;between&#39;</span> <span class="ow">and</span> <span class="n">q</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;LT&#39;</span> <span class="ow">and</span> <span class="n">q</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="s1">&#39;between&#39;</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="n">PAD</span><span class="p">,</span> <span class="n">PAD</span><span class="p">)</span> <span class="ow">and</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;between&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;pad&#39;</span>
+            <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+
+        <span class="k">return</span> <span class="n">dfa_from_delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="n">states</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="s1">&#39;between&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;between&#39;</span><span class="p">,</span> <span class="s1">&#39;pad&#39;</span><span class="p">})</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_addition_automaton</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseDFA</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;A(p, x, y, z): per block, x + y = z + b*n for some b in {0,1}</span>
+<span class="sd">        (i.e. z = x + y mod n), checked digit by digit LSB-first with one</span>
+<span class="sd">        signed carry per branch b.&quot;&quot;&quot;</span>
+        <span class="n">carries</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span> <span class="o">+</span> <span class="p">[</span><span class="s1">&#39;F&#39;</span><span class="p">]</span>
+        <span class="n">states</span> <span class="o">=</span> <span class="p">[(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="n">c0</span><span class="p">,</span> <span class="n">c1</span><span class="p">)</span> <span class="k">for</span> <span class="n">c0</span> <span class="ow">in</span> <span class="n">carries</span> <span class="k">for</span> <span class="n">c1</span> <span class="ow">in</span> <span class="n">carries</span><span class="p">]</span>
+        <span class="n">states</span> <span class="o">+=</span> <span class="p">[</span><span class="s1">&#39;pad&#39;</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">step</span><span class="p">(</span><span class="n">carry</span><span class="p">,</span> <span class="n">n_bit</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">carry</span> <span class="o">==</span> <span class="s1">&#39;F&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;F&#39;</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">carry</span> <span class="o">+</span> <span class="n">x</span> <span class="o">+</span> <span class="n">y</span> <span class="o">-</span> <span class="n">z</span> <span class="o">-</span> <span class="n">b</span> <span class="o">*</span> <span class="n">n_bit</span>
+            <span class="k">if</span> <span class="n">s</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;F&#39;</span>
+            <span class="n">s</span> <span class="o">//=</span> <span class="mi">2</span>
+            <span class="k">return</span> <span class="n">s</span> <span class="k">if</span> <span class="o">-</span><span class="mi">2</span> <span class="o">&lt;=</span> <span class="n">s</span> <span class="o">&lt;=</span> <span class="mi">2</span> <span class="k">else</span> <span class="s1">&#39;F&#39;</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span> <span class="o">=</span> <span class="n">sym</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;dead&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;pad&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;pad&#39;</span> <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">s</span> <span class="o">==</span> <span class="n">PAD</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">sym</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="n">c0</span><span class="p">,</span> <span class="n">c1</span> <span class="o">=</span> <span class="n">q</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">q</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">a</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">all</span><span class="p">(</span><span class="n">s</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">)):</span>
+                <span class="n">bits</span> <span class="o">=</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">a</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">y</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">z</span><span class="p">))</span>
+                <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="n">step</span><span class="p">(</span><span class="n">c0</span><span class="p">,</span> <span class="o">*</span><span class="n">bits</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">step</span><span class="p">(</span><span class="n">c1</span><span class="p">,</span> <span class="o">*</span><span class="n">bits</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+            <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">s</span> <span class="o">==</span> <span class="n">SEP</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">sym</span><span class="p">):</span>
+                <span class="c1"># block ends: some branch must close with carry 0</span>
+                <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="k">if</span> <span class="mi">0</span> <span class="ow">in</span> <span class="p">(</span><span class="n">c0</span><span class="p">,</span> <span class="n">c1</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">s</span> <span class="o">==</span> <span class="n">PAD</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">sym</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">c0</span><span class="p">,</span> <span class="n">c1</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">):</span>
+                <span class="k">return</span> <span class="s1">&#39;pad&#39;</span>
+            <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+
+        <span class="k">return</span> <span class="n">dfa_from_delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="n">states</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+                              <span class="p">{(</span><span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="s1">&#39;pad&#39;</span><span class="p">})</span>
+
+    <span class="c1"># ---------------- encodings and class operations ----------------</span>
+
+<div class="viewcode-block" id="FiniteAbelianGroups.advice">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.groups.FiniteAbelianGroups.advice">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">advice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">orders</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Advice string of Z_{n_1} ⊕ ... ⊕ Z_{n_k}.&quot;&quot;&quot;</span>
+        <span class="n">word</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">orders</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">n</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;cyclic factor orders must be &gt;= 1&quot;</span><span class="p">)</span>
+            <span class="n">word</span> <span class="o">+=</span> <span class="n">_lsbf_bits</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="o">+</span> <span class="p">[</span><span class="n">SEP</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">word</span></div>
+
+
+<div class="viewcode-block" id="FiniteAbelianGroups.encode">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.groups.FiniteAbelianGroups.encode">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span> <span class="n">orders</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Encode a group element (one value per cyclic factor).&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+            <span class="n">element</span> <span class="o">=</span> <span class="p">(</span><span class="n">element</span><span class="p">,)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">element</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">orders</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;element has </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">element</span><span class="p">)</span><span class="si">}</span><span class="s2"> components, group has </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">orders</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">word</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">a</span><span class="p">,</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="n">orders</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">a</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;component </span><span class="si">{</span><span class="n">a</span><span class="si">}</span><span class="s2"> not in Z_</span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">block_len</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">_lsbf_bits</span><span class="p">(</span><span class="n">n</span><span class="p">))</span>
+            <span class="n">digits</span> <span class="o">=</span> <span class="n">_lsbf_bits</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="k">if</span> <span class="n">a</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="p">[</span><span class="s1">&#39;0&#39;</span><span class="p">]</span>
+            <span class="n">word</span> <span class="o">+=</span> <span class="n">digits</span> <span class="o">+</span> <span class="p">[</span><span class="s1">&#39;0&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">block_len</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">digits</span><span class="p">))</span> <span class="o">+</span> <span class="p">[</span><span class="n">SEP</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">word</span></div>
+
+
+<div class="viewcode-block" id="FiniteAbelianGroups.evaluate">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.groups.FiniteAbelianGroups.evaluate">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">evaluate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">phi</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">SparseDFA</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="FiniteAbelianGroups.check">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.groups.FiniteAbelianGroups.check">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">check</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">phi</span><span class="p">,</span> <span class="n">orders</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="o">**</span><span class="n">elements</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Model check against Z_{n_1} ⊕ ... ⊕ Z_{n_k}; free variables can be</span>
+<span class="sd">        assigned group elements (tuples with one value per factor, or a</span>
+<span class="sd">        single int for a cyclic group).&quot;&quot;&quot;</span>
+        <span class="n">words</span> <span class="o">=</span> <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="n">orders</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">elements</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls</span><span class="o">.</span><span class="n">check</span><span class="p">(</span><span class="n">phi</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">advice</span><span class="p">(</span><span class="n">orders</span><span class="p">),</span> <span class="o">**</span><span class="n">words</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="FiniteAbelianGroups.get_structure">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.groups.FiniteAbelianGroups.get_structure">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_structure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">orders</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">AutomaticPresentation</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls</span><span class="o">.</span><span class="n">get_structure</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">advice</span><span class="p">(</span><span class="n">orders</span><span class="p">))</span></div>
+</div>
+
+</pre></div>
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2022-2026, Faried Abu Zaid
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer no-toc">
+      
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=acc74ff5"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>

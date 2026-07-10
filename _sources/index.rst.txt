@@ -1,16 +1,16 @@
-.. AutStr documentation master file, created by
-   sphinx-quickstart on Sat Aug 20 23:16:55 2022.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+AutStr: computing with infinite structures
+==========================================
 
-AutStr: A library to work with infinite data structures
-=======================================================
+AutStr represents infinite mathematical structures as finite automata and lets
+you query them with first-order and monadic second-order logic. See the
+`README <https://github.com/fariedabuzaid/AutStr>`_ for a tour; this site is the
+API reference, generated from the docstrings.
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: API reference
 
-   modules
+   api/modules
 
 Indices and tables
 ==================

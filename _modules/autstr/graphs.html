@@ -1,0 +1,1077 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
+
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+        <title>autstr.graphs - AutStr 3.0.0</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../index.html"><div class="brand">AutStr 3.0.0</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../index.html">
+  
+  <span class="sidebar-brand-text">AutStr 3.0.0</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">API reference</span></p>
+<ul>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../api/modules.html">autstr</a><input aria-label="Toggle navigation of autstr" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../../api/autstr.html">autstr package</a><input aria-label="Toggle navigation of autstr package" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><span class="icon"><svg><use href="#svg-arrow-right"></use></svg></span></label><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../api/autstr.buildin.html">autstr.buildin package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../api/autstr.utils.html">autstr.utils package</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <h1>Source code for autstr.graphs</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Graphs of bounded tree-depth and bounded pathwidth as uniformly automatic</span>
+<span class="sd">classes.</span>
+
+<span class="sd">Both classes present graphs over *sets* of vertices (as in MSO0), so</span>
+<span class="sd">first-order logic over the presentation is monadic second-order logic over</span>
+<span class="sd">the graph. The shared signature is</span>
+
+<span class="sd">    Sing(x)      x is a singleton</span>
+<span class="sd">    Subset(x,y)  x is a subset of y</span>
+<span class="sd">    E(x,y)       x = {u}, y = {v} and u,v are adjacent</span>
+
+<span class="sd">**Tree-depth &lt;= d** (`TreeDepthClass`): the advice spells out a DFS traversal</span>
+<span class="sd">of an elimination forest of height &lt;= d, one letter per vertex encoding</span>
+<span class="sd">(depth, adjacency profile to its ancestors).</span>
+
+<span class="sd">**Pathwidth &lt;= w** (`PathWidthClass`): the advice spells out a linear layout,</span>
+<span class="sd">one letter per vertex encoding (register in {0..w}, adjacency profile to the</span>
+<span class="sd">registers of its earlier neighbors). Introducing a vertex at register r</span>
+<span class="sd">replaces the previous occupant of r; edges may only reach current occupants,</span>
+<span class="sd">which is exactly the interval structure of a path decomposition of width w.</span>
+
+<span class="sd">`TreeDepthGraph` / `PathWidthGraph` encapsulate the string representations of</span>
+<span class="sd">single graphs and convert from/to networkx.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">itertools</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">it</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Set</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">graphviz</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">autstr.presentations</span><span class="w"> </span><span class="kn">import</span> <span class="n">AutomaticPresentation</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">autstr.sparse_automata</span><span class="w"> </span><span class="kn">import</span> <span class="n">SparseDFA</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">autstr.uniform</span><span class="w"> </span><span class="kn">import</span> <span class="n">UniformlyAutomaticClass</span><span class="p">,</span> <span class="n">dfa_from_delta</span>
+
+<span class="n">PAD</span> <span class="o">=</span> <span class="s1">&#39;*&#39;</span>
+
+
+<span class="c1"># ====================================================================</span>
+<span class="c1"># String-encoded graphs</span>
+<span class="c1"># ====================================================================</span>
+
+<div class="viewcode-block" id="StringGraph">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.graphs.StringGraph">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">StringGraph</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base class for graphs encoded as strings of per-vertex letters.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">letters</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Tuple</span><span class="p">],</span> <span class="n">nodes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">letters</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">letters</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nodes</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">nodes</span><span class="p">)</span> <span class="k">if</span> <span class="n">nodes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">letters</span><span class="p">)))</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">letters</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;nodes and letters must have the same length&quot;</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">num_nodes</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">letters</span><span class="p">)</span>
+
+<div class="viewcode-block" id="StringGraph.edges">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.graphs.StringGraph.edges">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">edges</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Edge list (node names) decoded from the letters.&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+
+<div class="viewcode-block" id="StringGraph.encode_set">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.graphs.StringGraph.encode_set">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">encode_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">subset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Encode a set of nodes as a {0,1}-word over the vertex positions.&quot;&quot;&quot;</span>
+        <span class="n">subset</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">subset</span><span class="p">)</span>
+        <span class="n">unknown</span> <span class="o">=</span> <span class="n">subset</span> <span class="o">-</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">unknown</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;not nodes of this graph: </span><span class="si">{</span><span class="n">unknown</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="s1">&#39;1&#39;</span> <span class="k">if</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">subset</span> <span class="k">else</span> <span class="s1">&#39;0&#39;</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="StringGraph.to_networkx">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.graphs.StringGraph.to_networkx">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_networkx</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert back to a networkx graph (node names preserved).&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="kn">import</span><span class="w"> </span><span class="nn">networkx</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nx</span>
+        <span class="k">except</span> <span class="ne">ImportError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span><span class="s2">&quot;to_networkx requires networkx (pip install autstr[graphs])&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
+        <span class="n">graph</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">Graph</span><span class="p">()</span>
+        <span class="n">graph</span><span class="o">.</span><span class="n">add_nodes_from</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">)</span>
+        <span class="n">graph</span><span class="o">.</span><span class="n">add_edges_from</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">edges</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">graph</span></div>
+
+
+<div class="viewcode-block" id="StringGraph.to_graphviz">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.graphs.StringGraph.to_graphviz">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_graphviz</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sets</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Set</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                    <span class="n">filename</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="nb">format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;png&quot;</span><span class="p">,</span>
+                    <span class="n">view</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">graphviz</span><span class="o">.</span><span class="n">Graph</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Visualize the graph; `sets` maps labels to node sets that are</span>
+<span class="sd">        highlighted (colored and annotated with the label).&quot;&quot;&quot;</span>
+        <span class="n">palette</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;lightblue&#39;</span><span class="p">,</span> <span class="s1">&#39;lightsalmon&#39;</span><span class="p">,</span> <span class="s1">&#39;palegreen&#39;</span><span class="p">,</span> <span class="s1">&#39;plum&#39;</span><span class="p">,</span> <span class="s1">&#39;khaki&#39;</span><span class="p">,</span> <span class="s1">&#39;lightpink&#39;</span><span class="p">]</span>
+        <span class="n">membership</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">subset</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">((</span><span class="n">sets</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+            <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">subset</span><span class="p">:</span>
+                <span class="n">membership</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="p">[])</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">label</span><span class="p">,</span> <span class="n">palette</span><span class="p">[</span><span class="n">idx</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">palette</span><span class="p">)]))</span>
+
+        <span class="n">dot</span> <span class="o">=</span> <span class="n">graphviz</span><span class="o">.</span><span class="n">Graph</span><span class="p">(</span><span class="n">engine</span><span class="o">=</span><span class="s1">&#39;dot&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
+            <span class="n">tags</span> <span class="o">=</span> <span class="n">membership</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">tags</span><span class="p">:</span>
+                <span class="n">label</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">v</span><span class="si">}</span><span class="se">\\</span><span class="s2">n(</span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">t</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">t</span><span class="p">,</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">tags</span><span class="p">)</span><span class="si">}</span><span class="s2">)&quot;</span>
+                <span class="n">dot</span><span class="o">.</span><span class="n">node</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">v</span><span class="p">),</span> <span class="n">label</span><span class="o">=</span><span class="n">label</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s1">&#39;filled&#39;</span><span class="p">,</span> <span class="n">fillcolor</span><span class="o">=</span><span class="n">tags</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">dot</span><span class="o">.</span><span class="n">node</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">v</span><span class="p">),</span> <span class="n">label</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">v</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">u</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">edges</span><span class="p">():</span>
+            <span class="n">dot</span><span class="o">.</span><span class="n">edge</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">u</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">v</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">filename</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">dot</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="n">filename</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="nb">format</span><span class="p">,</span> <span class="n">view</span><span class="o">=</span><span class="n">view</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">dot</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">(</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">num_nodes</span><span class="si">}</span><span class="s2"> nodes)&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="TreeDepthGraph">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.graphs.TreeDepthGraph">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">TreeDepthGraph</span><span class="p">(</span><span class="n">StringGraph</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A graph of bounded tree-depth in its string representation: the DFS</span>
+<span class="sd">    traversal of an elimination forest, one (depth, profile) letter per</span>
+<span class="sd">    vertex. profile[t-1] == 1 means the vertex is adjacent to its unique</span>
+<span class="sd">    ancestor at depth t.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">letters</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]]],</span>
+                 <span class="n">nodes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="n">letters</span> <span class="o">=</span> <span class="p">[(</span><span class="nb">int</span><span class="p">(</span><span class="n">k</span><span class="p">),</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">profile</span><span class="p">))</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">profile</span> <span class="ow">in</span> <span class="n">letters</span><span class="p">]</span>
+        <span class="n">prev_depth</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">profile</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">letters</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="mi">1</span> <span class="o">&lt;=</span> <span class="n">k</span> <span class="o">&lt;=</span> <span class="n">prev_depth</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;letter </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">: depth </span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2"> after depth </span><span class="si">{</span><span class="n">prev_depth</span><span class="si">}</span><span class="s2"> is not a DFS traversal&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">profile</span><span class="p">)</span> <span class="o">!=</span> <span class="n">k</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;letter </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">: profile length </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">profile</span><span class="p">)</span><span class="si">}</span><span class="s2"> != depth-1 = </span><span class="si">{</span><span class="n">k</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">prev_depth</span> <span class="o">=</span> <span class="n">k</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">letters</span><span class="p">,</span> <span class="n">nodes</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">height</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Height of the elimination forest (&gt;= tree-depth of the graph).&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">max</span><span class="p">((</span><span class="n">k</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">letters</span><span class="p">),</span> <span class="n">default</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+<div class="viewcode-block" id="TreeDepthGraph.edges">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.graphs.TreeDepthGraph.edges">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">edges</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">]:</span>
+        <span class="n">stack</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># stack[t-1] = position of the current ancestor at depth t</span>
+        <span class="n">edges</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">pos</span><span class="p">,</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">profile</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">letters</span><span class="p">):</span>
+            <span class="k">del</span> <span class="n">stack</span><span class="p">[</span><span class="n">k</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:]</span>
+            <span class="k">for</span> <span class="n">t</span><span class="p">,</span> <span class="n">bit</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">profile</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">bit</span><span class="p">:</span>
+                    <span class="n">edges</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">stack</span><span class="p">[</span><span class="n">t</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]],</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">pos</span><span class="p">]))</span>
+            <span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pos</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">edges</span></div>
+
+
+<div class="viewcode-block" id="TreeDepthGraph.from_networkx">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.graphs.TreeDepthGraph.from_networkx">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_networkx</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">graph</span><span class="p">,</span> <span class="n">forest</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                      <span class="n">exact_below</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">13</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;TreeDepthGraph&#39;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build the string representation from a networkx graph.</span>
+
+<span class="sd">        :param graph: undirected networkx graph</span>
+<span class="sd">        :param forest: optional elimination forest as a dict node -&gt; parent</span>
+<span class="sd">            (roots map to None or are absent). Every edge of the graph must</span>
+<span class="sd">            connect a vertex to one of its forest ancestors.</span>
+<span class="sd">        :param exact_below: for graphs with fewer vertices, an optimal</span>
+<span class="sd">            elimination forest is computed by exhaustive search; larger graphs</span>
+<span class="sd">            fall back to a DFS forest (always valid, possibly deeper than the</span>
+<span class="sd">            tree-depth).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">forest</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">graph</span><span class="o">.</span><span class="n">number_of_nodes</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">exact_below</span><span class="p">:</span>
+                <span class="n">forest</span> <span class="o">=</span> <span class="n">_optimal_elimination_forest</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">forest</span> <span class="o">=</span> <span class="n">_dfs_elimination_forest</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+
+        <span class="n">children</span><span class="p">:</span> <span class="n">Dict</span> <span class="o">=</span> <span class="p">{</span><span class="n">v</span><span class="p">:</span> <span class="p">[]</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">}</span>
+        <span class="n">roots</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="nb">str</span><span class="p">):</span>
+            <span class="n">parent</span> <span class="o">=</span> <span class="n">forest</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">parent</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">roots</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">children</span><span class="p">[</span><span class="n">parent</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+
+        <span class="c1"># DFS traversal emitting (depth, profile) letters</span>
+        <span class="n">letters</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">order</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">emitted_edges</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">adj</span> <span class="o">=</span> <span class="p">{</span><span class="n">v</span><span class="p">:</span> <span class="nb">set</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">neighbors</span><span class="p">(</span><span class="n">v</span><span class="p">))</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">}</span>
+        <span class="n">stack</span> <span class="o">=</span> <span class="p">[(</span><span class="n">root</span><span class="p">,</span> <span class="p">[])</span> <span class="k">for</span> <span class="n">root</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">roots</span><span class="p">)]</span>
+        <span class="k">while</span> <span class="n">stack</span><span class="p">:</span>
+            <span class="n">v</span><span class="p">,</span> <span class="n">ancestors</span> <span class="o">=</span> <span class="n">stack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+            <span class="n">depth</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">ancestors</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="n">profile</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">a</span> <span class="ow">in</span> <span class="n">adj</span><span class="p">[</span><span class="n">v</span><span class="p">])</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">ancestors</span><span class="p">)</span>
+            <span class="n">emitted_edges</span> <span class="o">+=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">profile</span><span class="p">)</span>
+            <span class="n">letters</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">depth</span><span class="p">,</span> <span class="n">profile</span><span class="p">))</span>
+            <span class="n">order</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+            <span class="n">chain</span> <span class="o">=</span> <span class="n">ancestors</span> <span class="o">+</span> <span class="p">[</span><span class="n">v</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">children</span><span class="p">[</span><span class="n">v</span><span class="p">]):</span>
+                <span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">c</span><span class="p">,</span> <span class="n">chain</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">order</span><span class="p">)</span> <span class="o">!=</span> <span class="n">graph</span><span class="o">.</span><span class="n">number_of_nodes</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;forest does not span all vertices&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">emitted_edges</span> <span class="o">!=</span> <span class="n">graph</span><span class="o">.</span><span class="n">number_of_edges</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;not an elimination forest: some edge connects vertices &quot;</span>
+                             <span class="s2">&quot;that are not in ancestor-descendant relation&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">letters</span><span class="p">,</span> <span class="n">nodes</span><span class="o">=</span><span class="n">order</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;TreeDepthGraph(</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">num_nodes</span><span class="si">}</span><span class="s2"> nodes, height </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">height</span><span class="si">}</span><span class="s2">)&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="PathWidthGraph">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.graphs.PathWidthGraph">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">PathWidthGraph</span><span class="p">(</span><span class="n">StringGraph</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A graph of bounded pathwidth in its string representation: a linear</span>
+<span class="sd">    layout, one (register, profile) letter per vertex. Introducing a vertex</span>
+<span class="sd">    at register r replaces the previous occupant of r; profile lists the</span>
+<span class="sd">    registers of the vertex&#39;s earlier neighbors (their current occupants).&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">letters</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]]],</span>
+                 <span class="n">nodes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="n">letters</span> <span class="o">=</span> <span class="p">[(</span><span class="nb">int</span><span class="p">(</span><span class="n">r</span><span class="p">),</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">profile</span><span class="p">)))</span> <span class="k">for</span> <span class="n">r</span><span class="p">,</span> <span class="n">profile</span> <span class="ow">in</span> <span class="n">letters</span><span class="p">]</span>
+        <span class="n">occupied</span><span class="p">:</span> <span class="n">Set</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">profile</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">letters</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">r</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="nb">any</span><span class="p">(</span><span class="n">s</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">profile</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;letter </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">: negative register&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">profile</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;letter </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">: profile contains the vertex&#39;s own register </span><span class="si">{</span><span class="n">r</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">profile</span><span class="p">))</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">profile</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;letter </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">: duplicate registers in profile&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">set</span><span class="p">(</span><span class="n">profile</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">occupied</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;letter </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">: profile references unoccupied registers &quot;</span>
+                                 <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">set</span><span class="p">(</span><span class="n">profile</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">occupied</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">occupied</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">letters</span><span class="p">,</span> <span class="n">nodes</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">width</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Maximal register index (&gt;= pathwidth of the graph).&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">max</span><span class="p">((</span><span class="n">r</span> <span class="k">for</span> <span class="n">r</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">letters</span><span class="p">),</span> <span class="n">default</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+<div class="viewcode-block" id="PathWidthGraph.edges">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.graphs.PathWidthGraph.edges">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">edges</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">]:</span>
+        <span class="n">occupant</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">edges</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">pos</span><span class="p">,</span> <span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">profile</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">letters</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">profile</span><span class="p">:</span>
+                <span class="n">edges</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">occupant</span><span class="p">[</span><span class="n">s</span><span class="p">]],</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="n">pos</span><span class="p">]))</span>
+            <span class="n">occupant</span><span class="p">[</span><span class="n">r</span><span class="p">]</span> <span class="o">=</span> <span class="n">pos</span>
+        <span class="k">return</span> <span class="n">edges</span></div>
+
+
+<div class="viewcode-block" id="PathWidthGraph.from_networkx">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.graphs.PathWidthGraph.from_networkx">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_networkx</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">graph</span><span class="p">,</span> <span class="n">order</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Sequence</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                      <span class="n">exact_below</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">13</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;PathWidthGraph&#39;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build the string representation from a networkx graph.</span>
+
+<span class="sd">        :param graph: undirected networkx graph</span>
+<span class="sd">        :param order: optional vertex ordering (linear layout). If omitted, a</span>
+<span class="sd">            minimum vertex-separation ordering is computed exhaustively for</span>
+<span class="sd">            graphs with fewer than `exact_below` vertices; larger graphs fall</span>
+<span class="sd">            back to a BFS ordering (valid, possibly wider than the pathwidth).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">order</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">graph</span><span class="o">.</span><span class="n">number_of_nodes</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">exact_below</span><span class="p">:</span>
+                <span class="n">order</span> <span class="o">=</span> <span class="n">_optimal_vertex_separation_order</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">order</span> <span class="o">=</span> <span class="n">_bfs_order</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+        <span class="n">order</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">order</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">set</span><span class="p">(</span><span class="n">order</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">set</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">order</span><span class="p">)</span> <span class="o">!=</span> <span class="n">graph</span><span class="o">.</span><span class="n">number_of_nodes</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;order must enumerate every vertex exactly once&quot;</span><span class="p">)</span>
+
+        <span class="n">position</span> <span class="o">=</span> <span class="p">{</span><span class="n">v</span><span class="p">:</span> <span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">order</span><span class="p">)}</span>
+        <span class="n">last_needed</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">v</span><span class="p">:</span> <span class="nb">max</span><span class="p">((</span><span class="n">position</span><span class="p">[</span><span class="n">u</span><span class="p">]</span> <span class="k">for</span> <span class="n">u</span> <span class="ow">in</span> <span class="n">graph</span><span class="o">.</span><span class="n">neighbors</span><span class="p">(</span><span class="n">v</span><span class="p">)),</span> <span class="n">default</span><span class="o">=</span><span class="n">position</span><span class="p">[</span><span class="n">v</span><span class="p">])</span>
+            <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span>
+        <span class="p">}</span>
+
+        <span class="n">letters</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">register_of</span><span class="p">:</span> <span class="n">Dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">order</span><span class="p">):</span>
+            <span class="n">in_use</span> <span class="o">=</span> <span class="p">{</span><span class="n">register_of</span><span class="p">[</span><span class="n">u</span><span class="p">]</span> <span class="k">for</span> <span class="n">u</span> <span class="ow">in</span> <span class="n">order</span><span class="p">[:</span><span class="n">i</span><span class="p">]</span> <span class="k">if</span> <span class="n">last_needed</span><span class="p">[</span><span class="n">u</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">i</span><span class="p">}</span>
+            <span class="n">register</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">r</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">it</span><span class="o">.</span><span class="n">count</span><span class="p">()</span> <span class="k">if</span> <span class="n">r</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">in_use</span><span class="p">)</span>
+            <span class="n">profile</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span>
+                <span class="n">register_of</span><span class="p">[</span><span class="n">u</span><span class="p">]</span> <span class="k">for</span> <span class="n">u</span> <span class="ow">in</span> <span class="n">graph</span><span class="o">.</span><span class="n">neighbors</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">if</span> <span class="n">position</span><span class="p">[</span><span class="n">u</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">i</span>
+            <span class="p">))</span>
+            <span class="n">register_of</span><span class="p">[</span><span class="n">v</span><span class="p">]</span> <span class="o">=</span> <span class="n">register</span>
+            <span class="n">letters</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">register</span><span class="p">,</span> <span class="n">profile</span><span class="p">))</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">letters</span><span class="p">,</span> <span class="n">nodes</span><span class="o">=</span><span class="n">order</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;PathWidthGraph(</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">num_nodes</span><span class="si">}</span><span class="s2"> nodes, width </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">width</span><span class="si">}</span><span class="s2">)&quot;</span></div>
+
+
+
+<span class="c1"># ====================================================================</span>
+<span class="c1"># Layout / decomposition search</span>
+<span class="c1"># ====================================================================</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_dfs_elimination_forest</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;DFS forest of the graph: valid elimination forest because every</span>
+<span class="sd">    non-tree edge of an undirected DFS is a back edge (ancestor pair).&quot;&quot;&quot;</span>
+    <span class="n">forest</span><span class="p">:</span> <span class="n">Dict</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">visited</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">root</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="nb">str</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">root</span> <span class="ow">in</span> <span class="n">visited</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">forest</span><span class="p">[</span><span class="n">root</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">visited</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">root</span><span class="p">)</span>
+        <span class="n">stack</span> <span class="o">=</span> <span class="p">[</span><span class="n">root</span><span class="p">]</span>
+        <span class="k">while</span> <span class="n">stack</span><span class="p">:</span>
+            <span class="n">v</span> <span class="o">=</span> <span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">neighbors</span><span class="p">(</span><span class="n">v</span><span class="p">),</span> <span class="n">key</span><span class="o">=</span><span class="nb">str</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">w</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">visited</span><span class="p">:</span>
+                    <span class="n">visited</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">w</span><span class="p">)</span>
+                    <span class="n">forest</span><span class="p">[</span><span class="n">w</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+                    <span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">w</span><span class="p">)</span>
+                    <span class="k">break</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">stack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">forest</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_optimal_elimination_forest</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Minimum-height elimination forest by exhaustive search (exponential;</span>
+<span class="sd">    only for small graphs). Returns a dict node -&gt; parent (None for roots).&quot;&quot;&quot;</span>
+    <span class="n">adj</span> <span class="o">=</span> <span class="p">{</span><span class="n">v</span><span class="p">:</span> <span class="nb">set</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">neighbors</span><span class="p">(</span><span class="n">v</span><span class="p">))</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">}</span>
+    <span class="n">memo</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">frozenset</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">components</span><span class="p">(</span><span class="n">vertices</span><span class="p">:</span> <span class="nb">frozenset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">frozenset</span><span class="p">]:</span>
+        <span class="n">remaining</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">vertices</span><span class="p">)</span>
+        <span class="n">comps</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">while</span> <span class="n">remaining</span><span class="p">:</span>
+            <span class="n">comp</span> <span class="o">=</span> <span class="p">{</span><span class="n">remaining</span><span class="o">.</span><span class="n">pop</span><span class="p">()}</span>
+            <span class="n">frontier</span> <span class="o">=</span> <span class="p">[</span><span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">comp</span><span class="p">))]</span>
+            <span class="k">while</span> <span class="n">frontier</span><span class="p">:</span>
+                <span class="n">v</span> <span class="o">=</span> <span class="n">frontier</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+                <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">adj</span><span class="p">[</span><span class="n">v</span><span class="p">]</span> <span class="o">&amp;</span> <span class="n">remaining</span><span class="p">:</span>
+                    <span class="n">remaining</span><span class="o">.</span><span class="n">discard</span><span class="p">(</span><span class="n">w</span><span class="p">)</span>
+                    <span class="n">comp</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">w</span><span class="p">)</span>
+                    <span class="n">frontier</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">w</span><span class="p">)</span>
+            <span class="n">comps</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">frozenset</span><span class="p">(</span><span class="n">comp</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">comps</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">solve</span><span class="p">(</span><span class="n">vertices</span><span class="p">:</span> <span class="nb">frozenset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns (height, parent map, roots) for G[vertices].&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">vertices</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mi">0</span><span class="p">,</span> <span class="p">{},</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">vertices</span> <span class="ow">in</span> <span class="n">memo</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">memo</span><span class="p">[</span><span class="n">vertices</span><span class="p">]</span>
+
+        <span class="n">comps</span> <span class="o">=</span> <span class="n">components</span><span class="p">(</span><span class="n">vertices</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">comps</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">height</span><span class="p">,</span> <span class="n">parents</span><span class="p">,</span> <span class="n">roots</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="p">{},</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">comp</span> <span class="ow">in</span> <span class="n">comps</span><span class="p">:</span>
+                <span class="n">h</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="n">r</span> <span class="o">=</span> <span class="n">solve</span><span class="p">(</span><span class="n">comp</span><span class="p">)</span>
+                <span class="n">height</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">height</span><span class="p">,</span> <span class="n">h</span><span class="p">)</span>
+                <span class="n">parents</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+                <span class="n">roots</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
+            <span class="n">memo</span><span class="p">[</span><span class="n">vertices</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">height</span><span class="p">,</span> <span class="n">parents</span><span class="p">,</span> <span class="n">roots</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">memo</span><span class="p">[</span><span class="n">vertices</span><span class="p">]</span>
+
+        <span class="n">best</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">vertices</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="nb">str</span><span class="p">):</span>
+            <span class="n">h</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="n">r</span> <span class="o">=</span> <span class="n">solve</span><span class="p">(</span><span class="n">vertices</span> <span class="o">-</span> <span class="p">{</span><span class="n">v</span><span class="p">})</span>
+            <span class="k">if</span> <span class="n">best</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">h</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">&lt;</span> <span class="n">best</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="n">parents</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">root</span> <span class="ow">in</span> <span class="n">r</span><span class="p">:</span>
+                    <span class="n">parents</span><span class="p">[</span><span class="n">root</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+                <span class="n">best</span> <span class="o">=</span> <span class="p">(</span><span class="n">h</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">parents</span><span class="p">,</span> <span class="p">[</span><span class="n">v</span><span class="p">])</span>
+        <span class="n">memo</span><span class="p">[</span><span class="n">vertices</span><span class="p">]</span> <span class="o">=</span> <span class="n">best</span>
+        <span class="k">return</span> <span class="n">best</span>
+
+    <span class="n">_</span><span class="p">,</span> <span class="n">parents</span><span class="p">,</span> <span class="n">roots</span> <span class="o">=</span> <span class="n">solve</span><span class="p">(</span><span class="nb">frozenset</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">))</span>
+    <span class="n">forest</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">parents</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">root</span> <span class="ow">in</span> <span class="n">roots</span><span class="p">:</span>
+        <span class="n">forest</span><span class="p">[</span><span class="n">root</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="n">forest</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_optimal_vertex_separation_order</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Minimum vertex-separation ordering by subset DP (exponential; only</span>
+<span class="sd">    for small graphs). Vertex separation number equals pathwidth.&quot;&quot;&quot;</span>
+    <span class="n">nodes</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="nb">str</span><span class="p">)</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">nodes</span><span class="p">)</span>
+    <span class="n">index</span> <span class="o">=</span> <span class="p">{</span><span class="n">v</span><span class="p">:</span> <span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">nodes</span><span class="p">)}</span>
+    <span class="n">neighbor_mask</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">n</span>
+    <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">nodes</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">u</span> <span class="ow">in</span> <span class="n">graph</span><span class="o">.</span><span class="n">neighbors</span><span class="p">(</span><span class="n">v</span><span class="p">):</span>
+            <span class="n">neighbor_mask</span><span class="p">[</span><span class="n">index</span><span class="p">[</span><span class="n">v</span><span class="p">]]</span> <span class="o">|=</span> <span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="n">index</span><span class="p">[</span><span class="n">u</span><span class="p">]</span>
+
+    <span class="n">full</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="n">n</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">boundary</span><span class="p">(</span><span class="n">mask</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+                   <span class="k">if</span> <span class="n">mask</span> <span class="o">&gt;&gt;</span> <span class="n">i</span> <span class="o">&amp;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">neighbor_mask</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">mask</span><span class="p">)</span>
+
+    <span class="n">cost</span> <span class="o">=</span> <span class="p">{</span><span class="mi">0</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
+    <span class="n">best_last</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">mask</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">full</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="n">boundary</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span>
+        <span class="n">best</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">m</span> <span class="o">=</span> <span class="n">mask</span>
+        <span class="k">while</span> <span class="n">m</span><span class="p">:</span>
+            <span class="n">bit</span> <span class="o">=</span> <span class="n">m</span> <span class="o">&amp;</span> <span class="o">-</span><span class="n">m</span>
+            <span class="n">prev</span> <span class="o">=</span> <span class="n">cost</span><span class="p">[</span><span class="n">mask</span> <span class="o">^</span> <span class="n">bit</span><span class="p">]</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">prev</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">best</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">value</span> <span class="o">&lt;</span> <span class="n">best</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="n">best</span> <span class="o">=</span> <span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">bit</span><span class="p">)</span>
+            <span class="n">m</span> <span class="o">^=</span> <span class="n">bit</span>
+        <span class="n">cost</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span> <span class="o">=</span> <span class="n">best</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">best_last</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span> <span class="o">=</span> <span class="n">best</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="n">order</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="n">full</span>
+    <span class="k">while</span> <span class="n">mask</span><span class="p">:</span>
+        <span class="n">bit</span> <span class="o">=</span> <span class="n">best_last</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+        <span class="n">order</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">nodes</span><span class="p">[</span><span class="n">bit</span><span class="o">.</span><span class="n">bit_length</span><span class="p">()</span> <span class="o">-</span> <span class="mi">1</span><span class="p">])</span>
+        <span class="n">mask</span> <span class="o">^=</span> <span class="n">bit</span>
+    <span class="n">order</span><span class="o">.</span><span class="n">reverse</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">order</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_bfs_order</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;BFS ordering (per component, from a minimum-degree vertex).&quot;&quot;&quot;</span>
+    <span class="n">order</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">visited</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">start</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">degree</span><span class="p">(</span><span class="n">v</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">v</span><span class="p">))):</span>
+        <span class="k">if</span> <span class="n">start</span> <span class="ow">in</span> <span class="n">visited</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">queue</span> <span class="o">=</span> <span class="p">[</span><span class="n">start</span><span class="p">]</span>
+        <span class="n">visited</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">start</span><span class="p">)</span>
+        <span class="k">while</span> <span class="n">queue</span><span class="p">:</span>
+            <span class="n">v</span> <span class="o">=</span> <span class="n">queue</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">order</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">u</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">neighbors</span><span class="p">(</span><span class="n">v</span><span class="p">),</span> <span class="n">key</span><span class="o">=</span><span class="nb">str</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">u</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">visited</span><span class="p">:</span>
+                    <span class="n">visited</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">u</span><span class="p">)</span>
+                    <span class="n">queue</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">u</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">order</span>
+
+
+<span class="c1"># ====================================================================</span>
+<span class="c1"># Shared presentation automata (set signature)</span>
+<span class="c1"># ====================================================================</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_sing_automaton</span><span class="p">(</span><span class="n">sigma</span><span class="p">,</span> <span class="n">letter_symbols</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseDFA</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Sing(p, X): X contains exactly one position.&quot;&quot;&quot;</span>
+    <span class="n">states</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;zero&#39;</span><span class="p">,</span> <span class="s1">&#39;one&#39;</span><span class="p">,</span> <span class="s1">&#39;one_end&#39;</span><span class="p">,</span> <span class="s1">&#39;pad&#39;</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+        <span class="n">a</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">sym</span>
+        <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;dead&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+        <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;pad&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s1">&#39;pad&#39;</span> <span class="k">if</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="n">PAD</span><span class="p">,</span> <span class="n">PAD</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+        <span class="n">is_letter</span> <span class="o">=</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">letter_symbols</span>
+        <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;zero&#39;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">is_letter</span> <span class="ow">and</span> <span class="n">x</span> <span class="o">==</span> <span class="s1">&#39;0&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;zero&#39;</span>
+            <span class="k">if</span> <span class="n">is_letter</span> <span class="ow">and</span> <span class="n">x</span> <span class="o">==</span> <span class="s1">&#39;1&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;one&#39;</span>
+            <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+        <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;one&#39;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">is_letter</span> <span class="ow">and</span> <span class="n">x</span> <span class="o">==</span> <span class="s1">&#39;0&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;one&#39;</span>
+            <span class="k">if</span> <span class="n">is_letter</span> <span class="ow">and</span> <span class="n">x</span> <span class="o">==</span> <span class="n">PAD</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;one_end&#39;</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="n">PAD</span><span class="p">,</span> <span class="n">PAD</span><span class="p">):</span>
+                <span class="k">return</span> <span class="s1">&#39;pad&#39;</span>
+            <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+        <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;one_end&#39;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">is_letter</span> <span class="ow">and</span> <span class="n">x</span> <span class="o">==</span> <span class="n">PAD</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;one_end&#39;</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="n">PAD</span><span class="p">,</span> <span class="n">PAD</span><span class="p">):</span>
+                <span class="k">return</span> <span class="s1">&#39;pad&#39;</span>
+            <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+
+    <span class="k">return</span> <span class="n">dfa_from_delta</span><span class="p">(</span><span class="n">sigma</span><span class="p">,</span> <span class="n">states</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="s1">&#39;zero&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;one&#39;</span><span class="p">,</span> <span class="s1">&#39;one_end&#39;</span><span class="p">,</span> <span class="s1">&#39;pad&#39;</span><span class="p">})</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_subset_automaton</span><span class="p">(</span><span class="n">sigma</span><span class="p">,</span> <span class="n">letter_symbols</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseDFA</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Subset(p, X, Y): X is a subset of Y (positionwise X &lt;= Y).&quot;&quot;&quot;</span>
+    <span class="n">states</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;ok&#39;</span><span class="p">,</span> <span class="s1">&#39;pad&#39;</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">]</span>
+    <span class="n">allowed</span> <span class="o">=</span> <span class="p">{(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;1&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">),</span>
+               <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="n">PAD</span><span class="p">),</span> <span class="p">(</span><span class="n">PAD</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">),</span> <span class="p">(</span><span class="n">PAD</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">),</span> <span class="p">(</span><span class="n">PAD</span><span class="p">,</span> <span class="n">PAD</span><span class="p">)}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+        <span class="n">a</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">sym</span>
+        <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;dead&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+        <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;pad&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s1">&#39;pad&#39;</span> <span class="k">if</span> <span class="n">sym</span> <span class="o">==</span> <span class="p">(</span><span class="n">PAD</span><span class="p">,</span> <span class="n">PAD</span><span class="p">,</span> <span class="n">PAD</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+        <span class="k">if</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">letter_symbols</span> <span class="ow">and</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="ow">in</span> <span class="n">allowed</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s1">&#39;ok&#39;</span>
+        <span class="k">if</span> <span class="n">sym</span> <span class="o">==</span> <span class="p">(</span><span class="n">PAD</span><span class="p">,</span> <span class="n">PAD</span><span class="p">,</span> <span class="n">PAD</span><span class="p">):</span>
+            <span class="k">return</span> <span class="s1">&#39;pad&#39;</span>
+        <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+
+    <span class="k">return</span> <span class="n">dfa_from_delta</span><span class="p">(</span><span class="n">sigma</span><span class="p">,</span> <span class="n">states</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="s1">&#39;ok&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;ok&#39;</span><span class="p">,</span> <span class="s1">&#39;pad&#39;</span><span class="p">})</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">_SetGraphClass</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Shared class-level operations of the set-signature graph classes.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">automata</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">SparseDFA</span><span class="p">]):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cls</span> <span class="o">=</span> <span class="n">UniformlyAutomaticClass</span><span class="p">(</span><span class="n">automata</span><span class="p">,</span> <span class="n">padding_symbol</span><span class="o">=</span><span class="n">PAD</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">advice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">graph</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">evaluate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">phi</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">SparseDFA</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Evaluate an MSO query over the class; see</span>
+<span class="sd">        UniformlyAutomaticClass.evaluate. Variables range over vertex sets.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">check</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">phi</span><span class="p">,</span> <span class="n">graph</span><span class="p">,</span> <span class="o">**</span><span class="n">sets</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Model check a query against a single graph.</span>
+
+<span class="sd">        :param phi: formula over Sing/Subset/E; free variables can be</span>
+<span class="sd">            assigned via `sets` (name = set of nodes), unassigned ones are</span>
+<span class="sd">            quantified existentially. Note that nltk only treats names</span>
+<span class="sd">            matching [a-df-z][0-9]* (single lowercase letter except &#39;e&#39;,</span>
+<span class="sd">            optional digits) as variables.</span>
+<span class="sd">        :param graph: a StringGraph of this class (or a raw advice string).</span>
+<span class="sd">        :param sets: assignments for free variables, as sets of nodes.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">advice</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">advice</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">sets</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls</span><span class="o">.</span><span class="n">check</span><span class="p">(</span><span class="n">phi</span><span class="p">,</span> <span class="n">advice</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">StringGraph</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;set assignments require a graph object&quot;</span><span class="p">)</span>
+        <span class="n">words</span> <span class="o">=</span> <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">encode_set</span><span class="p">(</span><span class="n">subset</span><span class="p">))</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">subset</span> <span class="ow">in</span> <span class="n">sets</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls</span><span class="o">.</span><span class="n">check</span><span class="p">(</span><span class="n">phi</span><span class="p">,</span> <span class="n">advice</span><span class="p">,</span> <span class="o">**</span><span class="n">words</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_structure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">graph</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AutomaticPresentation</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;The MSO0-style automatic presentation of a single graph.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cls</span><span class="o">.</span><span class="n">get_structure</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">advice</span><span class="p">(</span><span class="n">graph</span><span class="p">))</span>
+
+
+<span class="c1"># ====================================================================</span>
+<span class="c1"># Tree-depth</span>
+<span class="c1"># ====================================================================</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_letter_symbol</span><span class="p">(</span><span class="n">depth</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">profile</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Advice alphabet symbol for a tree-depth vertex letter.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;a</span><span class="si">{</span><span class="n">depth</span><span class="si">}</span><span class="s2">_&quot;</span> <span class="o">+</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">profile</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="TreeDepthClass">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.graphs.TreeDepthClass">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">TreeDepthClass</span><span class="p">(</span><span class="n">_SetGraphClass</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The uniformly automatic class of graphs of tree-depth &lt;= d, presented</span>
+<span class="sd">    over set-valued elements (MSO0 style).&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">d</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">d</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;depth bound must be &gt;= 1&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">d</span> <span class="o">=</span> <span class="n">d</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">letters</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">profile</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">d</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">profile</span> <span class="ow">in</span> <span class="n">it</span><span class="o">.</span><span class="n">product</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">repeat</span><span class="o">=</span><span class="n">k</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">symbol_of</span> <span class="o">=</span> <span class="p">{</span><span class="n">letter</span><span class="p">:</span> <span class="n">_letter_symbol</span><span class="p">(</span><span class="o">*</span><span class="n">letter</span><span class="p">)</span> <span class="k">for</span> <span class="n">letter</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">letters</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">letter_of</span> <span class="o">=</span> <span class="p">{</span><span class="n">sym</span><span class="p">:</span> <span class="n">letter</span> <span class="k">for</span> <span class="n">letter</span><span class="p">,</span> <span class="n">sym</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">symbol_of</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigma</span> <span class="o">=</span> <span class="p">{</span><span class="n">PAD</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">}</span> <span class="o">|</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">symbol_of</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">({</span>
+            <span class="s1">&#39;U&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_universe_automaton</span><span class="p">(),</span>
+            <span class="s1">&#39;Sing&#39;</span><span class="p">:</span> <span class="n">_sing_automaton</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">letter_of</span><span class="p">),</span>
+            <span class="s1">&#39;Subset&#39;</span><span class="p">:</span> <span class="n">_subset_automaton</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">letter_of</span><span class="p">),</span>
+            <span class="s1">&#39;E&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_edge_automaton</span><span class="p">(),</span>
+        <span class="p">})</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_depth</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">symbol</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+        <span class="n">letter</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">letter_of</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">symbol</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">letter</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">letter</span> <span class="k">else</span> <span class="kc">None</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_profile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">symbol</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]]:</span>
+        <span class="n">letter</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">letter_of</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">symbol</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">letter</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="n">letter</span> <span class="k">else</span> <span class="kc">None</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_universe_automaton</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseDFA</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;U(p, x): p is a DFS traversal of a forest of height &lt;= d and x is a</span>
+<span class="sd">        bitvector over its positions (monotone trailing padding).&quot;&quot;&quot;</span>
+        <span class="n">states</span> <span class="o">=</span> <span class="p">[(</span><span class="s1">&#39;s&#39;</span><span class="p">,</span> <span class="n">prev</span><span class="p">,</span> <span class="n">ended</span><span class="p">)</span> <span class="k">for</span> <span class="n">prev</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">d</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">ended</span> <span class="ow">in</span> <span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="kc">True</span><span class="p">)]</span>
+        <span class="n">states</span> <span class="o">+=</span> <span class="p">[</span><span class="s1">&#39;pad&#39;</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">sym</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;dead&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;pad&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;pad&#39;</span> <span class="k">if</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="n">PAD</span><span class="p">,</span> <span class="n">PAD</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">prev</span><span class="p">,</span> <span class="n">ended</span> <span class="o">=</span> <span class="n">q</span>
+            <span class="k">if</span> <span class="n">a</span> <span class="o">==</span> <span class="n">PAD</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;pad&#39;</span> <span class="k">if</span> <span class="n">x</span> <span class="o">==</span> <span class="n">PAD</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="n">depth</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_depth</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">depth</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">depth</span> <span class="o">&gt;</span> <span class="n">prev</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">x</span> <span class="o">==</span> <span class="n">PAD</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;s&#39;</span><span class="p">,</span> <span class="n">depth</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">x</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ended</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;s&#39;</span><span class="p">,</span> <span class="n">depth</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+            <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+
+        <span class="n">finals</span> <span class="o">=</span> <span class="p">{</span><span class="n">q</span> <span class="k">for</span> <span class="n">q</span> <span class="ow">in</span> <span class="n">states</span> <span class="k">if</span> <span class="n">q</span> <span class="o">!=</span> <span class="s1">&#39;dead&#39;</span><span class="p">}</span>
+        <span class="k">return</span> <span class="n">dfa_from_delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="n">states</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;s&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span> <span class="n">finals</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_edge_automaton</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseDFA</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;E(p, X, Y): X = {u}, Y = {v}, u != v adjacent. u must be a forest</span>
+<span class="sd">        ancestor of v (or vice versa): after the first marker at depth k, all</span>
+<span class="sd">        letters up to the second marker must have depth &gt; k, and the second</span>
+<span class="sd">        vertex&#39;s profile bit for depth k must be set.&quot;&quot;&quot;</span>
+        <span class="n">states</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;init&#39;</span><span class="p">,</span> <span class="s1">&#39;done&#39;</span><span class="p">,</span> <span class="s1">&#39;pad&#39;</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">]</span>
+        <span class="n">states</span> <span class="o">+=</span> <span class="p">[(</span><span class="s1">&#39;X&#39;</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">d</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)]</span>
+        <span class="n">states</span> <span class="o">+=</span> <span class="p">[(</span><span class="s1">&#39;Y&#39;</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">d</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">sym</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;dead&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;pad&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;pad&#39;</span> <span class="k">if</span> <span class="n">sym</span> <span class="o">==</span> <span class="p">(</span><span class="n">PAD</span><span class="p">,</span> <span class="n">PAD</span><span class="p">,</span> <span class="n">PAD</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="n">depth</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_depth</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;init&#39;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">depth</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="s1">&#39;init&#39;</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="s1">&#39;1&#39;</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;X&#39;</span><span class="p">,</span> <span class="n">depth</span><span class="p">)</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;Y&#39;</span><span class="p">,</span> <span class="n">depth</span><span class="p">)</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;done&#39;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">depth</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">x</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="n">PAD</span><span class="p">)</span> <span class="ow">and</span> <span class="n">y</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="n">PAD</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="s1">&#39;done&#39;</span>
+                <span class="k">if</span> <span class="n">sym</span> <span class="o">==</span> <span class="p">(</span><span class="n">PAD</span><span class="p">,</span> <span class="n">PAD</span><span class="p">,</span> <span class="n">PAD</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="s1">&#39;pad&#39;</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="n">phase</span><span class="p">,</span> <span class="n">k</span> <span class="o">=</span> <span class="n">q</span>
+            <span class="n">first</span><span class="p">,</span> <span class="n">second</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="k">if</span> <span class="n">phase</span> <span class="o">==</span> <span class="s1">&#39;X&#39;</span> <span class="k">else</span> <span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">depth</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">depth</span> <span class="o">&lt;=</span> <span class="n">k</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">second</span> <span class="o">==</span> <span class="s1">&#39;1&#39;</span> <span class="ow">and</span> <span class="n">first</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="n">PAD</span><span class="p">):</span>
+                <span class="c1"># the second marker: adjacent iff its profile links depth k</span>
+                <span class="k">return</span> <span class="s1">&#39;done&#39;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_profile</span><span class="p">(</span><span class="n">a</span><span class="p">)[</span><span class="n">k</span> <span class="o">-</span> <span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">second</span> <span class="o">==</span> <span class="s1">&#39;0&#39;</span> <span class="ow">and</span> <span class="n">first</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="n">PAD</span><span class="p">):</span>
+                <span class="k">return</span> <span class="p">(</span><span class="n">phase</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span>
+            <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+
+        <span class="k">return</span> <span class="n">dfa_from_delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="n">states</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="s1">&#39;init&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;done&#39;</span><span class="p">,</span> <span class="s1">&#39;pad&#39;</span><span class="p">})</span>
+
+<div class="viewcode-block" id="TreeDepthClass.advice">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.graphs.TreeDepthClass.advice">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">advice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">graph</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">TreeDepthGraph</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;The advice string of a graph (its letters as alphabet symbols).&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">TreeDepthGraph</span><span class="p">):</span>
+            <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">graph</span><span class="o">.</span><span class="n">height</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">d</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;graph has elimination-forest height </span><span class="si">{</span><span class="n">graph</span><span class="o">.</span><span class="n">height</span><span class="si">}</span><span class="s2"> &gt; d = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">d</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">symbol_of</span><span class="p">[</span><span class="n">letter</span><span class="p">]</span> <span class="k">for</span> <span class="n">letter</span> <span class="ow">in</span> <span class="n">graph</span><span class="o">.</span><span class="n">letters</span><span class="p">]</span></div>
+</div>
+
+
+
+<span class="c1"># ====================================================================</span>
+<span class="c1"># Pathwidth</span>
+<span class="c1"># ====================================================================</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_register_symbol</span><span class="p">(</span><span class="n">register</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">profile</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Advice alphabet symbol for a pathwidth vertex letter.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;r</span><span class="si">{</span><span class="n">register</span><span class="si">}</span><span class="s2">s&quot;</span> <span class="o">+</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">profile</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="PathWidthClass">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.graphs.PathWidthClass">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">PathWidthClass</span><span class="p">(</span><span class="n">_SetGraphClass</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The uniformly automatic class of graphs of pathwidth &lt;= w, presented</span>
+<span class="sd">    over set-valued elements (MSO0 style).&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">w</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">w</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;width bound must be &gt;= 0&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">w</span> <span class="o">=</span> <span class="n">w</span>
+        <span class="n">registers</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="n">w</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">letters</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">profile</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">registers</span>
+            <span class="k">for</span> <span class="n">size</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">w</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">profile</span> <span class="ow">in</span> <span class="n">it</span><span class="o">.</span><span class="n">combinations</span><span class="p">([</span><span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">registers</span> <span class="k">if</span> <span class="n">s</span> <span class="o">!=</span> <span class="n">r</span><span class="p">],</span> <span class="n">size</span><span class="p">)</span>
+        <span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">symbol_of</span> <span class="o">=</span> <span class="p">{</span><span class="n">letter</span><span class="p">:</span> <span class="n">_register_symbol</span><span class="p">(</span><span class="o">*</span><span class="n">letter</span><span class="p">)</span> <span class="k">for</span> <span class="n">letter</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">letters</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">letter_of</span> <span class="o">=</span> <span class="p">{</span><span class="n">sym</span><span class="p">:</span> <span class="n">letter</span> <span class="k">for</span> <span class="n">letter</span><span class="p">,</span> <span class="n">sym</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">symbol_of</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigma</span> <span class="o">=</span> <span class="p">{</span><span class="n">PAD</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">}</span> <span class="o">|</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">symbol_of</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">({</span>
+            <span class="s1">&#39;U&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_universe_automaton</span><span class="p">(),</span>
+            <span class="s1">&#39;Sing&#39;</span><span class="p">:</span> <span class="n">_sing_automaton</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">letter_of</span><span class="p">),</span>
+            <span class="s1">&#39;Subset&#39;</span><span class="p">:</span> <span class="n">_subset_automaton</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">letter_of</span><span class="p">),</span>
+            <span class="s1">&#39;E&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_edge_automaton</span><span class="p">(),</span>
+        <span class="p">})</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_universe_automaton</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseDFA</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;U(p, x): p is a valid layout (profiles only reference registers</span>
+<span class="sd">        already in use) and x is a bitvector over its positions.&quot;&quot;&quot;</span>
+        <span class="n">registers</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">w</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="n">subsets</span> <span class="o">=</span> <span class="p">[</span><span class="nb">frozenset</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">size</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">w</span> <span class="o">+</span> <span class="mi">2</span><span class="p">)</span>
+                   <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">it</span><span class="o">.</span><span class="n">combinations</span><span class="p">(</span><span class="n">registers</span><span class="p">,</span> <span class="n">size</span><span class="p">)]</span>
+        <span class="n">states</span> <span class="o">=</span> <span class="p">[(</span><span class="s1">&#39;s&#39;</span><span class="p">,</span> <span class="n">occupied</span><span class="p">,</span> <span class="n">ended</span><span class="p">)</span> <span class="k">for</span> <span class="n">occupied</span> <span class="ow">in</span> <span class="n">subsets</span> <span class="k">for</span> <span class="n">ended</span> <span class="ow">in</span> <span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="kc">True</span><span class="p">)]</span>
+        <span class="n">states</span> <span class="o">+=</span> <span class="p">[</span><span class="s1">&#39;pad&#39;</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">sym</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;dead&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;pad&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;pad&#39;</span> <span class="k">if</span> <span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="n">PAD</span><span class="p">,</span> <span class="n">PAD</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">occupied</span><span class="p">,</span> <span class="n">ended</span> <span class="o">=</span> <span class="n">q</span>
+            <span class="k">if</span> <span class="n">a</span> <span class="o">==</span> <span class="n">PAD</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;pad&#39;</span> <span class="k">if</span> <span class="n">x</span> <span class="o">==</span> <span class="n">PAD</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="n">letter</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">letter_of</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">letter</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">set</span><span class="p">(</span><span class="n">letter</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">&lt;=</span> <span class="n">occupied</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="n">occupied</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">(</span><span class="n">occupied</span> <span class="o">|</span> <span class="p">{</span><span class="n">letter</span><span class="p">[</span><span class="mi">0</span><span class="p">]})</span>
+            <span class="k">if</span> <span class="n">x</span> <span class="o">==</span> <span class="n">PAD</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;s&#39;</span><span class="p">,</span> <span class="n">occupied</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">x</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ended</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;s&#39;</span><span class="p">,</span> <span class="n">occupied</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+            <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+
+        <span class="n">finals</span> <span class="o">=</span> <span class="p">{</span><span class="n">q</span> <span class="k">for</span> <span class="n">q</span> <span class="ow">in</span> <span class="n">states</span> <span class="k">if</span> <span class="n">q</span> <span class="o">!=</span> <span class="s1">&#39;dead&#39;</span><span class="p">}</span>
+        <span class="k">return</span> <span class="n">dfa_from_delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="n">states</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;s&#39;</span><span class="p">,</span> <span class="nb">frozenset</span><span class="p">(),</span> <span class="kc">False</span><span class="p">),</span> <span class="n">finals</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_edge_automaton</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SparseDFA</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;E(p, X, Y): X = {u}, Y = {v}, u != v adjacent. After the first</span>
+<span class="sd">        marker at register r, no letter up to the second marker may reuse r</span>
+<span class="sd">        (that would replace u), and the second vertex&#39;s profile must list r.&quot;&quot;&quot;</span>
+        <span class="n">states</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;init&#39;</span><span class="p">,</span> <span class="s1">&#39;done&#39;</span><span class="p">,</span> <span class="s1">&#39;pad&#39;</span><span class="p">,</span> <span class="s1">&#39;dead&#39;</span><span class="p">]</span>
+        <span class="n">states</span> <span class="o">+=</span> <span class="p">[(</span><span class="s1">&#39;X&#39;</span><span class="p">,</span> <span class="n">r</span><span class="p">)</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">w</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)]</span>
+        <span class="n">states</span> <span class="o">+=</span> <span class="p">[(</span><span class="s1">&#39;Y&#39;</span><span class="p">,</span> <span class="n">r</span><span class="p">)</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">w</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)]</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">delta</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">sym</span><span class="p">):</span>
+            <span class="n">a</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">sym</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;dead&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;pad&#39;</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;pad&#39;</span> <span class="k">if</span> <span class="n">sym</span> <span class="o">==</span> <span class="p">(</span><span class="n">PAD</span><span class="p">,</span> <span class="n">PAD</span><span class="p">,</span> <span class="n">PAD</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="n">letter</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">letter_of</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;init&#39;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">letter</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="s1">&#39;init&#39;</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="s1">&#39;1&#39;</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;X&#39;</span><span class="p">,</span> <span class="n">letter</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;1&#39;</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;Y&#39;</span><span class="p">,</span> <span class="n">letter</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">q</span> <span class="o">==</span> <span class="s1">&#39;done&#39;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">letter</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">x</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="n">PAD</span><span class="p">)</span> <span class="ow">and</span> <span class="n">y</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="n">PAD</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="s1">&#39;done&#39;</span>
+                <span class="k">if</span> <span class="n">sym</span> <span class="o">==</span> <span class="p">(</span><span class="n">PAD</span><span class="p">,</span> <span class="n">PAD</span><span class="p">,</span> <span class="n">PAD</span><span class="p">):</span>
+                    <span class="k">return</span> <span class="s1">&#39;pad&#39;</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="n">phase</span><span class="p">,</span> <span class="n">r</span> <span class="o">=</span> <span class="n">q</span>
+            <span class="n">first</span><span class="p">,</span> <span class="n">second</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span> <span class="k">if</span> <span class="n">phase</span> <span class="o">==</span> <span class="s1">&#39;X&#39;</span> <span class="k">else</span> <span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">letter</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">second</span> <span class="o">==</span> <span class="s1">&#39;1&#39;</span> <span class="ow">and</span> <span class="n">first</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="n">PAD</span><span class="p">):</span>
+                <span class="c1"># the second marker: adjacent iff its profile lists register r</span>
+                <span class="k">return</span> <span class="s1">&#39;done&#39;</span> <span class="k">if</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">letter</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">else</span> <span class="s1">&#39;dead&#39;</span>
+            <span class="k">if</span> <span class="n">second</span> <span class="o">==</span> <span class="s1">&#39;0&#39;</span> <span class="ow">and</span> <span class="n">first</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="n">PAD</span><span class="p">):</span>
+                <span class="c1"># the first vertex is replaced if its register is reused</span>
+                <span class="k">return</span> <span class="s1">&#39;dead&#39;</span> <span class="k">if</span> <span class="n">letter</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">r</span> <span class="k">else</span> <span class="p">(</span><span class="n">phase</span><span class="p">,</span> <span class="n">r</span><span class="p">)</span>
+            <span class="k">return</span> <span class="s1">&#39;dead&#39;</span>
+
+        <span class="k">return</span> <span class="n">dfa_from_delta</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">,</span> <span class="n">states</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="s1">&#39;init&#39;</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;done&#39;</span><span class="p">,</span> <span class="s1">&#39;pad&#39;</span><span class="p">})</span>
+
+<div class="viewcode-block" id="PathWidthClass.advice">
+<a class="viewcode-back" href="../../api/autstr.html#autstr.graphs.PathWidthClass.advice">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">advice</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">graph</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">PathWidthGraph</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;The advice string of a graph (its letters as alphabet symbols).&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">PathWidthGraph</span><span class="p">):</span>
+            <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">graph</span><span class="o">.</span><span class="n">width</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">w</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;graph has layout width </span><span class="si">{</span><span class="n">graph</span><span class="o">.</span><span class="n">width</span><span class="si">}</span><span class="s2"> &gt; w = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">w</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">symbol_of</span><span class="p">[</span><span class="n">letter</span><span class="p">]</span> <span class="k">for</span> <span class="n">letter</span> <span class="ow">in</span> <span class="n">graph</span><span class="o">.</span><span class="n">letters</span><span class="p">]</span></div>
+</div>
+
+</pre></div>
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2022-2026, Faried Abu Zaid
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer no-toc">
+      
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=acc74ff5"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>
