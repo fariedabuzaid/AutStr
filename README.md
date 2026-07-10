@@ -283,21 +283,36 @@ first-order theory of a uniformly automatic class reduces to the monadic
 second-order theory of its advice language (Abu Zaid–Grädel–Reinhardt 2017;
 Abu Zaid 2018).
 
-**Why it is fast — and where it is hard.** Evaluating a *fixed* formula on a
-structure is one linear pass of its advice word through the query automaton, so on
-any class of bounded width every fixed MSO property is decided in linear time — a
-constructive, streaming form of Courcelle's theorem. The cost lives entirely in
-*compiling* the automaton, and it is governed by the formula's **width** (its
-number of simultaneously-free variables): the intermediate automata range over
-`|Σ|^width` symbol combinations. Bipartiteness and connectedness are width-4 and
-compile in seconds; 3-colourability — the minimal NP-hard MSO query — is width-5
-and needs a larger one-time compile. Once compiled, an automaton can be
-serialized and reused forever.
+**Trees.** The same programme runs over finite *trees* read by bottom-up tree
+automata rather than words read by word automata — the step from Büchi's theorem
+to Rabin's. A tree-automatic presentation buys structures that no string encoding
+reaches naturally, such as (ℕ, ·) with a number written as the tree of its prime
+exponents, and classes whose advice is inherently a tree: a tree decomposition
+(bounded tree-width) or a k-expression (bounded clique-width).
 
-The engine itself is a batched-NumPy implementation of *sparse* DFAs (every state
-stores a default transition plus a few exceptions), with binary-search transition
-lookups, hashed partition refinement, and frontier-batched constructions
-throughout. JAX is an optional accelerator used only for bulk word processing.
+**Why it is fast — and where it is hard.** Evaluating a *fixed* formula on a
+structure is one linear pass of its advice through the query automaton, so on any
+class of bounded width every fixed MSO property is decided in linear time — a
+constructive, streaming form of Courcelle's theorem. The cost lives entirely in
+*compiling* the automaton.
+
+A transition is not a `symbol -> target` table but a **decision diagram over the
+symbol's digits**, hash-consed and shared across states and automata
+([`autstr.mtbdd`](autstr/mtbdd.py)) — the representation MONA uses, for the same
+reason. A transition that ignores a tape never tests that tape's variables, so
+cylindrification is a variable renaming rather than a duplication of every row
+once per letter of every new tape, complementation touches no diagram at all, and
+the alphabet's *width* stops driving the cost. What remains is the subset
+explosion of determinizing an existential quantifier: element quantifiers are
+cheap, and *set* quantifiers (MSO proper) determinize over subsets of the
+intermediate automaton's states. Connectedness and bipartiteness compile in
+seconds; 3-colourability — the minimal NP-hard MSO query — is a genuinely large
+one-time compile. Once compiled, an automaton can be serialized (diagrams and
+all) and reused forever.
+
+Around the diagrams the engine is batched NumPy: frontier-batched constructions,
+hashed partition refinement, and a subset construction that runs in a collectable
+scratch store. JAX is an optional accelerator used only for bulk word processing.
 
 ---
 
@@ -347,6 +362,38 @@ mathematical direction and review kept firmly human.
   earlier; several went from a whiteboard description to running, tested code
   within hours. The code is the model's; the theory, the choices, and the
   verification protocol were human.
+
+- **v3.0 (July 2026) — Claude, Anthropic's Opus 4.8 model.** A second session, in
+  the same protocol, that took the library from strings to trees and replaced the
+  transition representation underneath both:
+  - **tree-automatic structures.** `autstr.sparse_tree_automata` (bottom-up tree
+    automata), `autstr.tree_presentations`, and `autstr.tree_uniform` — the tree
+    counterparts of the whole stack. New members: **Skolem arithmetic** (ℕ, ·),
+    graphs of bounded **tree-width** and bounded **clique-width** with full MSO,
+    and tree-indexed **extraspecial p-groups**. Cross-validated by embedding the
+    string engine's Büchi arithmetic into the tree engine and re-deciding every
+    sentence through both.
+  - **transitions are shared multi-terminal BDDs** over the symbol's digits, in
+    both engines. `expand` became a variable renaming, `complement` stopped
+    touching diagrams at all, and `minimize` became one `apply` per state per
+    round. Queries that had been impossible for lack of alphabet width now
+    compile: an arity-5 relation over a 14-letter alphabet (14⁵ = 537 824 flat
+    symbols) went from *infeasible* to 0.2 s; tree-depth-4 bipartiteness from
+    17 s to 0.4 s. The test suite went from ~2 min to ~35 s.
+  - **a soundness bug fixed.** The tree minimizer's Moore refinement keyed each
+    entry by the partner's *class* and compared the resulting sets, which is
+    strictly weaker than being interchangeable beside every partner; it could
+    settle on a partition that is not a congruence and merge inequivalent states.
+    It changed the language on roughly one in a thousand dense random automata,
+    and had been latent since the tree engine landed. Found by porting an
+    optimization that turned out not to pay, and checking its neighbour.
+
+  Not everything worked. A bisimulation quotient that merges 31 % of the states in
+  the string engine merges 3 % in the tree engine and costs 6 %; it was measured
+  and discarded. A garbage collector for the subset construction reclaims a
+  quarter of the store, not the two thirds an early sample suggested. Both
+  negative results are recorded in the commit log, because they are the parts a
+  reader would otherwise have to rediscover.
 
 ---
 
