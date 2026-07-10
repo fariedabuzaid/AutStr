@@ -1,23 +1,32 @@
-  name: run_tests
-  on:
-    pull_request:
-      types: [ opened, reopened ]
-    push:
-      branches:
-        - 'main'
-        - 'dev'
-  jobs:
-    run_all_tests:
-      runs-on: 'ubuntu-latest'
-      steps:
-        - uses: actions/checkout@v4
-        - name: Install Python 3
-          uses: actions/setup-python@v5
-          with:
-            python-version: 3.11
-        - name: Install dependencies
-          run: |
-            python -m pip install --upgrade pip
-            pip install -e .
-        - name: Run tests with pytest
-          run: pytest
+name: run_tests
+
+on:
+  pull_request:
+  push:
+    branches:
+      - 'main'
+      - 'dev'
+
+jobs:
+  run_all_tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install the package and its test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[graphs,test]"
+
+      - name: Run the test suite
+        run: pytest -q

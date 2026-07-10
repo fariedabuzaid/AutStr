@@ -1,5 +1,5 @@
-"""Finite boolean algebras and finite abelian groups as uniformly automatic
-classes.
+"""Finite boolean algebras and the localizations Z[1/p] as automatic
+structures.
 
 **Finite boolean algebras** (`FiniteBooleanAlgebras`): the algebra with n
 atoms is (up to isomorphism) the powerset algebra of [n]. The advice is
@@ -10,18 +10,13 @@ length n, and all operations are positionwise. Signature:
     Join(x,y,z)   z = x OR y        Compl(x,y)    y = NOT x
     Atom(x)       x is an atom
 
-**Finite abelian groups** (`FiniteAbelianGroups`): every finite abelian group
-is a direct sum of cyclic groups Z_{n_1} ⊕ ... ⊕ Z_{n_k}. The advice spells
-the orders n_i as '#'-terminated blocks of LSB-first binary digits; an
-element (a_1, ..., a_k) puts the LSB-first binary of a_i into block i.
-Addition is the single relation
+**The localizations Z[1/p]** (`Z1pLocalization`): a single automatic structure,
+not a class. An element is written with a sign and a radix-aligned pair of
+integer and fractional digits, and addition is recognized by a Buechi-style
+carry automaton.
 
-    A(x,y,z)      z = x + y
-
-verified per block as  x + y = z + b*n  for a guessed b in {0,1}, digit by
-digit with a signed carry — regular because the advice supplies the digits
-of n synchronously. The identity is definable (A(x,x,x) iff x = 0), and so
-are inverses and equality.
+The finite abelian groups live in `autstr.groups` beside the other group
+classes.
 """
 import itertools as it
 from dataclasses import dataclass
@@ -35,7 +30,6 @@ from autstr.uniform import UniformlyAutomaticClass, dfa_from_delta
 from autstr.utils.logic import get_free_elementary_vars
 
 PAD = '*'
-SEP = '#'
 
 
 def _is_prime(n: int) -> bool:
@@ -447,126 +441,3 @@ class FiniteBooleanAlgebras:
 # ====================================================================
 # Finite abelian groups
 # ====================================================================
-
-def _lsbf_bits(n: int) -> List[str]:
-    """LSB-first binary digits of n >= 1."""
-    return list(bin(n)[2:][::-1])
-
-
-class FiniteAbelianGroups:
-    """The uniformly automatic class of all finite abelian groups, presented
-    by their cyclic decompositions: the group Z_{n_1} ⊕ ... ⊕ Z_{n_k} has
-    advice bin(n_1)# ... bin(n_k)# (LSB-first binary per block)."""
-
-    def __init__(self):
-        self.sigma = {PAD, '0', '1', SEP}
-        self.cls = UniformlyAutomaticClass({
-            'U': self._universe_automaton(),
-            'A': self._addition_automaton(),
-        }, padding_symbol=PAD)
-
-    def _universe_automaton(self) -> SparseDFA:
-        """U(p, x): p is a sequence of canonical nonempty binary blocks (MSB
-        1 last, so each block denotes some n >= 1) and per block the element
-        digits denote a value < n. LSB-first comparison: the last differing
-        digit decides."""
-        states = ['between', 'pad', 'dead']
-        states += [('c', cmp, msb) for cmp in ('EQ', 'LT', 'GT') for msb in (0, 1)]
-
-        def delta(q, sym):
-            a, x = sym
-            if q == 'dead':
-                return 'dead'
-            if q == 'pad':
-                return 'pad' if (a, x) == (PAD, PAD) else 'dead'
-            if a in ('0', '1') and x in ('0', '1'):
-                cmp = q[1] if q != 'between' else 'EQ'
-                if x != a:
-                    cmp = 'LT' if x == '0' else 'GT'
-                return ('c', cmp, int(a))
-            if (a, x) == (SEP, SEP):
-                # block ends: canonical (msb 1) and element value < n
-                if q != 'between' and q[1] == 'LT' and q[2] == 1:
-                    return 'between'
-                return 'dead'
-            if (a, x) == (PAD, PAD) and q == 'between':
-                return 'pad'
-            return 'dead'
-
-        return dfa_from_delta(self.sigma, states, 2, delta, 'between', {'between', 'pad'})
-
-    def _addition_automaton(self) -> SparseDFA:
-        """A(p, x, y, z): per block, x + y = z + b*n for some b in {0,1}
-        (i.e. z = x + y mod n), checked digit by digit LSB-first with one
-        signed carry per branch b."""
-        carries = list(range(-2, 3)) + ['F']
-        states = [('a', c0, c1) for c0 in carries for c1 in carries]
-        states += ['pad', 'dead']
-
-        def step(carry, n_bit, x, y, z, b):
-            if carry == 'F':
-                return 'F'
-            s = carry + x + y - z - b * n_bit
-            if s % 2 != 0:
-                return 'F'
-            s //= 2
-            return s if -2 <= s <= 2 else 'F'
-
-        def delta(q, sym):
-            a, x, y, z = sym
-            if q == 'dead':
-                return 'dead'
-            if q == 'pad':
-                return 'pad' if all(s == PAD for s in sym) else 'dead'
-            c0, c1 = q[1], q[2]
-            if a in ('0', '1') and all(s in ('0', '1') for s in (x, y, z)):
-                bits = (int(a), int(x), int(y), int(z))
-                return ('a', step(c0, *bits, 0), step(c1, *bits, 1))
-            if all(s == SEP for s in sym):
-                # block ends: some branch must close with carry 0
-                return ('a', 0, 0) if 0 in (c0, c1) else 'dead'
-            if all(s == PAD for s in sym) and (c0, c1) == (0, 0):
-                return 'pad'
-            return 'dead'
-
-        return dfa_from_delta(self.sigma, states, 4, delta, ('a', 0, 0),
-                              {('a', 0, 0), 'pad'})
-
-    # ---------------- encodings and class operations ----------------
-
-    def advice(self, orders: Sequence[int]) -> List[str]:
-        """Advice string of Z_{n_1} ⊕ ... ⊕ Z_{n_k}."""
-        word = []
-        for n in orders:
-            if n < 1:
-                raise ValueError("cyclic factor orders must be >= 1")
-            word += _lsbf_bits(n) + [SEP]
-        return word
-
-    def encode(self, element: Union[int, Sequence[int]], orders: Sequence[int]) -> List[str]:
-        """Encode a group element (one value per cyclic factor)."""
-        if isinstance(element, int):
-            element = (element,)
-        if len(element) != len(orders):
-            raise ValueError(f"element has {len(element)} components, group has {len(orders)}")
-        word = []
-        for a, n in zip(element, orders):
-            if not 0 <= a < n:
-                raise ValueError(f"component {a} not in Z_{n}")
-            block_len = len(_lsbf_bits(n))
-            digits = _lsbf_bits(a) if a > 0 else ['0']
-            word += digits + ['0'] * (block_len - len(digits)) + [SEP]
-        return word
-
-    def evaluate(self, phi) -> Tuple[SparseDFA, List[str]]:
-        return self.cls.evaluate(phi)
-
-    def check(self, phi, orders: Sequence[int], **elements) -> bool:
-        """Model check against Z_{n_1} ⊕ ... ⊕ Z_{n_k}; free variables can be
-        assigned group elements (tuples with one value per factor, or a
-        single int for a cyclic group)."""
-        words = {name: self.encode(e, orders) for name, e in elements.items()}
-        return self.cls.check(phi, self.advice(orders), **words)
-
-    def get_structure(self, orders: Sequence[int]) -> AutomaticPresentation:
-        return self.cls.get_structure(self.advice(orders))

@@ -131,3 +131,7 @@ dmypy.json
 # Graphviz render artifacts
 notebooks/automaton
 notebooks/automaton.png
+
+# Sphinx build output and generated API stubs
+docs/build/
+docs/source/api/

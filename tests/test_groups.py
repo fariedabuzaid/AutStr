@@ -2,7 +2,7 @@ import itertools as it
 
 import pytest
 
-from autstr.groups import ExtraspecialGroups, IndexTwoCyclicGroups
+from autstr.groups import FiniteAbelianGroups, ExtraspecialGroups, IndexTwoCyclicGroups
 
 
 @pytest.fixture(scope="module")
@@ -146,3 +146,54 @@ class TestExtraspecialGroups:
     def test_prime_validation(self):
         with pytest.raises(ValueError):
             ExtraspecialGroups(4)
+
+
+@pytest.fixture(scope="module")
+def ab():
+    return FiniteAbelianGroups()
+
+
+class TestFiniteAbelianGroups:
+    def test_addition_cyclic(self, ab):
+        for x, y in [(0, 0), (1, 5), (4, 5), (3, 3), (5, 5)]:
+            for z in range(6):
+                expected = (x + y) % 6 == z
+                assert ab.check('A(x,y,z)', [6], x=x, y=y, z=z) == expected, (x, y, z)
+
+    def test_addition_direct_sum(self, ab):
+        orders = [2, 3]
+        assert ab.check('A(x,y,z)', orders, x=(1, 1), y=(1, 2), z=(0, 0))
+        assert ab.check('A(x,y,z)', orders, x=(0, 2), y=(1, 2), z=(1, 1))
+        assert not ab.check('A(x,y,z)', orders, x=(1, 1), y=(1, 2), z=(1, 0))
+
+    def test_identity_definable(self, ab):
+        # A(x,x,x) holds iff x = 0
+        assert ab.check('A(x,x,x)', [4], x=0)
+        for x in (1, 2, 3):
+            assert not ab.check('A(x,x,x)', [4], x=x)
+
+    def test_group_axioms(self, ab):
+        inverses = 'all x.(exists y.(exists z.(A(x,y,z) and A(z,z,z))))'
+        commutative = 'all x.(all y.(all z.((not A(x,y,z)) or A(y,x,z))))'
+        for orders in ([1], [5], [2, 2]):
+            assert ab.check(inverses, orders)
+            assert ab.check(commutative, orders)
+
+    def test_two_torsion_uniform(self, ab):
+        """exists x != 0 with x + x = 0 — one automaton decides it for every
+        finite abelian group: true iff some cyclic factor has even order."""
+        phi = ('exists x.((not A(x,x,x)) and '
+               '(exists z.(A(x,x,z) and A(z,z,z))))')
+        dfa, variables = ab.evaluate(phi)
+        assert variables == ['advice']
+        cases = [([4], True), ([3], False), ([2, 3], True),
+                 ([9], False), ([1], False), ([5, 7], False), ([5, 6], True)]
+        for orders, expected in cases:
+            advice = ab.advice(orders)
+            assert dfa.accepts([(s,) for s in advice]) == expected, orders
+
+    def test_encoding_validation(self, ab):
+        with pytest.raises(ValueError):
+            ab.encode(6, [6])  # out of range
+        with pytest.raises(ValueError):
+            ab.encode((1,), [2, 3])  # wrong number of components

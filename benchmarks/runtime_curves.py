@@ -20,6 +20,10 @@ import argparse
 import time
 from pathlib import Path
 
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _bench_common as bench
+
 import numpy as np
 
 from autstr.graphs import TreeDepthClass
@@ -149,16 +153,10 @@ def draw(series, out_dir, formats):
 
 
 def main():
-    here = Path(__file__).resolve().parent
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--reps", type=int, default=5)
-    ap.add_argument("--max-exp", type=int, default=7)
-    ap.add_argument("--out-dir", default=str(here),
-                    help="where to write the plot (default: the benchmarks dir)")
-    ap.add_argument("--formats", default="svg,pdf",
-                    help="comma-separated vector/raster formats (default svg,pdf)")
+    ap = bench.parser(__doc__)
     args = ap.parse_args()
-    sizes = [n for n in SIZES if n <= 10 ** args.max_exp]
+    cfg = bench.settings(args)
+    sizes = [n for n in SIZES if n <= 10 ** cfg["max_exp"]]
 
     cls = TreeDepthClass(4)
     series, rows = {}, []
@@ -168,7 +166,7 @@ def main():
             print(f"  {QUERIES[key]['label']}: not cached — run "
                   f"uniform_graph_benchmark.py first.")
             continue
-        d = run_curve(cls, dfa, QUERIES[key], sizes, args.reps)
+        d = run_curve(cls, dfa, QUERIES[key], sizes, cfg["reps"])
         series[QUERIES[key]["label"]] = d
         for n, ms in zip(d["np_n"], d["np_ms"]):
             rows.append((QUERIES[key]["label"], n, "numpy", ms))
@@ -184,7 +182,8 @@ def main():
     print(f"\nWrote CSV -> {csv_path}")
 
     if series:
-        draw(series, Path(args.out_dir), args.formats.split(","))
+        if cfg["plot"]:
+            draw(series, Path(args.out_dir), args.formats.split(","))
 
 
 if __name__ == "__main__":

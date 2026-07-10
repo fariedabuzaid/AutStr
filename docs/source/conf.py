@@ -1,28 +1,52 @@
 # Configuration file for the Sphinx documentation builder.
 #
-# For the full list of built-in configuration values, see the documentation:
+# The API reference is generated from the docstrings in `autstr/`; the docs
+# workflow refreshes the stubs on every build with
+#     sphinx-apidoc -f -o docs/source/api autstr
+#
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
-
-# -- Project information -----------------------------------------------------
-# https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
+from importlib.metadata import PackageNotFoundError, version as _version
 
 project = 'AutStr'
-copyright = '2022, Faried Abu Zaid'
+copyright = '2022-2026, Faried Abu Zaid'
 author = 'Faried Abu Zaid'
-release = '1.0'
+
+try:                                    # the installed package is the truth
+    release = _version('autstr')
+except PackageNotFoundError:            # building from an uninstalled tree
+    release = '0.0.0'
+version = '.'.join(release.split('.')[:2])
 
 # -- General configuration ---------------------------------------------------
-# https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.mathjax', "sphinx_autodoc_typehints"]
+extensions = [
+    'sphinx.ext.autodoc',
+    'sphinx.ext.napoleon',
+    'sphinx.ext.intersphinx',
+    'sphinx.ext.viewcode',
+    'sphinx.ext.mathjax',
+    'sphinx_autodoc_typehints',
+]
 
 templates_path = ['_templates']
-exclude_patterns = ['setup.rst']
+exclude_patterns = []
 
+autodoc_default_options = {
+    'members': True,
+    'undoc-members': True,
+    'show-inheritance': True,
+    'member-order': 'bysource',
+}
+autodoc_typehints = 'description'
+autoclass_content = 'both'
 
+intersphinx_mapping = {
+    'python': ('https://docs.python.org/3', None),
+    'numpy': ('https://numpy.org/doc/stable/', None),
+}
 
 # -- Options for HTML output -------------------------------------------------
-# https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = "cloud"
-html_static_path = ['_static']
+html_theme = 'furo'
+html_static_path = []
+html_title = f'AutStr {release}'

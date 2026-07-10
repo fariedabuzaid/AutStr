@@ -1,29 +1,42 @@
-name: Build and Deploy
+name: Build and Deploy Docs
+
 on:
   pull_request:
-    types: [ opened, reopened ]
   push:
     branches:
       - 'main'
-      - 'dev'
+
 permissions:
   contents: write
+
 jobs:
-  build-and-deploy:
-    concurrency: ci-${{ github.ref }} # Recommended if you intend to make multiple deployments in quick succession.
+  build:
     runs-on: ubuntu-latest
+    # Only one deployment at a time; a second push supersedes the first.
+    concurrency: docs-${{ github.ref }}
     steps:
-      - name: Checkout 🛎️
-        uses: actions/checkout@v3
-      - name: Install dependencies
+      - uses: actions/checkout@v4
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install the package and the documentation toolchain
         run: |
           python -m pip install --upgrade pip
-          pip install -e .
-      - name: Install and Build 🔧 # This example project is built using npm and outputs the result to the 'build' folder. Replace with the commands required to build your project, or remove this step entirely if your site is pre-built.
-        run: |
-          sphinx-apidoc -o docs/source . tests/*
-          sphinx-build -b html docs/source/ docs/build/html
-      - name: Deploy 🚀
+          pip install -e ".[graphs,docs]"
+
+      - name: Generate the API stubs from the docstrings
+        run: sphinx-apidoc -f -o docs/source/api autstr
+
+      - name: Build the HTML
+        run: sphinx-build -b html -W --keep-going docs/source docs/build/html
+
+      - name: Deploy to GitHub Pages
+        # A pull request may not write to the repository, so only main deploys.
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: docs/build/html # The folder the action should deploy.
+          folder: docs/build/html

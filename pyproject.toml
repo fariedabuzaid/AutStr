@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "autstr"
-version = "2.0.0"
+version = "3.0.0"
 description = "Library for working with finitely presentable infinite structures"
 readme = "README.md"
 authors = [
@@ -42,6 +42,10 @@ jax = ["jax>=0.4.13"]
 graphs = ["networkx>=3.0"]
 # plotting for the runtime-curve benchmark (benchmarks/runtime_curves.py)
 benchmarks = ["matplotlib>=3.5"]
+# everything the test suite needs (networkx for the graph classes)
+test = ["pytest>=7.4", "networkx>=3.0"]
+# building the API documentation from the docstrings
+docs = ["sphinx>=7.2", "furo>=2024.1", "sphinx-autodoc-typehints>=1.25", "networkx>=3.0"]
 
 [dependency-groups]
 dev = [
@@ -59,6 +63,9 @@ dev = [
     "flake8~=6.1.0",
     "pre-commit~=3.2.0",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [tool.setuptools.packages.find]
 include = ["autstr*"]

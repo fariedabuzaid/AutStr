@@ -238,14 +238,90 @@ Built-in classes include:
 | package | classes | signature |
 |---------|---------|-----------|
 | `autstr.graphs`  | bounded **tree-depth**, bounded **pathwidth** | full MSO over vertex sets (`Sing`, `Subset`, `E`) |
-| `autstr.algebra` | finite **Boolean algebras**, finite **abelian groups**, **ℤ[1/p]** | `Meet`/`Join`/`Compl`/`Leq`/`Atom`; `+` |
-| `autstr.groups`  | **index-≤2 cyclic** groups (dihedral, quaternion, semidihedral, modular), **extraspecial** p-groups | multiplication `M` |
+| `autstr.algebra` | finite **Boolean algebras**, **ℤ[1/p]** | `Meet`/`Join`/`Compl`/`Leq`/`Atom`; `+` |
+| `autstr.groups`  | finite **abelian** groups, **index-≤2 cyclic** groups (dihedral, quaternion, semidihedral, modular), **extraspecial** p-groups | `+`; multiplication `M` |
+| `autstr.tree_graphs` | bounded **tree-width**, bounded **clique-width** | full MSO over vertex sets (`Sing`, `Subset`, `E`) |
+| `autstr.tree_groups` | **tree-indexed extraspecial** p-groups | multiplication `M` |
 
 The generic machinery in [`autstr.uniform`](autstr/uniform.py) turns *any*
 advice-indexed family of automata into a class with relativized query evaluation,
 sentence checking, member instantiation (`get_structure`), and a first-order
-`define` for bootstrapping complex relations from primitives. The three showcase
-notebooks in [`notebooks/`](notebooks/) walk through all of it.
+`define` for bootstrapping complex relations from primitives.
+
+The same machinery runs over **trees** rather than words. Where an automatic
+presentation encodes elements as strings and a word automaton reads them, a
+*tree-automatic* presentation encodes them as finite trees read by a bottom-up
+tree automaton — which is exactly the step from Büchi's theorem to Rabin's.
+[`autstr.tree_uniform`](autstr/tree_uniform.py) hosts the classes whose advice
+is naturally a tree: a tree decomposition (bounded tree-width) or a
+k-expression (bounded clique-width), and Skolem arithmetic (ℕ, ·) in
+[`autstr.buildin.tree_presentations`](autstr/buildin/tree_presentations.py),
+where a number is the tree of its prime exponents.
+
+The showcase notebooks in [`notebooks/`](notebooks/) walk through all of it;
+[`tree_classes.ipynb`](notebooks/tree_classes.ipynb) is the tour of the
+tree-automatic side.
+
+---
+
+## 🧩 Composing presentations
+
+Automatic structures over a shared signature are closed under disjoint union and
+direct products; uniformly automatic classes are closed under union and under
+taking all finite direct products of their members. `autstr.composition` builds
+the new presentation for you.
+
+```python
+from autstr.composition import (
+    class_union, direct_product_closure, blocks, tagged_advice,
+)
+from autstr.groups import ExtraspecialGroups, IndexTwoCyclicGroups
+from autstr.uniform import UniformlyAutomaticClass
+
+cyclic, extra = IndexTwoCyclicGroups(), ExtraspecialGroups(3)
+
+def reduct(uniform):                     # the signature the two classes share
+    return UniformlyAutomaticClass(
+        {'U': uniform.class_automata['U'], 'M': uniform.class_automata['M']})
+
+# Members of either family ...
+both = class_union(reduct(cyclic.cls), reduct(extra.cls))
+# ... and every finite direct product of them.
+groups = direct_product_closure(both)
+
+z4 = tagged_advice(cyclic.cyclic(4), '<l>')          # Z4, abelian
+heis = tagged_advice(extra.advice(1), '<r>')         # extraspecial 3^(1+2)
+
+abelian = 'all x.(all y.(all z.(M(x,y,z) -> M(y,x,z))))'
+groups.check(abelian, blocks(z4, z4))       # True  — Z4 × Z4
+groups.check(abelian, blocks(z4, heis))     # False — one nonabelian factor
+```
+
+| operation | on | construction |
+|-----------|----|--------------|
+| `disjoint_union(A, B)` | structures | tag each element with the side it came from |
+| `direct_product(A, B, kind='sync')` | structures | `R_A(a,a') ∧ R_B(b,b')` |
+| `direct_product(A, B, kind='async')` | structures | `(R_A(a,a') ∧ b=b') ∨ (R_B(b,b') ∧ a=a')` |
+| `class_union(C, D)` | classes | tag the *advice*, so the advice languages are disjoint |
+| `direct_product_closure(C)` | classes | advice `α₁\|…\|αₙ` presents `A_{α₁} × … × A_{αₙ}` |
+
+Two of these are worth a word. The **direct product** encodes a pair over the
+*pair alphabet*, where a letter carries one letter of each factor; each factor
+is then embedded by a variable renaming into its half of the bits, and the two
+products are Boolean combinations of the embeddings. That is affordable only
+because the pair alphabet has `|Σ_A|·|Σ_B|` letters but `bits_A + bits_B`
+variables — **letters multiply, bits add**, which is precisely what the decision
+diagrams buy.
+
+The **product closure** concatenates advices with a separator. Since an element
+of a finite member is never longer than its advice, the blocks line up across
+every tape, so a relation of the product is the original relation holding in
+every block — one automaton with **one extra state**, where an interleaved
+encoding would need one copy per component. `FiniteAbelianGroups` is this
+construction applied to the cyclic groups, and it predates the module.
+
+[`notebooks/composition.ipynb`](notebooks/composition.ipynb) walks through all
+five operations.
 
 ---
 
@@ -268,21 +344,36 @@ first-order theory of a uniformly automatic class reduces to the monadic
 second-order theory of its advice language (Abu Zaid–Grädel–Reinhardt 2017;
 Abu Zaid 2018).
 
-**Why it is fast — and where it is hard.** Evaluating a *fixed* formula on a
-structure is one linear pass of its advice word through the query automaton, so on
-any class of bounded width every fixed MSO property is decided in linear time — a
-constructive, streaming form of Courcelle's theorem. The cost lives entirely in
-*compiling* the automaton, and it is governed by the formula's **width** (its
-number of simultaneously-free variables): the intermediate automata range over
-`|Σ|^width` symbol combinations. Bipartiteness and connectedness are width-4 and
-compile in seconds; 3-colourability — the minimal NP-hard MSO query — is width-5
-and needs a larger one-time compile. Once compiled, an automaton can be
-serialized and reused forever.
+**Trees.** The same programme runs over finite *trees* read by bottom-up tree
+automata rather than words read by word automata — the step from Büchi's theorem
+to Rabin's. A tree-automatic presentation buys structures that no string encoding
+reaches naturally, such as (ℕ, ·) with a number written as the tree of its prime
+exponents, and classes whose advice is inherently a tree: a tree decomposition
+(bounded tree-width) or a k-expression (bounded clique-width).
 
-The engine itself is a batched-NumPy implementation of *sparse* DFAs (every state
-stores a default transition plus a few exceptions), with binary-search transition
-lookups, hashed partition refinement, and frontier-batched constructions
-throughout. JAX is an optional accelerator used only for bulk word processing.
+**Why it is fast — and where it is hard.** Evaluating a *fixed* formula on a
+structure is one linear pass of its advice through the query automaton, so on any
+class of bounded width every fixed MSO property is decided in linear time — a
+constructive, streaming form of Courcelle's theorem. The cost lives entirely in
+*compiling* the automaton.
+
+A transition is not a `symbol -> target` table but a **decision diagram over the
+symbol's digits**, hash-consed and shared across states and automata
+([`autstr.mtbdd`](autstr/mtbdd.py)) — the representation MONA uses, for the same
+reason. A transition that ignores a tape never tests that tape's variables, so
+cylindrification is a variable renaming rather than a duplication of every row
+once per letter of every new tape, complementation touches no diagram at all, and
+the alphabet's *width* stops driving the cost. What remains is the subset
+explosion of determinizing an existential quantifier: element quantifiers are
+cheap, and *set* quantifiers (MSO proper) determinize over subsets of the
+intermediate automaton's states. Connectedness and bipartiteness compile in
+seconds; 3-colourability — the minimal NP-hard MSO query — is a genuinely large
+one-time compile. Once compiled, an automaton can be serialized (diagrams and
+all) and reused forever.
+
+Around the diagrams the engine is batched NumPy: frontier-batched constructions,
+hashed partition refinement, and a subset construction that runs in a collectable
+scratch store. JAX is an optional accelerator used only for bulk word processing.
 
 ---
 
@@ -333,6 +424,31 @@ mathematical direction and review kept firmly human.
   within hours. The code is the model's; the theory, the choices, and the
   verification protocol were human.
 
+- **v3.0 (July 2026) — Claude, (various models)** A second session, in
+  the same protocol, that took the library from strings to trees and replaced the
+  transition representation underneath both:
+  - **tree-automatic structures.** `autstr.sparse_tree_automata` (bottom-up tree
+    automata), `autstr.tree_presentations`, and `autstr.tree_uniform` — the tree
+    counterparts of the whole stack. New members: **Skolem arithmetic** (ℕ, ·),
+    graphs of bounded **tree-width** and bounded **clique-width** with full MSO,
+    and tree-indexed **extraspecial p-groups**. Cross-validated by embedding the
+    string engine's Büchi arithmetic into the tree engine and re-deciding every
+    sentence through both.
+  - **transitions are shared multi-terminal BDDs** over the symbol's digits, in
+    both engines. `expand` became a variable renaming, `complement` stopped
+    touching diagrams at all, and `minimize` became one `apply` per state per
+    round. Queries that had been impossible for lack of alphabet width now
+    compile: an arity-5 relation over a 14-letter alphabet (14⁵ = 537 824 flat
+    symbols) went from *infeasible* to 0.2 s; tree-depth-4 bipartiteness from
+    17 s to 0.4 s. The test suite went from ~2 min to ~35 s.
+ 
+  - **composing presentations.** `autstr.composition`: disjoint union and
+    synchronous/asynchronous direct products of automatic structures, union of
+    uniformly automatic classes, and the direct-product closure of a class.
+    Composed, they present every finite direct product of index-≤2 cyclic groups
+    and extraspecial p-groups, drawn from either family — and decide that such a
+    product is abelian exactly when all of its factors are.
+
 ---
 
 ## References
@@ -365,3 +481,53 @@ mathematical direction and review kept firmly human.
    and Limitations.* LMCS 3(2), 2007.
    arXiv: [cs/0703064](https://arxiv.org/abs/cs/0703064) ·
    DOI: [10.2168/LMCS-3(2:2)2007](https://doi.org/10.2168/LMCS-3%282%3A2%292007)
+
+### Foundations
+
+The idea that a logic can be decided by translating formulas into automata long
+predates the term *automatic structure*; this library is a late implementation of
+a line of work that runs through:
+
+7. **Büchi, J. R.** *Weak Second-Order Arithmetic and Finite Automata.*
+   Zeitschrift für math. Logik und Grundlagen der Mathematik 6 (1960), 66–92.
+   DOI: [10.1002/malq.19600060105](https://doi.org/10.1002/malq.19600060105)
+   *Monadic second-order logic over (ℕ, +1) is decidable, by translation into
+   finite automata. Every `evaluate` call in this library is this construction.*
+
+8. **Rabin, M. O.** *Decidability of Second-Order Theories and Automata on
+   Infinite Trees.* Transactions of the AMS 141 (1969), 1–35.
+   DOI: [10.2307/1995086](https://doi.org/10.2307/1995086)
+   *The same programme over trees. `autstr.sparse_tree_automata` and the
+   tree-automatic presentations are the finite-tree fragment of this.*
+
+9. **Courcelle, B.** *The Monadic Second-Order Logic of Graphs I: Recognizable
+   Sets of Finite Graphs.* Information and Computation 85(1), 1990, 12–75.
+   DOI: [10.1016/0890-5401(90)90043-H](https://doi.org/10.1016/0890-5401%2890%2990043-H)
+   *MSO properties of graphs of bounded tree-width are decidable in linear time.
+   `autstr.tree_graphs.TreeWidthClass` builds the automaton the theorem promises.*
+
+10. **Courcelle, B., & Olariu, S.** *Upper Bounds to the Clique Width of Graphs.*
+    Discrete Applied Mathematics 101 (2000), 77–114.
+    DOI: [10.1016/S0166-218X(99)00184-5](https://doi.org/10.1016/S0166-218X%2899%2900184-5)
+    *The k-expressions that `autstr.tree_graphs.CliqueWidthClass` reads as advice.*
+
+11. **Makowsky, J. A.** *Algorithmic Uses of the Feferman–Vaught Theorem.*
+    Annals of Pure and Applied Logic 126 (2004), 159–213.
+    DOI: [10.1016/j.apal.2003.11.002](https://doi.org/10.1016/j.apal.2003.11.002)
+    *The composition method behind meta-theorems of this shape.*
+
+### Related tools
+
+- **[MONA](https://www.brics.dk/mona/)** (Klarlund, Møller, Henriksen et al.)
+  decides WS1S and WS2S by translating formulas to automata whose transitions are
+  shared multi-terminal BDDs over the symbol's bits. AutStr's
+  [`autstr.mtbdd`](autstr/mtbdd.py) adopts exactly that representation, for
+  exactly MONA's reason: over a convolution alphabet, the flat
+  `symbol -> target` table is the bottleneck.
+- **[Walnut](https://cs.uwaterloo.ca/~shallit/walnut.html)** (Mousavi, Shallit)
+  proves theorems about automatic sequences by deciding first-order statements
+  over (ℕ, +) with automata — the same decision procedure, aimed at combinatorics
+  on words rather than at presenting structures.
+
+Both are mature and fast, and neither targets *uniformly* automatic classes or
+arbitrary automatic presentations, which is where AutStr sits.
