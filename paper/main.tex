@@ -1,0 +1,754 @@
+%% Uniformly automatic classes of finite groups of bounded rank-width
+%% First draft -- STACS/LIPIcs preprint style.
+%% TODO before submission/arXiv: affiliation, ORCID, funding, ccsdesc check,
+%% verify all bibliography details against DBLP, event macros.
+\documentclass[a4paper,UKenglish,autoref,thm-restate]{lipics-v2021}
+
+\usepackage{microtype}
+
+\bibliographystyle{plainurl}
+
+\title{Uniformly Automatic Classes of Finite Groups of Bounded Rank-Width}
+\titlerunning{Groups of Bounded Rank-Width}
+
+\author{Faried Abu Zaid}{Independent Researcher, Germany}{fariedaz@gmail.com}{}{}
+
+\authorrunning{F. Abu Zaid}
+
+\Copyright{Faried Abu Zaid}
+
+\ccsdesc[500]{Theory of computation~Finite Model Theory}
+\ccsdesc[300]{Theory of computation~Regular languages}
+\ccsdesc[300]{Computing methodologies~Symbolic and algebraic algorithms}
+
+\keywords{automatic structures, advice automata, finite $p$-groups, rank-width, group isomorphism, first-order model checking}
+
+\supplementdetails[subcategory={Source Code}]{Software}{https://github.com/fariedabuzaid/AutStr}
+
+%% TODO: replace by the actual event once the venue is fixed.
+\EventEditors{}
+\EventNoEds{0}
+\EventLongTitle{}
+\EventShortTitle{Preprint}
+\EventAcronym{}
+\EventYear{2026}
+\EventDate{}
+\EventLocation{}
+\EventLogo{}
+\SeriesVolume{0}
+\ArticleNo{0}
+
+%% ------------------------------------------------------------------
+\newcommand{\Fp}{\mathbb{F}_p}
+\newcommand{\Zp}{\mathbb{Z}_p}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\rk}{\operatorname{rk}}
+\newcommand{\rs}{\operatorname{rowsp}}
+\newcommand{\cs}{\operatorname{colsp}}
+\newcommand{\lcr}{\operatorname{lcr}}
+\newcommand{\tcr}{\operatorname{tcr}}
+\newcommand{\adv}{\alpha}
+\newcommand{\conv}{\otimes}
+\newcommand{\lin}[1]{\mathcal{C}^{\mathrm{lin}}_{#1}}
+\newcommand{\tre}[1]{\mathcal{C}^{\mathrm{tree}}_{#1}}
+\newcommand{\AutStr}{\textsf{AutStr}}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Finite nilpotent groups of class~$2$ and exponent~$p$ correspond, by the Baer
+correspondence, to alternating bilinear maps over $\Fp$; they dominate the
+enumeration of finite groups, and their isomorphism problem is equivalent to
+isometry of alternating matrix spaces and complete for the tensor-isomorphism
+class. We identify a structural parameter of such groups under which they
+become uniformly tame for automata-based methods: the \emph{cut-rank} of the
+commutation form over a linear or tree layout, i.e.\ its $\Fp$ rank-width.
+For every prime $p$ and all fixed $k, r$, the class of central extensions of
+$\Zp^n$ by $\Zp^k$ whose commutation form admits a layout of cut-rank at most
+$r$ is uniformly automatic: a single finite automaton, reading a linear-size
+advice that spells out rank-$r$ factorisations of the crossing blocks,
+decides the multiplication of every group in the class. The automaton state
+is exactly the cut-rank interface, so the parameter and the presentation
+coincide. Consequences include linear-time first-order model checking on all
+members, decidability of the uniform first-order theory of the class, and a
+common generalisation of several known automatic presentations: extraspecial
+$p$-groups, groups with commutation graphs of bounded pathwidth or
+treewidth, and---although its commutation graph is complete and has
+pathwidth $n-1$---the group in which no two generators commute. Generic
+forms have cut-rank $\Omega(n)$ under every layout, so the class is a thin,
+structured slice of the wild stratum. The constructions are implemented and
+machine-verified in the \AutStr{} library. We leave open a converse in the
+spirit of Courcelle--Oum and the complexity of isometry for matrix spaces of
+bounded rank-width.
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+
+Two research programmes meet in this paper.
+
+\subparagraph*{Algorithmic group theory.}
+Among finite groups, the nilpotent groups of class~$2$ and exponent~$p$ are
+simultaneously the most numerous and the least classifiable. The
+Higman--Sims bounds show that the number of groups of order $p^m$ is
+$p^{\frac{2}{27}m^3 + O(m^{8/3})}$, and the lower bound is already attained
+by class-$2$ groups of exponent $p$~\cite{Higman1960,Sims1965,Pyber1993}; it
+is a long-standing folklore conjecture that almost all finite groups are of
+this kind. By the Baer correspondence~\cite{Baer1938}, such a group is
+determined by an alternating bilinear map $B \colon \Fp^n \times \Fp^n \to
+\Fp^k$, and its isomorphism problem is exactly the isometry problem for
+alternating matrix spaces, which is complete for the tensor-isomorphism
+class~\cite{GrochowQiao2021}. Model theory tells the same story from another
+side: by Mekler's construction, this variety of groups interprets all graphs
+and is as wild as first-order model theory permits~\cite{Mekler1981}. In
+short, class-$2$ exponent-$p$ groups are the dark matter of finite group
+theory: they form the bulk of the universe and resist classification.
+
+\subparagraph*{Algorithmic model theory.}
+Automatic structures~\cite{KhoussainovNerode1995,BlumensathGraedel2000,Graedel2020}
+present a structure by finite automata: elements are words, and each
+relation is recognised by a synchronous multi-tape automaton. Automaticity
+buys decidable first-order theories and linear-time query evaluation. For a
+\emph{class} of finite structures the right notion is \emph{uniform}
+automaticity with advice~\cite{AbuZaidGraedelReinhardt2017,AbuZaid2018}: one
+tuple of automata presents every member of the class, and an additional
+advice string, read synchronously with the element encodings, selects the
+member. Uniformly automatic classes admit algorithmic meta-theorems in the
+style of Courcelle's theorem~\cite{Courcelle1990}: every first-order
+property can be compiled, once and for all, into an automaton that runs in
+linear time on each member's advice. Known uniformly automatic classes
+include all finite abelian groups, finite boolean algebras, and graphs of
+bounded tree-depth~\cite{AbuZaid2018}. On the group-theoretic side the
+known automatic presentations stay close to commutativity: finitely
+generated word-automatic groups are virtually abelian~\cite{OliverThomas2005},
+and the recent positive results of Nies and Stephan for infinite
+class-$2$ groups concern the infinite extraspecial group $E_p$, while the
+relatively free class-$2$ exponent-$p$ group on infinitely many generators
+is \emph{not} word-automatic~\cite{NiesStephan2023}.
+
+\subparagraph*{This paper.}
+We show that a single combinatorial parameter---the \emph{rank-width of the
+commutation form}---carves a uniformly automatic slice out of the wild
+stratum, and that the parameter is not merely sufficient but is
+\emph{literally} the automaton: the information a streaming algorithm must
+carry across a cut of the generator set is the crossing block of the form at
+that cut, and if that block factors through rank $r$, then $r$ residues
+modulo $p$ suffice.
+
+Fix a prime $p$ and let a \emph{form} be a family $B = (B_{ji})_{1 \le i < j
+\le n}$ of labels $B_{ji} \in \Fp^k$. It presents the group $G(B)$ generated
+by $x_1, \dots, x_n$ and central $y_1, \dots, y_k$ subject to $x_i^p = y_l^p
+= 1$ and the commutation relations $x_j x_i = x_i x_j\, y^{B_{ji}}$, a
+class-$2$ central extension of $\Zp^n$ by $\Zp^k$ of order $p^{n+k}$. For a
+set $S \subseteq [n]$ of generators, the \emph{crossing block} $M_S$ collects
+the labels of all commutation pairs with exactly one endpoint in $S$, and
+the \emph{cut-rank} of $S$ is $\rk_{\Fp} M_S$. A \emph{linear layout} is an
+ordering of the generators; its width is the maximal cut-rank of an initial
+segment. A \emph{tree layout} places the generators on a binary tree; its
+width is the maximal cut-rank of a subtree. For fixed $k$ and $r$ we prove:
+
+\begin{itemize}
+\item the class of all $(B, \text{linear layout of width} \le r)$ is
+  uniformly word-automatic, with a multiplication automaton of essentially
+  $p^{k+r}$ states (\autoref{thm:word});
+\item the class of all $(B, \text{tree layout of width} \le r)$ is
+  uniformly tree-automatic, with essentially $p^{k+2r}$ states
+  (\autoref{thm:tree}).
+\end{itemize}
+
+The advice has one letter per generator and spells out, cut by cut, a
+rank-$r$ factorisation of the crossing block: a basis-change matrix, the
+coefficient of the newly read digit, and a read-off matrix that recovers the
+commutator corrections. Every well-formed advice string presents a member of
+the class, because the streamed cocycle is bilinear by construction; so the
+presentation is exact, not merely an over-approximation.
+
+Three families illustrate the reach of the parameter and its independence
+from the usual width measures. A perfect matching of commutation pairs, all
+hitting one central generator, is the extraspecial group $p^{1+2m}$: width
+$1$, recovering the finite counterpart of the Nies--Stephan presentation of
+$E_p$~\cite{NiesStephan2023}. A commutation graph of bounded pathwidth or
+treewidth has bounded width (\autoref{prop:widths}). But also the
+\emph{complete} commutation graph---no two generators commute, pathwidth
+$n-1$, every vertex active at every cut---has width $1$: its crossing blocks
+are all-ones matrices. An automaton that stores digits of active vertices
+cannot multiply in this group with constant memory; an automaton that stores
+the single functional $\sum_i a_i$ can, and does. This is the sense in which
+cut-rank, not vertex-based width, is the right invariant, mirroring the step
+from treewidth to rank-width and clique-width in graph
+theory~\cite{OumSeymour2006,CourcelleOum2007}.
+
+For the group theorist, the dividends are algorithmic meta-theorems on a
+stratum where classification fails: every first-order property of groups
+(commutativity, centrality of an element, existence of elements of a given
+order, and so on) compiles into an automaton that evaluates in time linear
+in $\log |G|$ on every member, uniformly across the class
+(\autoref{cor:mc}); the uniform theory of the whole class is decidable
+(\autoref{cor:theory}). Conversely, we are explicit about what the
+parameter costs in group-theoretic generality: for $k = 1$ and odd $p$ the
+symplectic normal form collapses the class, up to isomorphism, to central
+products of Heisenberg groups with abelian factors, and bounded \emph{vertex
+cover} of the commutation graph collapses to a bounded core times an
+elementary abelian factor (\autoref{prop:collapse}); genuinely new
+isomorphism types therefore live at $k \ge 2$, where the classification
+problem is wild and normal forms are unavailable---precisely where a
+presentation that works \emph{without} normalisation earns its keep. A
+generic form has cut-rank $\Omega(n)$ under \emph{every} layout
+(\autoref{prop:generic}), so the class is thin, as any decidable slice of a
+wild stratum must be.
+
+Both constructions are implemented in the \AutStr{}
+library~\cite{AutStr} and machine-verified: the multiplication automata are
+checked exhaustively against the group law on several layouts and forms,
+the word and tree presentations are checked against each other on shared
+layouts, and the first-order examples of this paper run as regression tests
+(\autoref{sec:implementation}).
+
+\subparagraph*{Open problems.}
+The two questions we consider most interesting are stated in
+\autoref{sec:open}: a \emph{converse} in the spirit of
+Courcelle--Oum~\cite{CourcelleOum2007}---does uniform automaticity of a
+class of forms force bounded cut-rank under some layout?---and whether
+isometry of alternating matrix spaces of bounded rank-width is decidable in
+polynomial time, the matrix-space analogue of isomorphism testing for graphs
+of bounded rank-width~\cite{GroheSchweitzer2015}.
+
+\section{Preliminaries}
+\label{sec:prelim}
+
+\subparagraph*{Words, trees, convolution.}
+$\Sigma$ denotes a finite alphabet and $\Box \notin \Sigma$ a padding
+symbol. The \emph{convolution} $w_1 \conv \dots \conv w_m$ of words is the
+word over $(\Sigma \cup \{\Box\})^m$ obtained by aligning the $w_i$
+position-wise and padding the shorter ones. A \emph{tree} is a finite,
+binary, rooted, labelled tree; the convolution of trees overlays them and
+pads missing positions. A (bottom-up deterministic) tree automaton processes
+a tree from the leaves to the root; a run assigns a state to every node as a
+function of the node's label and the states of its children.
+
+\subparagraph*{Uniformly automatic classes.}
+We follow~\cite{AbuZaidGraedelReinhardt2017}. A \emph{uniformly automatic
+presentation} of a class $\mathcal{C}$ of $\tau$-structures consists of a
+regular advice set $A \subseteq \Sigma^*$ (or a regular set of advice trees)
+and automata $\mathfrak{U}, (\mathfrak{A}_R)_{R \in \tau}$ such that for
+every $\adv \in A$ the structure
+\[
+  \mathfrak{S}_\adv \;=\; \bigl( \{ u : \mathfrak{U} \text{ accepts } \adv
+  \conv u \},\; \bigl( \{ \bar u : \mathfrak{A}_R \text{ accepts } \adv \conv
+  \bar u \} \bigr)_{R \in \tau} \bigr)
+\]
+is well-defined, and $\mathcal{C} = \{ \mathfrak{S}_\adv : \adv \in A \}$ up
+to isomorphism. The same structure may be presented by several advices. The
+fundamental theorem of automatic structures relativises: for every
+first-order formula $\varphi(\bar x)$ there is an automaton recognising
+$\{ \adv \conv \bar u : \mathfrak{S}_\adv \models \varphi(\bar u) \}$,
+effectively~\cite{AbuZaidGraedelReinhardt2017}. We present groups in the
+signature $\{M, \mathrm{eq}\}$ with $M$ the graph of multiplication.
+
+\subparagraph*{Forms and groups.}
+Fix a prime $p$ and $k \ge 1$. A \emph{form} of dimension $n$ is a family
+$B = (B_{ji})_{1 \le i < j \le n}$ with $B_{ji} \in \Fp^k$; we write
+$\hat B_{\{i,j\}} := B_{ji}$ for the unoriented label and treat absent
+labels as $0$. The group $G(B)$ is presented by generators $x_1, \dots,
+x_n$, $y_1, \dots, y_k$ and relations
+\[
+  x_i^p = y_l^p = [\,y_l, g\,] = 1 \quad\text{and}\quad
+  x_j x_i = x_i x_j\, y^{B_{ji}} \;\ (i < j),
+  \qquad\text{where } y^{v} := y_1^{v_1} \cdots y_k^{v_k}.
+\]
+Define the bilinear map $C \colon \Fp^n \times \Fp^n \to \Fp^k$ by
+\begin{equation}
+  C(a, a') \;=\; \sum_{1 \le i < j \le n} B_{ji}\, a_j\, a'_i .
+  \label{eq:cocycle}
+\end{equation}
+
+\begin{lemma}[normal forms]
+\label{lem:cocycle}
+$G(B)$ is isomorphic to the group with universe $\Fp^k \times \Fp^n$ and
+multiplication
+\[
+  (b, a) \cdot (b', a') \;=\; \bigl(b + b' + C(a, a'),\; a + a'\bigr).
+\]
+In particular $|G(B)| = p^{n+k}$ and every element has a unique normal form
+$x_1^{a_1} \cdots x_n^{a_n} y^{b}$.
+\end{lemma}
+
+\begin{proof}
+Since $C$ is bilinear, $C(a, a') + C(a + a', a'') = C(a, a') + C(a, a'') +
+C(a', a'')= C(a', a'') + C(a, a' + a'')$, which is the cocycle identity, so
+the displayed operation is associative; inverses are $(-b + C(a,a), -a)
+=(-b,-a)$ since $C(a,a)$ need not vanish---note however $C(e_i, e_i) = 0$
+because $B_{ii}$ is not among the labels, whence $(0,e_i)^p = (0,0)$ also
+for $p = 2$. The elements $(0, e_i)$ and $(e_l, 0)$ satisfy all defining
+relations of $G(B)$, so $G(B)$ surjects onto the displayed group of order
+$p^{n+k}$; conversely the relations rewrite every word to a normal form, so
+$|G(B)| \le p^{n+k}$.
+\end{proof}
+
+\begin{remark}[$p = 2$]
+For odd $p$, $G(B)$ has exponent $p$. For $p = 2$ only the
+\emph{generators} are involutions; central elements of order $4$ may occur.
+The smallest example is the triangle $n = 3$, $k = 1$, all three labels
+$1$: here $z = x_1 x_2 x_3$ is central with $z^2 = y$, and $G(B)$ is the
+$1$-qubit Pauli group. This is a feature, not a bug: the presentation is
+consistent, and \autoref{lem:cocycle} holds verbatim.
+\end{remark}
+
+By the Baer correspondence~\cite{Baer1938}, isomorphism of the groups
+$G(B)$ (for odd $p$, modulo the radical) is isometry of the associated
+alternating matrix spaces; Hall's isoclinism~\cite{Hall1940} identifies
+exactly the data $(n, B)$ modulo the radical. All parameters introduced
+next are therefore isoclinism invariants of the presented group, up to the
+choice of layout.
+
+\subparagraph*{Cut-rank and layouts.}
+For $S \subseteq [n]$ the \emph{crossing block} of $B$ at $S$ is the matrix
+\[
+  M_S \in \Fp^{\,\bigl(([n] \setminus S) \times [k]\bigr) \times S},
+  \qquad
+  (M_S)_{(j,l),\,i} \;=\; \bigl(\hat B_{\{i,j\}}\bigr)_l ,
+\]
+and the \emph{cut-rank} of $S$ is $\rho_B(S) := \rk_{\Fp} M_S$. A
+\emph{linear layout} of $B$ is an ordering of $[n]$; renaming generators,
+we always take it to be the natural order, and define its width as $\max_{1
+\le t < n} \rho_B([t])$. A \emph{tree layout} is a binary rooted tree $T$
+together with a bijection of $[n]$ onto the nodes of $T$; renaming, we take
+the bijection to be the post-order enumeration (left subtree, right
+subtree, node), so that every subtree hosts an interval $[\mathrm{lo}_v,
+v]$. Its width is $\max_v \rho_B(S_v)$ over the subtree generator sets
+$S_v$. We write $\lcr(B)$ and $\tcr(B)$ for the minimal width over all
+linear (tree) layouts. Since a chain is a tree, $\tcr \le \lcr$. For $k =
+1$ and $0/1$ labels, $M_S$ is the bipartite adjacency matrix between $S$
+and its complement in the commutation graph, so $\tcr$ coincides with
+$\Fp$ rank-width (\autoref{prop:rankwidth} makes the interface exact).
+
+For fixed $p, k, r$ let $\lin{p,k,r}$ denote the class of pairs (form,
+linear layout of width $\le r$), each presenting the group $G(B)$, and
+$\tre{p,k,r}$ the tree analogue.
+
+\section{Linear layouts: the word-automatic class}
+\label{sec:word}
+
+Throughout this section fix $p, k, r$ and a form $B$ with a linear layout
+of width $\le r$; write $M_t := M_{[t]}$.
+
+The multiplication automaton must verify $(b_z, a_z) = (b_x, a_x) \cdot
+(b_y, a_y)$ while reading the three encodings synchronously, digit by
+digit. The digit sums $a_{z,t} = a_{x,t} + a_{y,t}$ are position-wise; the
+work is the correction $C(a_x, a_y) = \sum_t a_{x,t} \bigl( \sum_{i < t}
+B_{ti}\, a_{y,i} \bigr)$: at position $t$ the automaton must know the
+vector $\sum_{i<t} B_{ti}\, a_{y,i} \in \Fp^k$, a linear functional of all
+digits read so far. It cannot store the digits; it stores their image under
+a factorisation of the crossing block.
+
+\begin{lemma}[streaming factorisation]
+\label{lem:stream}
+For $0 \le t \le n$ fix $V_t \in \Fp^{r \times t}$ whose rows span
+$\rs(M_t)$ (padding with zero rows; $V_0$ is empty). Then for every $t \in
+[n]$ there are $T_t \in \Fp^{r \times r}$, $v_t \in \Fp^{r}$, $R_t \in
+\Fp^{k \times r}$ with
+\begin{enumerate}
+\item $V_t = \bigl[\, T_t V_{t-1} \;\big|\; v_t \,\bigr]$, i.e.\ the first
+  $t-1$ columns of $V_t$ equal $T_t V_{t-1}$ and the last column is $v_t$;
+\item $R_t V_{t-1} = B^{(t)}$, where $B^{(t)} \in \Fp^{k \times (t-1)}$ has
+  columns $B_{ti}$ for $i < t$.
+\end{enumerate}
+\end{lemma}
+
+\begin{proof}
+(1) Each row of $M_t$ is indexed by some $(j, l)$ with $j > t$; its
+restriction to the first $t-1$ columns is the corresponding row of
+$M_{t-1}$ (the same generator $j$ also lies outside $[t-1]$). Restriction
+is linear, so every row of $V_t$, being a combination of rows of $M_t$,
+restricts into $\rs(M_{t-1}) = \rs(V_{t-1})$; $T_t$ collects the
+coefficients, and $v_t$ is the last column.
+(2) The $l$-th row of $B^{(t)}$ is the row $(t, l)$ of $M_{t-1}$, because
+$t \notin [t-1]$; hence it lies in $\rs(V_{t-1})$.
+\end{proof}
+
+\begin{theorem}[linear layouts]
+\label{thm:word}
+For all fixed $p, k, r$, the class $\lin{p,k,r}$ is uniformly
+word-automatic. The advice for $(B, \text{layout})$ has length $n + k$ over
+an alphabet of $p^{r^2 + r + kr} + p + 2$ letters; the multiplication
+automaton has $p^{k+r} + \sum_{j<k} p^{j} + 1$ states; and every
+well-formed advice presents a member of the class.
+\end{theorem}
+
+\begin{proof}
+\emph{Encoding.} An element $(b, a)$ is the word $b_1 \cdots b_k a_1 \cdots
+a_n$ over $\{0, \dots, p-1\}$. The advice is $\mathsf{c}^k \alpha_1 \cdots
+\alpha_n$ where $\alpha_t$ encodes the triple $(T_t, v_t, R_t)$ of
+\autoref{lem:stream} as $r^2 + r + kr$ digits.
+
+\emph{The automaton.} States are $(\mathsf{c}, j, d)$ with $j < k$, $d \in
+\Fp^{j} \times \{0\}^{k-j}$, and $(\mathsf{x}, d, w)$ with $d \in \Fp^k$,
+$w \in \Fp^r$, plus a sink. On the $j$-th center position it records $d_j
+:= b_{z,j} - b_{x,j} - b_{y,j}$. On position $t$ it checks $a_{x,t} +
+a_{y,t} = a_{z,t}$, updates
+\[
+  d \;\leftarrow\; d - a_{x,t} \cdot (R_t\, w), \qquad
+  w \;\leftarrow\; T_t\, w + v_t \cdot a_{y,t},
+\]
+and accepts at the end iff $d = 0$.
+
+\emph{Correctness.} By induction, after position $t$ the invariant $w = V_t
+\, (a_y)|_{[t]}$ holds: it is preserved by \autoref{lem:stream}(1). Hence
+at position $t$, $R_t w = R_t V_{t-1} (a_y)|_{[t-1]} = \sum_{i<t} B_{ti}
+a_{y,i}$ by \autoref{lem:stream}(2), so the accumulated subtraction is
+exactly $C(a_x, a_y)$ of \eqref{eq:cocycle}, and acceptance means $b_z =
+b_x + b_y + C(a_x, a_y)$ as required by \autoref{lem:cocycle}. The universe
+and equality automata only check the shape.
+
+\emph{Exactness.} Conversely, an arbitrary well-formed advice defines,
+through the same update equations, the correction $\tilde C(a, a') = \sum_t
+a_t\, R_t \bigl( \prod \text{-terms in } T, v \bigr) a'$, which is bilinear
+in $(a, a')$ and supported on pairs $i < t$; so it equals \eqref{eq:cocycle}
+for the form $B_{ti} := R_t T_{t-1} \cdots$ (coefficient extraction), and
+the advice presents $G(B)$ for that form, whose layout has width $\le r$
+because the functional carried across every cut factors through $\Fp^r$ by
+construction.
+\end{proof}
+
+\begin{remark}
+The presentation is honest about sizes: the encoding of an element of $G$
+has length $n + k = \log_p |G|$, and for fixed $\varphi$ the model-checking
+run (\autoref{cor:mc}) is linear in $\log|G|$---not in $|G|$.
+\end{remark}
+
+\begin{example}[the clique]
+\label{ex:clique}
+Let $B_{ji} = 1 \in \Fp^1$ for all $i < j$: no two generators commute, and
+the commutation graph is complete, with pathwidth $n - 1$. Every crossing
+block is an all-ones matrix, of rank $1$; the layout data can be taken as
+$T_t = (1)$, $v_t = (1)$, $R_t = (1)$, and the automaton degenerates to two
+registers: $w = \sum_{i \le t} a_{y,i}$ and the deficit $d$. Under any
+vertex-based width measure this is the hardest instance; under cut-rank it
+is the easiest.
+\end{example}
+
+\begin{example}[extraspecial groups]
+\label{ex:extraspecial}
+Let $n = 2m$, $k = 1$, and $B_{2t,2t-1} = 1$ for $t \in [m]$: a perfect
+matching, presenting the extraspecial-type group of order $p^{1+2m}$ (for
+odd $p$, the exponent-$p$ extraspecial group; for $p = 2$, a central
+product of dihedral and quaternion groups). Any cut splits at most one
+pair, so the natural layout has width $1$. This is the finite-class
+counterpart of the word-automatic presentation of the infinite extraspecial
+group $E_p$~\cite{NiesStephan2023}, which is the direct limit of this
+family.
+\end{example}
+
+\section{Tree layouts: the tree-automatic class}
+\label{sec:tree}
+
+Tree layouts strictly extend linear ones (a chain is a tree), and for $k=1$
+they capture rank-width (\autoref{prop:rankwidth}). The new difficulty is
+that a bottom-up automaton meets a crossing pair $\{i, j\}$ in one of
+\emph{two} ways. Let $S$ be the current subtree, with $i \in S$. If $j$ is
+a proper ancestor of $S$'s root, then---as in the linear case---the
+contribution $B_{ji}\, a_{x,j}\, a_{y,i}$ pairs a \emph{future} $x$-digit
+against \emph{past} $y$-digits. But if $j$ lies in a sibling subtree, the
+two subtrees are processed independently and their contributions must be
+reconciled at the merge. In post-order the left subtree $L$ precedes the
+right subtree $R$ entirely, so every split pair has its smaller endpoint in
+$L$ and larger in $R$, and contributes $B_{ji}\, a_{x,j}\, a_{y,i}$ with $i
+\in L, j \in R$: the \emph{right} child's $x$-digits pair against the
+\emph{left} child's $y$-digits. The automaton therefore carries \emph{two}
+functional vectors, $w^x = V_S\, (a_x)|_S$ and $w^y = V_S\, (a_y)|_S$, and
+the merge is a bilinear pairing between them, which itself must factor
+through the two children's bases. That it does is a two-sided factorisation:
+
+\begin{lemma}[two-sided factorisation]
+\label{lem:twosided}
+Let $X \in \Fp^{m \times m'}$, $V \in \Fp^{r \times m'}$, $W \in \Fp^{r
+\times m}$. If every row of $X$ lies in $\rs(V)$ and every column of $X$
+lies in $\cs(W^{\mathsf T})$, then $X = W^{\mathsf T} Q\, V$ for some $Q \in
+\Fp^{r \times r}$.
+\end{lemma}
+
+\begin{proof}
+Write $X = A V$ where, w.l.o.g., the nonzero rows of $V$ are linearly
+independent and $A$ uses only those; then $V$ has a right inverse $Y$ on
+its row space ($V Y$ is the identity on the used coordinates), so $A = X
+Y$, and every column of $A$ is a combination of columns of $X$, hence lies
+in $\cs(W^{\mathsf T})$; write $A = W^{\mathsf T} Q$.
+\end{proof}
+
+\begin{lemma}[tree streaming factorisation]
+\label{lem:treestream}
+Fix a tree layout of $B$ of width $\le r$, and for every node $v$ with
+subtree interval $S_v$ fix $V_v \in \Fp^{r \times |S_v|}$ whose rows span
+$\rs(M_{S_v})$. Then every node admits letter data over $\Fp$:
+\begin{itemize}
+\item \emph{leaf} $v$: the column $v_v := V_v \in \Fp^{r \times 1}$;
+\item \emph{unary} $v$ with child $c$: $T$ with $T V_c = V_v|_{S_c}$, the
+  last column $v_v$, and $R$ with $R\, V_c = B^{(v)}|_{S_c}$;
+\item \emph{binary} $v$ with children $L, R$: $T_L, T_R$ and $v_v$ as
+  above per child block, read-offs $R_L, R_R$ with $R_\bullet V_\bullet =
+  B^{(v)}|_{S_\bullet}$, and $Q_1, \dots, Q_k \in \Fp^{r \times r}$ with
+  $V_R^{\mathsf T} Q_l\, V_L = X_l$, where $(X_l)_{j,i} = (B_{ji})_l$ for
+  $i \in S_L$, $j \in S_R$.
+\end{itemize}
+\end{lemma}
+
+\begin{proof}
+The $T$- and $R$-systems are solvable by the restriction argument of
+\autoref{lem:stream}: rows of $M_{S_v}$ restricted to a child block are
+rows of that child's crossing block, and the row $(v, l)$ of the read-off
+lies in the child's crossing block since $v \notin S_c$. For $Q_l$: the
+row of $X_l$ indexed by $j \in S_R$ is the row $((j,l), \cdot)$ of
+$M_{S_L}$ restricted to nothing (it is exactly such a row), hence lies in
+$\rs(V_L)$; the column of $X_l$ indexed by $i \in S_L$ is the row $((i,l),
+\cdot)$ of $M_{S_R}$ transposed, hence lies in $\cs(V_R^{\mathsf T})$.
+Apply \autoref{lem:twosided}.
+\end{proof}
+
+\begin{theorem}[tree layouts]
+\label{thm:tree}
+For all fixed $p, k, r$, the class $\tre{p,k,r}$ is uniformly
+tree-automatic. The advice tree has one letter per generator plus a chain
+of $k$ center markers above the root; the multiplication automaton has
+$p^{k + 2r} + \sum_{j=1}^{k} p^{k-j} + 1$ states; every well-formed advice
+presents a member; and on chain-shaped layouts the presentation restricts
+to that of \autoref{thm:word}.
+\end{theorem}
+
+\begin{proof}
+Elements $(b, a)$ are digit labellings of the advice's shape: digit $a_v$
+at the node of generator $v$, and the center digits $b_1, \dots, b_k$ on
+the marker chain, innermost first. The automaton's layout states are
+$(\mathsf{t}, s, w^x, w^y) \in \{\mathsf{t}\} \times \Fp^k \times \Fp^r
+\times \Fp^r$ with the invariant, at each node $v$:
+\[
+  s = \!\!\sum_{\substack{i < j \\ i, j \in S_v}}\!\! B_{ji}\, a_{x,j}\,
+  a_{y,i}, \qquad w^x = V_v\, (a_x)|_{S_v}, \qquad w^y = V_v\,
+  (a_y)|_{S_v}.
+\]
+At a leaf, $s = 0$ and $w^\bullet = v_v \cdot a_{\bullet,v}$. At a unary
+node, the pairs internal to $S_v$ but not to $S_c$ are exactly $\{v, i\}$,
+$i \in S_c$; their contribution is $a_{x,v} \cdot (R\, w^y)$ by
+\autoref{lem:treestream}, and both functional vectors update as $w \mapsto
+T w + v_v \cdot (\text{own digit})$. At a binary node the new pairs are the
+two read-offs plus the split pairs, whose contribution is
+\[
+  \sum_{i \in S_L,\, j \in S_R} B_{ji}\, a_{x,j}\, a_{y,i}
+  \;=\; \Bigl( (w^x_R)^{\mathsf T} Q_l\, w^y_L \Bigr)_{l \in [k]}
+\]
+by \autoref{lem:treestream}; the functional vectors merge as $w \mapsto T_L
+w_L + T_R w_R + v_v \cdot (\text{own digit})$. Position-wise digit sums
+$a_{x,v} + a_{y,v} = a_{z,v}$ are checked at every node. At the root of the
+layout, $s = C(a_x, a_y)$; the $k$ center markers then verify $b_{z,j} -
+b_{x,j} - b_{y,j} = s_j$ coordinate by coordinate, and the automaton
+accepts iff all coordinates match. Exactness is as in \autoref{thm:word}:
+the streamed correction is bilinear for every well-formed advice. On a
+chain (left spine) there are no binary nodes; $w^x$ is dead weight and the
+run is the word automaton's.
+\end{proof}
+
+\begin{proposition}[rank-width interface]
+\label{prop:rankwidth}
+Extend tree layouts by \emph{structural nodes} carrying no generator (the
+element encodings carry a forced $0$ digit there; the automata are
+unchanged). Then for $k = 1$: a form belongs to $\tre{p,1,r}$ (with
+structural nodes) if and only if the $\Fp$-labelled commutation graph of
+$B$ has rank-width at most $r$ over $\Fp$, and a rank-decomposition
+converts to a layout without changing the width.
+\end{proposition}
+
+\begin{proof}
+A rank-decomposition is a subcubic tree with the vertices at its leaves;
+rooting it at an arbitrary edge yields a binary tree whose internal nodes
+become structural. The generator set of any subtree is one side of an edge
+cut of the decomposition, and its crossing block is the bipartite adjacency
+block whose rank defines cut-rank; conversely a layout is such a
+decomposition after suppressing structural nodes.
+\end{proof}
+
+\section{The class seen from group theory}
+\label{sec:grouptheory}
+
+We collect what bounded cut-rank does and does not mean for the groups
+themselves. Proofs in this section are standard linear algebra over $\Fp$
+and are included for completeness.
+
+\begin{proposition}[classical width measures]
+\label{prop:widths}
+Let $\Gamma$ be the commutation graph of $B$ (edges = non-commuting
+pairs).
+\begin{enumerate}
+\item If $\Gamma$ has a vertex cover of size $c$, every layout compatible
+  with any order has width $\le c$; in particular $\lcr(B) \le c$.
+\item If $\Gamma$ has pathwidth $w$, then $\lcr(B) \le w + 1$.
+\item If $\Gamma$ has treewidth $w$, then $\tcr(B) \le k(w+1)$.
+\end{enumerate}
+\end{proposition}
+
+\begin{proof}
+(1) Every nonzero entry of a crossing block lies in a row or column indexed
+by a cover vertex; at most $c$ of these meet each side, and a matrix whose
+nonzero entries lie in $c_1$ columns and $c_2 k$ rows has rank $\le c_1 +
+c_2 \cdot \min(k,\cdot) \le c$ when counted per cover vertex.
+(2) Order the vertices by a path decomposition; the earlier endpoints of
+crossing edges at any cut are active vertices, so nonzero columns number
+$\le w + 1$.
+(3) Expand each bag node of a tree decomposition into a chain introducing
+its new vertices, and take this as the layout. The bag of the current edge
+of the decomposition separates the subtree from the rest, so every crossing
+pair has an endpoint in it: nonzero columns for below-endpoints ($\le w+1$)
+and $k$ rows per above-endpoint bound the rank by $k(w+1)$.
+\end{proof}
+
+\begin{proposition}[collapse at the tame end]
+\label{prop:collapse}
+Let $p$ be odd.
+\begin{enumerate}
+\item If $\Gamma$ has a vertex cover of size $c$, then $G(B) \cong H \times
+  \Zp^{\,m}$ with $|H| \le p^{2c + k}$; the class of such groups is, up to
+  isomorphism, a finite list of cores times elementary abelian factors.
+\item For $k = 1$, every $G(B)$ is isomorphic to (extraspecial of exponent
+  $p$) $\times$ (elementary abelian): the symplectic normal form aligns
+  every form with a matching.
+\end{enumerate}
+\end{proposition}
+
+\begin{proof}
+(1) All nonzero entries of $\hat B$ lie in $c$ rows and columns, so the
+total rank of the alternating map is $\le 2c$; split off the radical (for
+odd $p$ its preimage is elementary abelian and complements off the
+commutator support). (2) is the classical normal form of an alternating
+form: rank $2m$, matching of $m$ hyperbolic pairs, radical split off.
+\end{proof}
+
+The reading for the mixed audience: at $k = 1$ (and bounded vertex cover
+for any $k$) the parameter buys presentation-theoretic rather than
+isomorphism-theoretic generality---the clique of \autoref{ex:clique} is
+abstractly a Heisenberg group times an abelian group, but the automaton
+multiplies in the \emph{given} presentation without computing the normal
+form. The isomorphism-theoretic content of the class lives at $k \ge 2$,
+where pairs of alternating forms already have infinitely many normal-form
+families and triples are wild~\cite{GrochowQiao2021}; there, bounded
+cut-rank is a genuine structural restriction that does not reduce to a
+classical one. And the restriction is necessary in a precise sense:
+
+\begin{proposition}[generic forms are wide]
+\label{prop:generic}
+Let $k = 1$ and let $B$ be uniformly random. With high probability,
+\emph{every} linear and every tree layout of $B$ has width $\ge n/2 -
+O(\sqrt{n})$; that is, $\tcr(B) = \Omega(n)$.
+\end{proposition}
+
+\begin{proof}[Proof sketch]
+For a fixed set $S$ with $|S| = m \le n/2$, the crossing block is a uniform
+random $(n-m) \times m$ matrix over $\Fp$, and $\Pr[\rk < m - s] \le
+p^{-s(n-m-m+s)} \le p^{-s^2}$. A union bound over all $\le 2^n$ sets with
+$s = c\sqrt{n}$ leaves all sets of size $m \in [n/3, n/2]$ with rank $\ge m
+- c\sqrt n$. Every linear layout has a cut of size $\lfloor n/2 \rfloor$,
+and every binary tree has a subtree whose interval size lies in $[n/3,
+2n/3]$; complement if necessary.
+\end{proof}
+
+Together with the Nies--Stephan negative result---the relatively free
+class-$2$ exponent-$p$ group on $\omega$ generators, whose finite quotients
+have forms of full generic complexity, is not word-automatic
+\cite{NiesStephan2023}---this locates the constructions of
+\autoref{sec:word} and \autoref{sec:tree} plausibly close to the true
+boundary of automaticity; \autoref{sec:open} makes the conjecture precise.
+
+\section{Algorithmic consequences}
+\label{sec:consequences}
+
+The generic machinery of uniformly automatic classes
+\cite{AbuZaidGraedelReinhardt2017} yields, for both presentations:
+
+\begin{corollary}[compiled model checking]
+\label{cor:mc}
+For every first-order formula $\varphi(x_1, \dots, x_m)$ in the signature
+of groups there is (effectively) an automaton $\mathfrak{A}_\varphi$ such
+that for every advice $\adv \in A$ and all elements $u_1, \dots, u_m$ of
+$G_\adv$:
+\[
+  G_\adv \models \varphi(\bar u) \iff \mathfrak{A}_\varphi \text{ accepts }
+  \adv \conv u_1 \conv \dots \conv u_m .
+\]
+In particular, once $\varphi$ is compiled, deciding it on a member of the
+class takes time $O(n + k) = O(\log |G|)$.
+\end{corollary}
+
+\begin{corollary}[decidable uniform theory]
+\label{cor:theory}
+The advice sets of \autoref{thm:word} and \autoref{thm:tree} are regular.
+Hence the uniform first-order theory $\{\varphi : G_\adv \models \varphi
+\text{ for all } \adv \in A\}$ is decidable, and so are existential
+class queries (``is there a member satisfying $\varphi$?''). The same holds
+for extensions of first-order logic by regularity-preserving quantifiers,
+e.g.\ cardinality and Ramsey quantifiers~\cite{AbuZaidGraedelReinhardt2017}.
+\end{corollary}
+
+\begin{example}
+The center is definable, $\mathrm{Cen}(x) \equiv \forall u \forall v
+\forall w\, (M(x,u,v) \wedge M(u,x,w) \to v = w)$, so \autoref{cor:mc}
+decides centrality of a given element in time $O(\log|G|)$ on every member;
+likewise commutativity of the member, existence of central elements of
+order $4$ at $p = 2$ (distinguishing the Pauli triangle from the dihedral
+matching), or any fixed isoclinism-flavoured first-order invariant. One
+automaton per property serves the entire class.
+\end{example}
+
+\section{Implementation and machine verification}
+\label{sec:implementation}
+
+Both constructions are implemented in the open-source library
+\AutStr~\cite{AutStr} as the classes \texttt{CutRankGroups} ($p, k, r$;
+\autoref{thm:word}) and \texttt{CutRankTreeGroups} (\autoref{thm:tree}),
+together with layout compilers that realise \autoref{lem:stream} and
+\autoref{lem:treestream} by Gaussian elimination over $\Fp$ and fail
+exactly when a cut exceeds the width bound. The test suite verifies, among
+other things: exhaustive agreement of the multiplication automata with the
+group law of \autoref{lem:cocycle} on spine and balanced layouts for the
+zero, complete, matching and star forms; agreement of the word and tree
+presentations on shared (chain) layouts; the complete form at $n = 14$
+through the constant-size automaton; the Pauli triangle including
+first-order definable centrality; and the width guards (a form of cut-rank
+$2$ is rejected at $r = 1$ and handled at $r = 2$). The first-order
+examples of \autoref{sec:consequences} run through the library's generic
+query evaluation. We regard the implementation as part of the evidence:
+the solvability claims of \autoref{lem:stream} and \autoref{lem:treestream}
+are exercised on every compiled layout.
+
+\section{Open problems}
+\label{sec:open}
+
+\begin{enumerate}
+\item \emph{Converse / characterisation.} Does uniform (word-, tree-)
+  automaticity of a class of forms with fixed $k$ force bounded (linear)
+  cut-rank under suitably chosen layouts? A positive answer would be a
+  Courcelle--Oum-style characterisation~\cite{CourcelleOum2007} of
+  automaticity on the class-$2$ stratum; \autoref{prop:generic} and the
+  negative result of~\cite{NiesStephan2023} are the supporting evidence.
+\item \emph{Isometry in P.} Is isometry of alternating matrix spaces of
+  bounded $\Fp$ rank-width decidable in polynomial time? This is the
+  matrix-space analogue of isomorphism testing for graphs of bounded
+  rank-width~\cite{GroheSchweitzer2015} and would identify a tame island
+  inside a tensor-isomorphism-complete problem~\cite{GrochowQiao2021}.
+  Note that computing a witnessing layout is itself nontrivial; for $k=1$
+  rank-decompositions are FPT-computable~\cite{HlinenyOum2008}.
+\item \emph{Unbounded centers.} The library contains a uniformly
+  tree-automatic class of class-$2$ groups with \emph{growing} $k$ and
+  laminar commutator targets (tree-indexed extraspecial groups), which is
+  \emph{not} subsumed by \autoref{thm:tree}; its cuts also carry
+  one-dimensional interfaces. A common generalisation---cut-rank of the
+  full cocycle data with distributed central targets---seems within reach.
+\item \emph{Wider widths in practice.} The advice letters of
+  \autoref{thm:tree} grow as $p^{\Theta(kr^2)}$; the implementation
+  therefore bounds flat alphabets. Factored transition labels (shared
+  BDDs) would make tree widths $r \ge 2$ practical.
+\end{enumerate}
+
+%% TODO: acknowledgements / funding once decided.
+
+\bibliography{refs}
+
+\end{document}
