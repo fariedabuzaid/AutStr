@@ -180,3 +180,70 @@ class TestDisjointUnion:
         a = chain(['p', '<l>'])
         with pytest.raises(ValueError):
             disjoint_union(a, chain(['r']))
+
+
+# ====================================================================
+# Direct products
+# ====================================================================
+
+from autstr.closure import direct_product
+
+TRANSITIVE = 'all x.(all y.(all z.((Lt(x,y) and Lt(y,z)) -> Lt(x,z))))'
+
+
+def element(pairs):
+    """A one-letter word over the pair alphabet, per tape."""
+    return [tuple(pairs)]
+
+
+class TestDirectProduct:
+    def test_domain_is_the_product_of_the_domains(self):
+        p = direct_product(chain(['p', 'q']), chain(['r', 's']))
+        universe = p.automata['U']
+        for a in ('p', 'q'):
+            for b in ('r', 's'):
+                assert universe.accepts(element([(a, b)])), (a, b)
+        # a pair letter exists for every (a, b), but a padded half is no element
+        assert not universe.accepts(element([('p', '*')]))
+        assert not universe.accepts(element([('*', 'r')]))
+
+    def test_sync_moves_both_coordinates(self):
+        p = direct_product(chain(['p', 'q']), chain(['r', 's']), kind='sync')
+        less = p.automata['Lt']
+
+        def holds(x, y):
+            return less.accepts(element([x, y]))
+
+        assert holds(('p', 'r'), ('q', 's'))        # both coordinates advance
+        assert not holds(('p', 'r'), ('q', 'r'))    # only the left one moves
+        assert not holds(('p', 'r'), ('p', 's'))    # only the right one moves
+
+    def test_async_moves_exactly_one_coordinate(self):
+        p = direct_product(chain(['p', 'q']), chain(['r', 's']), kind='async')
+        less = p.automata['Lt']
+
+        def holds(x, y):
+            return less.accepts(element([x, y]))
+
+        assert holds(('p', 'r'), ('q', 'r'))        # left moves, right fixed
+        assert holds(('p', 'r'), ('p', 's'))        # right moves, left fixed
+        assert not holds(('p', 'r'), ('q', 's'))    # both move: not async
+        assert not holds(('p', 'r'), ('p', 'r'))    # neither moves
+
+    def test_the_two_products_differ_in_their_theory(self):
+        """The product of two strict orders is transitive; the asynchronous
+        product is the grid's covering relation, which is not."""
+        left, right = chain(['p', 'q', 't']), chain(['r', 's', 'u'])
+        assert direct_product(left, right, kind='sync').check(TRANSITIVE)
+        assert not direct_product(left, right, kind='async').check(TRANSITIVE)
+
+    def test_a_relation_is_restricted_to_the_domain(self):
+        """An embedded factor leaves the other half unconstrained, so the
+        product must intersect it back with the domain: a tuple whose right
+        half is padding satisfies the left factor's order, but is no element."""
+        p = direct_product(chain(['p', 'q']), chain(['r', 's']), kind='async')
+        assert not p.automata['Lt'].accepts(element([('p', '*'), ('q', '*')]))
+
+    def test_rejects_an_unknown_kind(self):
+        with pytest.raises(ValueError):
+            direct_product(chain(['p']), chain(['r']), kind='weak')

@@ -268,32 +268,31 @@ class NodeStore:
 
         return build(0, 0, len(symbols))
 
-    def recode_letters(self, node: int, arity: int, old_m: int, old_bits: int,
-                       new_m: int, new_bits: int, digit_map: Sequence[int],
-                       fill: int) -> int:
+    def map_letters(self, node: int, arity: int, old_m: int, old_bits: int,
+                    new_m: int, new_bits: int, source: Sequence[int],
+                    fill: int) -> int:
         """Re-express a diagram over a different base alphabet.
 
-        Letter d of the old alphabet becomes letter ``digit_map[d]`` of the new
-        one; letters of the new alphabet outside the image go to `fill`, and
-        binary codes that denote no letter go to NONE as always. `digit_map`
-        must be injective.
+        `source[d]` names the *old* letter that the new letter d should behave
+        like, or -1 to send it to `fill`. The map runs from the new alphabet to
+        the old one, so it need not be injective: several new letters may share
+        an old one. That is what embeds a factor into a product's pair
+        alphabet, where every pair (a, b) behaves like its own component.
 
-        This is what lets two automata over different alphabets be combined:
-        disjoint union needs both re-expressed over the union plus its tags,
-        and the direct product needs each factor re-expressed over the pair
-        alphabet. The rewrite is per tape -- take the old block's `old_m`
-        cofactors and reassemble them at their new digits -- so it costs one
-        pass over the nodes rather than a rebuild from a decoded table.
+        Per tape, take the old block's `old_m` cofactors and reassemble them at
+        the new digits. One memoized pass over the nodes -- widening an
+        alphabet never rebuilds a transition table, which is why a direct
+        product is affordable: the pair alphabet has |A|*|B| letters but its
+        diagrams have bits_A + bits_B variables. Letters multiply; bits add.
         """
-        if len(set(digit_map)) != len(digit_map):
-            raise ValueError("digit_map must be injective")
-        if any(not 0 <= d < new_m for d in digit_map):
-            raise ValueError("digit_map must land in the new alphabet")
+        if len(source) != new_m:
+            raise ValueError("source must give one old letter per new letter")
+        if any(d >= old_m for d in source):
+            raise ValueError("source names a letter outside the old alphabet")
 
         suffix: Dict[int, int] = {}
 
         def all_fill(tape: int) -> int:
-            """The constant `fill` over tapes tape..arity-1, in the new layout."""
             node = suffix.get(tape)
             if node is None:
                 node = self.terminal(fill)
@@ -306,25 +305,47 @@ class NodeStore:
 
         def rebuild(current: int, tape: int) -> int:
             if tape == arity:
-                return current                     # a terminal: nothing to recode
+                return current                     # a terminal: nothing to map
             key = (current, tape)
             result = cache.get(key)
             if result is not None:
                 return result
-            children = [None] * new_m
-            for digit in range(old_m):
-                branch = current
-                for j in range(old_bits):          # cofactor away the old block
-                    bit = (digit >> (old_bits - 1 - j)) & 1
-                    branch = self.cofactor(branch, tape * old_bits + j, bit)
-                children[digit_map[digit]] = rebuild(branch, tape + 1)
+            cofactors: Dict[int, int] = {}
+
+            def old_branch(digit: int) -> int:
+                branch = cofactors.get(digit)
+                if branch is None:
+                    branch = current
+                    for j in range(old_bits):
+                        bit = (digit >> (old_bits - 1 - j)) & 1
+                        branch = self.cofactor(branch, tape * old_bits + j, bit)
+                    cofactors[digit] = branch
+                return branch
+
+            children = []
             for digit in range(new_m):
-                if children[digit] is None:
-                    children[digit] = all_fill(tape + 1)
+                old = source[digit]
+                children.append(all_fill(tape + 1) if old < 0
+                                else rebuild(old_branch(old), tape + 1))
             result = cache[key] = self.letter(tape, children, new_m, new_bits)
             return result
 
         return rebuild(node, 0)
+
+    def recode_letters(self, node: int, arity: int, old_m: int, old_bits: int,
+                       new_m: int, new_bits: int, digit_map: Sequence[int],
+                       fill: int) -> int:
+        """Injective relabelling: old letter d becomes new letter
+        ``digit_map[d]``; new letters outside the image go to `fill`."""
+        if len(set(digit_map)) != len(digit_map):
+            raise ValueError("digit_map must be injective")
+        if any(not 0 <= d < new_m for d in digit_map):
+            raise ValueError("digit_map must land in the new alphabet")
+        source = [-1] * new_m
+        for old, new in enumerate(digit_map):
+            source[new] = old
+        return self.map_letters(node, arity, old_m, old_bits, new_m, new_bits,
+                                source, fill)
 
     def set_path(self, node: int, assignment: Sequence[int], value: int) -> int:
         """The node that agrees with `node` everywhere except on the single

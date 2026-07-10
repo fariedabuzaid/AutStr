@@ -328,6 +328,19 @@ class AutomaticPresentation:
             if verbose:
                 print(f'{str(phi)}: {result.num_states} states')
             return result
+        elif isinstance(phi, logic.ImpExpression):
+            return self._build_automaton(
+                logic.OrExpression(logic.NegatedExpression(phi.first),
+                                   phi.second),
+                verbose=verbose, init=False)
+        elif isinstance(phi, logic.IffExpression):
+            return self._build_automaton(
+                logic.AndExpression(
+                    logic.OrExpression(logic.NegatedExpression(phi.first),
+                                       phi.second),
+                    logic.OrExpression(logic.NegatedExpression(phi.second),
+                                       phi.first)),
+                verbose=verbose, init=False)
         elif isinstance(phi, logic.ApplicationExpression):
             R = str(phi.pred)
             variables = get_free_elementary_vars(phi)
@@ -341,3 +354,5 @@ class AutomaticPresentation:
             if verbose:
                 print(f'{str(phi)}: {result.num_states} states')
             return result
+
+        raise ValueError(f"Unsupported expression type: {type(phi)}")

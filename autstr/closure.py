@@ -12,12 +12,12 @@ what makes products affordable, because the pair alphabet of a direct product
 has ``|A| * |B|`` letters but only ``bits_A + bits_B`` variables. Letters
 multiply; bits add.
 """
-from typing import Dict, Optional, Sequence
+from typing import Dict, Sequence
 
 import numpy as np
 
 from autstr.presentations import AutomaticPresentation
-from autstr.sparse_automata import SparseDFA, recode
+from autstr.sparse_automata import SparseDFA, num_bits, recode
 from autstr.utils.automata_tools import _symbol_assignment
 from autstr.utils.misc import encode_symbol
 
@@ -96,20 +96,95 @@ def disjoint_union(left: AutomaticPresentation, right: AutomaticPresentation,
                                  enforce_consistency=False)
 
 
+def _pair_alphabet(left_sigma, right_sigma):
+    return {(a, b) for a in left_sigma for b in right_sigma}
+
+
+def _embed(dfa: SparseDFA, pairs, component: int) -> SparseDFA:
+    """Read an automaton over one factor's alphabet as one over the pair
+    alphabet, ignoring the other component of every letter.
+
+    Every pair carries a letter of the factor, so the map from pair letters to
+    factor letters is total and many-to-one -- which is what `map_letters`
+    takes. No state is added; the diagram simply stops constraining the other
+    half's bits.
+    """
+    letters = sorted(dfa.base_alphabet_frozen)
+    index = {letter: i for i, letter in enumerate(letters)}
+    ordered = sorted(pairs)
+    source = [index[pair[component]] for pair in ordered]
+
+    new_m = len(ordered)
+    new_bits = num_bits(new_m)
+    store = dfa.store
+    nodes = [store.map_letters(int(node), dfa.symbol_arity, dfa.m, dfa.bits,
+                               new_m, new_bits, source, 0)
+             for node in dfa.nodes.tolist()]
+    return SparseDFA(dfa.num_states, is_accepting=dfa.is_accepting,
+                     start_state=dfa.start_state,
+                     symbol_arity=dfa.symbol_arity,
+                     base_alphabet=set(ordered),
+                     nodes=np.array(nodes, dtype=np.int64))
+
+
+def _equality(alphabet, arity: int) -> SparseDFA:
+    """All `arity` tapes carry the same letter at every position."""
+    letters = sorted(alphabet)
+    frozen = frozenset(alphabet)
+    symbols = [encode_symbol((letter,) * arity, frozen) for letter in letters]
+    width = max(len(symbols), 1)
+    exception_symbols = np.full((2, width), -1, dtype=np.int32)
+    exception_states = np.full((2, width), -1, dtype=np.int32)
+    for j, code in enumerate(symbols):
+        exception_symbols[0, j], exception_states[0, j] = code, 0
+    return SparseDFA(2, np.array([1, 1], dtype=np.int32),
+                     exception_symbols, exception_states, [True, False],
+                     0, arity, set(alphabet))
+
+
 def direct_product(left: AutomaticPresentation, right: AutomaticPresentation,
                    kind: str = 'sync') -> AutomaticPresentation:
-    """Not implemented yet -- see `disjoint_union` for the shape it will take.
+    """The direct product of two automatic structures over one signature.
 
-    Both products live over the *pair* alphabet, where a letter carries one
-    letter of each factor. Then
+    An element is a pair, encoded over the *pair* alphabet: position i carries
+    one letter of each component, the shorter one padded. Both products are
+    then Boolean combinations of the factors embedded into that alphabet:
 
         sync   R((a,b), (a',b'))  iff  R_A(a,a') and R_B(b,b')
         async  R((a,b), (a',b'))  iff  (R_A(a,a') and b = b')
                                         or (R_B(b,b') and a = a')
 
-    Both are Boolean combinations of the factors' relations embedded into the
-    pair alphabet (a variable renaming into that half's bit block) together
-    with equality on the other half.
+    The synchronous product moves both coordinates at once; the asynchronous
+    one moves exactly one and holds the other fixed. For a k-ary relation the
+    equality side asks that all k tapes agree on the untouched half.
+
+    :param kind: ``'sync'`` or ``'async'``.
     """
-    raise NotImplementedError(
-        "direct_product is the next step; disjoint_union is available")
+    if kind not in ('sync', 'async'):
+        raise ValueError("kind must be 'sync' or 'async'")
+    arities = _signatures(left, right)
+
+    pairs = _pair_alphabet(left.sigma, right.sigma)
+    padding = (left.padding_symbol, right.padding_symbol)
+    if padding not in pairs:
+        raise ValueError("each factor's padding symbol must be in its alphabet")
+
+    automata: Dict[str, SparseDFA] = {}
+    for name, arity in arities.items():
+        embedded_left = _embed(left.automata[name], pairs, 0)
+        embedded_right = _embed(right.automata[name], pairs, 1)
+        if name == 'U' or kind == 'sync':
+            # the domain is always the product of the domains
+            combined = embedded_left.intersection(embedded_right)
+        else:
+            holds_left = embedded_left.intersection(
+                _embed(_equality(right.sigma, arity), pairs, 1))
+            holds_right = embedded_right.intersection(
+                _embed(_equality(left.sigma, arity), pairs, 0))
+            combined = holds_left.union(holds_right)
+        automata[name] = combined.minimize()
+
+    # an embedded relation leaves the other half unconstrained, so it is *not*
+    # contained in the product domain until it is restricted to it
+    return AutomaticPresentation(automata, padding_symbol=padding,
+                                 enforce_consistency=True)
