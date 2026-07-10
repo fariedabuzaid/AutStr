@@ -238,8 +238,8 @@ Built-in classes include:
 | package | classes | signature |
 |---------|---------|-----------|
 | `autstr.graphs`  | bounded **tree-depth**, bounded **pathwidth** | full MSO over vertex sets (`Sing`, `Subset`, `E`) |
-| `autstr.algebra` | finite **Boolean algebras**, finite **abelian groups**, **ℤ[1/p]** | `Meet`/`Join`/`Compl`/`Leq`/`Atom`; `+` |
-| `autstr.groups`  | **index-≤2 cyclic** groups (dihedral, quaternion, semidihedral, modular), **extraspecial** p-groups | multiplication `M` |
+| `autstr.algebra` | finite **Boolean algebras**, **ℤ[1/p]** | `Meet`/`Join`/`Compl`/`Leq`/`Atom`; `+` |
+| `autstr.groups`  | finite **abelian** groups, **index-≤2 cyclic** groups (dihedral, quaternion, semidihedral, modular), **extraspecial** p-groups | `+`; multiplication `M` |
 | `autstr.tree_graphs` | bounded **tree-width**, bounded **clique-width** | full MSO over vertex sets (`Sing`, `Subset`, `E`) |
 | `autstr.tree_groups` | **tree-indexed extraspecial** p-groups | multiplication `M` |
 
@@ -261,6 +261,67 @@ where a number is the tree of its prime exponents.
 The showcase notebooks in [`notebooks/`](notebooks/) walk through all of it;
 [`tree_classes.ipynb`](notebooks/tree_classes.ipynb) is the tour of the
 tree-automatic side.
+
+---
+
+## 🧩 Composing presentations
+
+Automatic structures over a shared signature are closed under disjoint union and
+direct products; uniformly automatic classes are closed under union and under
+taking all finite direct products of their members. `autstr.composition` builds
+the new presentation for you.
+
+```python
+from autstr.composition import (
+    class_union, direct_product_closure, blocks, tagged_advice,
+)
+from autstr.groups import ExtraspecialGroups, IndexTwoCyclicGroups
+from autstr.uniform import UniformlyAutomaticClass
+
+cyclic, extra = IndexTwoCyclicGroups(), ExtraspecialGroups(3)
+
+def reduct(uniform):                     # the signature the two classes share
+    return UniformlyAutomaticClass(
+        {'U': uniform.class_automata['U'], 'M': uniform.class_automata['M']})
+
+# Members of either family ...
+both = class_union(reduct(cyclic.cls), reduct(extra.cls))
+# ... and every finite direct product of them.
+groups = direct_product_closure(both)
+
+z4 = tagged_advice(cyclic.cyclic(4), '<l>')          # Z4, abelian
+heis = tagged_advice(extra.advice(1), '<r>')         # extraspecial 3^(1+2)
+
+abelian = 'all x.(all y.(all z.(M(x,y,z) -> M(y,x,z))))'
+groups.check(abelian, blocks(z4, z4))       # True  — Z4 × Z4
+groups.check(abelian, blocks(z4, heis))     # False — one nonabelian factor
+```
+
+| operation | on | construction |
+|-----------|----|--------------|
+| `disjoint_union(A, B)` | structures | tag each element with the side it came from |
+| `direct_product(A, B, kind='sync')` | structures | `R_A(a,a') ∧ R_B(b,b')` |
+| `direct_product(A, B, kind='async')` | structures | `(R_A(a,a') ∧ b=b') ∨ (R_B(b,b') ∧ a=a')` |
+| `class_union(C, D)` | classes | tag the *advice*, so the advice languages are disjoint |
+| `direct_product_closure(C)` | classes | advice `α₁\|…\|αₙ` presents `A_{α₁} × … × A_{αₙ}` |
+
+Two of these are worth a word. The **direct product** encodes a pair over the
+*pair alphabet*, where a letter carries one letter of each factor; each factor
+is then embedded by a variable renaming into its half of the bits, and the two
+products are Boolean combinations of the embeddings. That is affordable only
+because the pair alphabet has `|Σ_A|·|Σ_B|` letters but `bits_A + bits_B`
+variables — **letters multiply, bits add**, which is precisely what the decision
+diagrams buy.
+
+The **product closure** concatenates advices with a separator. Since an element
+of a finite member is never longer than its advice, the blocks line up across
+every tape, so a relation of the product is the original relation holding in
+every block — one automaton with **one extra state**, where an interleaved
+encoding would need one copy per component. `FiniteAbelianGroups` is this
+construction applied to the cyclic groups, and it predates the module.
+
+[`notebooks/composition.ipynb`](notebooks/composition.ipynb) walks through all
+five operations.
 
 ---
 
@@ -387,6 +448,13 @@ mathematical direction and review kept firmly human.
     It changed the language on roughly one in a thousand dense random automata,
     and had been latent since the tree engine landed. Found by porting an
     optimization that turned out not to pay, and checking its neighbour.
+
+  - **composing presentations.** `autstr.composition`: disjoint union and
+    synchronous/asynchronous direct products of automatic structures, union of
+    uniformly automatic classes, and the direct-product closure of a class.
+    Composed, they present every finite direct product of index-≤2 cyclic groups
+    and extraspecial p-groups, drawn from either family — and decide that such a
+    product is abelian exactly when all of its factors are.
 
   Not everything worked. A bisimulation quotient that merges 31 % of the states in
   the string engine merges 3 % in the tree engine and costs 6 %; it was measured
