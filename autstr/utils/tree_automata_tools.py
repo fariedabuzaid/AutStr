@@ -470,12 +470,12 @@ def _digest(values: np.ndarray, seed: int) -> np.ndarray:
     return h
 
 
-def _entry_hashes(side: np.ndarray, partner_class: np.ndarray,
+def _entry_hashes(side: np.ndarray, partner: np.ndarray,
                   node: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     """Two independent 64-bit hashes of the refinement entries
-    ``(side, partner class, class-relabelled diagram)``."""
+    ``(side, partner, class-relabelled diagram)``."""
     packed = (node.astype(np.uint64) * _M1 +
-              partner_class.astype(np.uint64) * _M2 +
+              partner.astype(np.uint64) * _M2 +
               side.astype(np.uint64) * _M3)
     return _digest(packed, 0x5851F42D4C957F2D), _digest(packed, 0x14057B7EF767814F)
 
@@ -543,54 +543,33 @@ def minimize(sta: SparseTreeAutomaton) -> SparseTreeAutomaton:
     classes = accepting.astype(np.int64)
     num_classes = len(np.unique(classes))
     while True:
-        classes_full = np.r_[classes, num_classes]        # BOT is its own class
-        P = num_classes + 1                               # classes incl. BOT's
-        class_size = np.bincount(classes_full, minlength=P)
         round_cache: Dict[int, int] = {}
         relabelled = np.array(
             [store.apply1(int(node), lambda t: int(classes[t]), round_cache)
              for node in pair_nodes], dtype=np.int64) if len(pair_nodes) \
             else np.empty(0, dtype=np.int64)
         entry_node = np.concatenate([relabelled, relabelled])[real]
-        entry_class = classes_full[partner]
         default_node = store.const(int(classes[default]), k, m, bits)
 
-        # every state behaves like the default on the pairs it does not list,
-        # so start from the digest of all (side, class, default) entries
-        all_sides = np.repeat([0, 1], P)
-        all_classes = np.tile(np.arange(P), 2)
-        h1, h2 = _entry_hashes(all_sides, all_classes,
-                               np.full(2 * P, default_node, dtype=np.int64))
-        sig1 = np.full(n, h1.sum(), dtype=np.uint64)
-        sig2 = np.full(n, np.bitwise_xor.reduce(h2), dtype=np.uint64)
-
+        # An entry names the *concrete* partner, not its class. Keying by the
+        # partner's class and comparing the resulting sets is strictly weaker:
+        # a state sending partner p to X and p' to Y (both of class c) would
+        # get the same entry set as one that swaps them, and the refinement
+        # can then stabilize on a partition that is not a congruence.
+        # Pairs a state does not list, and listed pairs whose relabelled
+        # diagram is the default constant, behave identically for every state,
+        # so only the deviating entries carry information.
+        sig1 = np.zeros(n, dtype=np.uint64)
+        sig2 = np.zeros(n, dtype=np.uint64)
         with np.errstate(over='ignore'):
-            # add the listed entries that deviate from the default (deduped:
-            # signatures are sets)
             deviates = entry_node != default_node
             if deviates.any():
-                rows = np.stack([owner[deviates], side[deviates],
-                                 entry_class[deviates],
-                                 entry_node[deviates]], axis=1)
-                rows = np.unique(rows, axis=0)
+                rows = np.unique(np.stack([owner[deviates], side[deviates],
+                                           partner[deviates],
+                                           entry_node[deviates]], axis=1),
+                                 axis=0)
                 h1, h2 = _entry_hashes(rows[:, 1], rows[:, 2], rows[:, 3])
                 np.add.at(sig1, rows[:, 0], h1)
-                np.bitwise_xor.at(sig2, rows[:, 0], h2)
-
-            # remove (side, c, default) where the state lists every member of
-            # class c and none of them behaves like the default
-            group = np.stack([owner, side, entry_class], axis=1)
-            uniq, inverse = np.unique(group, axis=0, return_inverse=True)
-            listed = np.bincount(inverse, minlength=len(uniq))
-            like_default = np.zeros(len(uniq), dtype=bool)
-            np.logical_or.at(like_default, inverse, ~deviates)
-            drop = (listed == class_size[uniq[:, 2]]) & ~like_default
-            if drop.any():
-                rows = uniq[drop]
-                h1, h2 = _entry_hashes(
-                    rows[:, 1], rows[:, 2],
-                    np.full(len(rows), default_node, dtype=np.int64))
-                np.subtract.at(sig1, rows[:, 0], h1)
                 np.bitwise_xor.at(sig2, rows[:, 0], h2)
 
         signature = np.stack([classes.astype(np.uint64), sig1, sig2], axis=1)

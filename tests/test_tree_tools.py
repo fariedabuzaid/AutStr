@@ -327,3 +327,30 @@ class TestMinimize:
                 encode_symbol((0,), frozenset(range(m)))))
             assert equivalent(got, want), trial
             assert got.num_states == want.num_states, trial
+
+
+class TestMinimizeSoundness:
+    def test_partner_identity_not_partner_class(self):
+        """Regression: the Moore refinement once keyed each entry by the
+        partner's *class* and compared the resulting sets. A state sending
+        partner p to X and p' to Y (both of class c) then has the same entry
+        set as one that swaps them, so the refinement could stabilize on a
+        partition that is not a congruence and merge inequivalent states.
+        This 3-state automaton was minimized to a different language."""
+        alphabet = {0, 1}
+        sta = SparseTreeAutomaton(
+            3, 2,
+            exc_left=[0, 0, 1, 1, 2, 3], exc_right=[1, 2, 0, 2, 2, 2],
+            exc_symbol=[1, 0, 1, 0, 1, 0], exc_target=[1, 0, 1, 0, 0, 1],
+            is_accepting=[False, False, True], symbol_arity=1,
+            base_alphabet=alphabet)
+        assert equivalent(sta, minimize(sta))
+
+    def test_language_is_preserved_on_dense_random_automata(self):
+        """The failure above needs a dense transition table to surface."""
+        rng = random.Random(4242)
+        for trial in range(400):
+            n = rng.randint(3, 6)
+            sta = random_sta_arity(rng, 1, 2, max_states=n,
+                                   max_exc=2 * (n + 1) ** 2, max_pd=6)
+            assert equivalent(sta, minimize(sta)), trial
