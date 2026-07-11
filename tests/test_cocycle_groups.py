@@ -340,6 +340,7 @@ class TestClaimAndVerifyAutomaton:
         return crw, (sta, variables), instances
 
     def test_multiplication_end_to_end(self, auto):
+        """Measured 2026-07-11: passes within a 4G memory cap."""
         crw, (sta, variables), instances = auto
         rng = random.Random(9)
         for name, sites, T in instances:
@@ -363,7 +364,9 @@ class TestClaimAndVerifyAutomaton:
 
     def test_nonabelian_uniform(self, auto):
         """One automaton decides commutativity across distributed-center
-        members."""
+        members. Measured 2026-07-11: exceeds a 4G memory cap (the nested
+        existential projections over the dense per-pair diagrams); needs a
+        larger machine or factored transition letters."""
         crw, _, _ = auto
         phi = 'exists x.(exists y.(exists z.(M(x,y,z) and (not M(y,x,z)))))'
         sta, variables = crw.evaluate(phi)

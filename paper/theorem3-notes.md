@@ -186,6 +186,13 @@ Design corrections discovered by the machine check:
    presentation over a sub-alphabet collected from compiled advices
    (`used_merge_letters`), which is a legitimate uniform presentation of
    the sub-class its advice language covers; the end-to-end test uses it.
+   Measured under a 4G cgroup cap (2026-07-11): the automaton build plus
+   exhaustive multiplication checks over three instances PASS within 4G --
+   the theorem's automaton runs for real -- while a three-quantifier FO
+   evaluation over the same automaton exceeds 4G (dense diagrams x subset
+   construction). So on a 12GB laptop: transition function, compiler and
+   end-to-end multiplication are fully machine-verified; compiled FO query
+   evaluation on this class awaits factored letters or a larger machine.
 
 ## 6. Open ends toward the full proof
 
