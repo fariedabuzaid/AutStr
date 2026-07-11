@@ -8,7 +8,7 @@
 
 \bibliographystyle{plainurl}
 
-\title{Uniformly Automatic Classes of Finite Groups of Bounded Rank-Width}
+\title{Taming the Wild Stratum: Uniformly Automatic Class-2 Groups of Bounded Rank-Width}
 \titlerunning{Groups of Bounded Rank-Width}
 
 \author{Faried Abu Zaid}{Independent Researcher, Germany}{fariedaz@gmail.com}{}{}
@@ -303,10 +303,10 @@ $x_1^{a_1} \cdots x_n^{a_n} y^{b}$.
 \begin{proof}
 Since $C$ is bilinear, $C(a, a') + C(a + a', a'') = C(a, a') + C(a, a'') +
 C(a', a'')= C(a', a'') + C(a, a' + a'')$, which is the cocycle identity, so
-the displayed operation is associative; inverses are $(-b + C(a,a), -a)
-=(-b,-a)$ since $C(a,a)$ need not vanish---note however $C(e_i, e_i) = 0$
-because $B_{ii}$ is not among the labels, whence $(0,e_i)^p = (0,0)$ also
-for $p = 2$. The elements $(0, e_i)$ and $(e_l, 0)$ satisfy all defining
+the displayed operation is associative; inverses are $(-b + C(a,a),
+-a)$---note that $C(a, a)$ need not vanish, but $C(e_i, e_i) = 0$ because
+$B_{ii}$ is not among the labels, whence $(0,e_i)^p = (0,0)$ also for
+$p = 2$. The elements $(0, e_i)$ and $(e_l, 0)$ satisfy all defining
 relations of $G(B)$, so $G(B)$ surjects onto the displayed group of order
 $p^{n+k}$; conversely the relations rewrite every word to a normal form, so
 $|G(B)| \le p^{n+k}$.
@@ -396,8 +396,10 @@ $t \notin [t-1]$; hence it lies in $\rs(V_{t-1})$.
 \begin{theorem}[linear layouts]
 \label{thm:word}
 For all fixed $p, k, r$, the class $\lin{p,k,r}$ is uniformly
-word-automatic. The advice for $(B, \text{layout})$ has length $n + k$ over
-an alphabet of $p^{r^2 + r + kr} + p + 2$ letters; the multiplication
+word-automatic. The advice for $(B, \text{layout})$ has length $n + k$
+over $p^{r^2 + r + kr} + 1$ advice letters (the $\alpha$-letters and the
+center marker; the presentation's base alphabet adds the $p$ element
+digits and the padding symbol); the multiplication
 automaton has $p^{k+r} + \sum_{j<k} p^{j} + 1$ states; and every
 well-formed advice presents a member of the class.
 \end{theorem}
@@ -428,10 +430,11 @@ b_x + b_y + C(a_x, a_y)$ as required by \autoref{lem:cocycle}. The universe
 and equality automata only check the shape.
 
 \emph{Exactness.} Conversely, an arbitrary well-formed advice defines,
-through the same update equations, the correction $\tilde C(a, a') = \sum_t
-a_t\, R_t \bigl( \prod \text{-terms in } T, v \bigr) a'$, which is bilinear
-in $(a, a')$ and supported on pairs $i < t$; so it equals \eqref{eq:cocycle}
-for the form $B_{ti} := R_t T_{t-1} \cdots$ (coefficient extraction), and
+through the same update equations, the correction $\tilde C(a, a') =
+\sum_{i < t} \bigl( R_t\, T_{t-1} \cdots T_{i+1}\, v_i \bigr)\, a_t\,
+a'_i$, which is bilinear and supported on pairs $i < t$; so it equals
+\eqref{eq:cocycle} for the form $B_{ti} := R_t T_{t-1} \cdots T_{i+1}
+v_i$, and
 the advice presents $G(B)$ for that form, whose layout has width $\le r$
 because the functional carried across every cut factors through $\Fp^r$ by
 construction.
@@ -458,8 +461,8 @@ is the easiest.
 \label{ex:extraspecial}
 Let $n = 2m$, $k = 1$, and $B_{2t,2t-1} = 1$ for $t \in [m]$: a perfect
 matching, presenting the extraspecial-type group of order $p^{1+2m}$ (for
-odd $p$, the exponent-$p$ extraspecial group; for $p = 2$, a central
-product of dihedral and quaternion groups). Any cut splits at most one
+odd $p$, the exponent-$p$ extraspecial group; for $p = 2$, the central
+product of $m$ copies of $D_8$). Any cut splits at most one
 pair, so the natural layout has width $1$. This is the finite-class
 counterpart of the word-automatic presentation of the infinite extraspecial
 group $E_p$~\cite{NiesStephan2023}, which is the direct limit of this
@@ -496,10 +499,11 @@ lies in $\cs(W^{\mathsf T})$, then $X = W^{\mathsf T} Q\, V$ for some $Q \in
 
 \begin{proof}
 Write $X = A V$ where, w.l.o.g., the nonzero rows of $V$ are linearly
-independent and $A$ uses only those; then $V$ has a right inverse $Y$ on
-its row space ($V Y$ is the identity on the used coordinates), so $A = X
-Y$, and every column of $A$ is a combination of columns of $X$, hence lies
-in $\cs(W^{\mathsf T})$; write $A = W^{\mathsf T} Q$.
+independent and $A$ uses only those (dependent rows of $V$ may be dropped
+after absorbing them into $A$). A matrix with linearly independent rows
+has a right inverse $Y$, obtained by solving $V Y = I$ column by column;
+then $A = X Y$, so every column of $A$ is a combination of columns of
+$X$ and hence lies in $\cs(W^{\mathsf T})$; write $A = W^{\mathsf T} Q$.
 \end{proof}
 
 \begin{lemma}[tree streaming factorisation]
@@ -569,8 +573,10 @@ layout, $s = C(a_x, a_y)$; the $k$ center markers then verify $b_{z,j} -
 b_{x,j} - b_{y,j} = s_j$ coordinate by coordinate, and the automaton
 accepts iff all coordinates match. Exactness is as in \autoref{thm:word}:
 the streamed correction is bilinear for every well-formed advice. On a
-chain (left spine) there are no binary nodes; $w^x$ is dead weight and the
-run is the word automaton's.
+chain (left spine) there are no binary nodes; $w^x$ is dead weight and
+the run simulates the word automaton of \autoref{thm:word}, the two
+differing only in where the center digits are checked: a running deficit
+there, the accumulated $s$ compared at the end here.
 \end{proof}
 
 \begin{proposition}[rank-width interface]
@@ -589,7 +595,10 @@ rooting it at an arbitrary edge yields a binary tree whose internal nodes
 become structural. The generator set of any subtree is one side of an edge
 cut of the decomposition, and its crossing block is the bipartite adjacency
 block whose rank defines cut-rank; conversely a layout is such a
-decomposition after suppressing structural nodes.
+layout converts to a rank-decomposition by replacing every generator at
+an internal node with a structural node whose new leaf child carries the
+generator: this adds only singleton cuts, of cut-rank $\le 1$, so the
+width is unchanged for $r \ge 1$.
 \end{proof}
 
 \section{Distributed centers: the general theorem}
@@ -608,7 +617,7 @@ the common generalisation.
 A \emph{site tree} is a binary tree whose $N$ nodes are \emph{sites}, each
 an $x$-site (generator) or a $z$-site (central generator), enumerated in
 post-order; $X, Z \subseteq [N]$ denote the $x$- and $z$-positions. A
-\emph{cocycle tensor} is a finitely supported family $T = (T_{jiv})$ over
+\emph{cocycle tensor} is a family $T = (T_{jiv})$ over
 $\Fp$ with $i < j$ in $X$ and $v \in Z$. It presents $G(T)$: the central
 extension of $\Fp^X$ by $\Fp^Z$ with correction $C(a, a')_v = \sum_{i<j}
 T_{jiv}\, a_j a'_i$, to which \autoref{lem:cocycle} applies verbatim.
@@ -651,9 +660,20 @@ bound each of them.
 \label{ex:corners}
 (i) With all $z$-sites on a chain above the root, $F_g, F_{py}, F_{px}$ are
 empty at every layout cut and $\rk F_m \le k$: a form of tree cut-rank $r$
-in the sense of \autoref{thm:tree} has width $\le \max(r, k)$.
-(ii) For the laminar tree-indexed extraspecial groups, generator pairs are
-co-located and targets lie below their pair, so $F_y = F_x = F_m = 0$;
+in the sense of \autoref{thm:tree} has width $\le \max(r, k)$. One point
+deserves a sentence: $F_y$ and $F_x$ split the old crossing block $M_S$ by
+the orientation of the crossing pair, which is not in general a
+rank-bounded operation (zeroing a triangle of an all-ones matrix blows up
+its rank). Here the split is a genuine partition of the \emph{rows} of
+$M_S$: since $S$ is a post-order interval, an outside index above it is
+the larger endpoint of every pair it crosses into $S$, one below it the
+smaller, so each row goes wholesale to $F_y$ or to $F_x$.
+(ii) Encode the laminar tree-indexed extraspecial groups as site trees:
+each inner node $w$ of the shape becomes a chain of two $x$-sites ($x_w$
+directly above $y_w$), each leaf a $z$-site, and $T_{x_w y_w v} = 1$ for
+every leaf $v$ below $w$. A subtree cut then never separates a generator
+pair except along its own chain edge, and every target lies below its
+pair, so $F_y = F_x = F_m = 0$;
 every ancestor pair owes every central leaf below the cut equally, so each
 claim flattening is an all-ones matrix: width $1$.
 (iii) \emph{Point targets}: as in (ii) but each pair hits only the leftmost
@@ -668,9 +688,12 @@ traffic is genuinely charged by \autoref{def:flattenings}.
 
 \subparagraph*{The protocol.}
 The automaton carries seven $\Fp^r$-registers. Four are functional
-exports as in \autoref{thm:tree}: $w^y = V^y_S\, (a_y)|_S$ and $w^x$
-(row bases of $F_y, F_x$), and their mixed counterparts $\varphi^y =
-V^{py}_S (a_y)|_S$ and $\varphi^x$ (bases of $F_{py}, F_{px}$): inside
+exports as in \autoref{thm:tree}: $w^y = V^y_S\, (a_y)|_S$ and $w^x$,
+where the rows of $V^y_S$ span the \emph{column space} of $F_y$ (each
+column of $F_y$, indexed by an outside consumer, is a functional of the
+inside digits), likewise $V^x_S$ for $F_x$; and their mixed counterparts
+$\varphi^y = V^{py}_S (a_y)|_S$ and $\varphi^x$ (column-space bases of
+$F_{py}, F_{px}$): inside
 coefficients that a future outside digit will multiply, the product
 flowing back \emph{into} the subtree's checks. The register $m$ carries,
 in a basis $B^m_S$ of the row space of $F_m$, the contribution vector that
@@ -695,10 +718,15 @@ node $u$ with children $L, R$ and joint interval $J = S_L \cup S_R$:
   V^{py}_L + \Theta'' V^y_L$ for some matrices $\Theta$, and symmetrically
   on the $x$-side for $R$;
 \item \emph{sibling factorisations}: the three blocks of split pairs $(i
-  \in L,\, j \in R)$---with targets outside $J$, in $L$, and in $R$---factor
-  as $(V^x_R)^{\mathsf T}\, \hat Q\, V^y_L$ against $B^m_J$, as
-  $(V^x_R)^{\mathsf T} \hat Q'\, V^{py}_L$ against $W_L$, and as
-  $(V^y_L)^{\mathsf T} \hat Q''\, V^{px}_R$ against $W_R$, respectively;
+  \in L,\, j \in R)$---with targets outside $J$, in $L$, and in
+  $R$---factor coordinatewise in their target bases: there are families
+  $(\hat Q_s)_{s \le r}$, $(\hat Q'_s)_{s \le r}$, $(\hat Q''_s)_{s \le
+  r}$ of $r \times r$ matrices such that, for each basis coordinate $s$,
+  the $s$-th $B^m_J$-component of the first block is $(V^x_R)^{\mathsf T}
+  \hat Q_s\, V^y_L$, the $s$-th $W_L$-component of the second is
+  $(V^x_R)^{\mathsf T} \hat Q'_s\, V^{py}_L$, and the $s$-th
+  $W_R$-component of the third is $(V^y_L)^{\mathsf T} \hat Q''_s\,
+  V^{px}_R$;
 \item \emph{cross translations}: $B^m_L$ restricted to the columns $R \cap
   Z$ factors through $W_R$, and symmetrically;
 \item \emph{claim join}: $W_J|_L = W_L\, \Phi_L$ and $W_J|_R = W_R\,
@@ -725,8 +753,9 @@ the column space of $(V^x_R)^{\mathsf T}$ or $(V^{px}_R)^{\mathsf T}$,
 because each is a row of the corresponding child flattening; apply
 \autoref{lem:twosided}. (3): the column of a pair $(j,i) \subseteq L$ at
 targets $R \cap Z$ is a column of $F_g(R)$, hence in the column space of
-$W_R$. (4): a row of $F_g(J)$ restricted to $L$-rows is a row of
-$F_g(L)$, since the crossing pairs of $J$ are crossing pairs of $L$.
+$W_R$. (4): a column of $F_g(J)$, restricted to the rows in $L$, is a
+column of $F_g(L)$---a pair not inside $J$ is not inside $L$---so the
+column space of $F_g(J)|_L$ lies in that of $W_L$.
 \end{proof}
 
 \begin{theorem}[distributed centers]
@@ -838,18 +867,23 @@ and are included for completeness.
 Let $\Gamma$ be the commutation graph of $B$ (edges = non-commuting
 pairs).
 \begin{enumerate}
-\item If $\Gamma$ has a vertex cover of size $c$, every layout compatible
-  with any order has width $\le c$; in particular $\lcr(B) \le c$.
+\item If $\Gamma$ has a vertex cover $C$ of size $c$, then every layout
+  that places $C$ first has width $\le c$; in particular $\lcr(B) \le c$.
+  An arbitrary layout has width $\le kc$, and the factor $k$ is necessary.
 \item If $\Gamma$ has pathwidth $w$, then $\lcr(B) \le w + 1$.
 \item If $\Gamma$ has treewidth $w$, then $\tcr(B) \le k(w+1)$.
 \end{enumerate}
 \end{proposition}
 
 \begin{proof}
-(1) Every nonzero entry of a crossing block lies in a row or column indexed
-by a cover vertex; at most $c$ of these meet each side, and a matrix whose
-nonzero entries lie in $c_1$ columns and $c_2 k$ rows has rank $\le c_1 +
-c_2 \cdot \min(k,\cdot) \le c$ when counted per cover vertex.
+(1) Put the cover first. A cut $S \subseteq C$ offers at most $|S| \le c$
+columns. A cut $S \supseteq C$ contains every edge's cover endpoint, so
+the nonzero columns of the crossing block are indexed by $C$: again rank
+$\le c$. In an arbitrary layout the nonzero entries lie in the $c_1 \le
+|C \cap S|$ columns of the inside cover vertices and the $\le k c_2$ rows
+of the outside ones, whence rank $\le c_1 + k c_2 \le kc$; a star with
+$c = 1$ whose edge to the $j$-th leaf is labelled $e_j$ attains $k$ at the
+cut separating the center from its leaves.
 (2) Order the vertices by a path decomposition; the earlier endpoints of
 crossing edges at any cut are active vertices, so nonzero columns number
 $\le w + 1$.
@@ -865,8 +899,9 @@ and $k$ rows per above-endpoint bound the rank by $k(w+1)$.
 Let $p$ be odd.
 \begin{enumerate}
 \item If $\Gamma$ has a vertex cover of size $c$, then $G(B) \cong H \times
-  \Zp^{\,m}$ with $|H| \le p^{2c + k}$; the class of such groups is, up to
-  isomorphism, a finite list of cores times elementary abelian factors.
+  \Zp^{\,m}$ with $|H| \le p^{\,c(k+1) + k}$; for fixed $c$ and $k$ the
+  class of such groups is, up to isomorphism, a finite list of cores times
+  elementary abelian factors.
 \item For $k = 1$, every $G(B)$ is isomorphic to (extraspecial of exponent
   $p$) $\times$ (elementary abelian): the symplectic normal form aligns
   every form with a matching.
@@ -874,10 +909,15 @@ Let $p$ be odd.
 \end{proposition}
 
 \begin{proof}
-(1) All nonzero entries of $\hat B$ lie in $c$ rows and columns, so the
-total rank of the alternating map is $\le 2c$; split off the radical (for
-odd $p$ its preimage is elementary abelian and complements off the
-commutator support). (2) is the classical normal form of an alternating
+(1) The radical $\bigcap_{l \le k} \operatorname{rad}(B_l)$ has
+codimension $\le c(k+1)$: pairing against $e_j$ for $j$ outside the cover
+constrains only the $c$ cover coordinates of a vector (every edge at $j$
+ends in the cover), and pairing against the $c$ cover vertices adds at
+most $ck$ further linear conditions. Split off the radical (for odd $p$
+its preimage is elementary abelian and complements off the commutator
+support), so $|H| \le p^{\,c(k+1)+k}$; the bound's shape is right: a star
+with $c = 1$, $k = n - 1$ and $B_{ui} = e_i$ has trivial radical and $|H|
+= p^{2n-1}$. (2) is the classical normal form of an alternating
 form: rank $2m$, matching of $m$ hyperbolic pairs, radical split off.
 \end{proof}
 
@@ -895,8 +935,9 @@ classical one. And the restriction is necessary in a precise sense:
 \begin{proposition}[generic forms are wide]
 \label{prop:generic}
 Let $k = 1$ and let $B$ be uniformly random. With high probability,
-\emph{every} linear and every tree layout of $B$ has width $\ge n/2 -
-O(\sqrt{n})$; that is, $\tcr(B) = \Omega(n)$.
+every linear layout of $B$ has width $\ge n/2 - O(\sqrt{n})$ and every
+tree layout has width $\ge n/3 - O(\sqrt{n})$; in particular $\tcr(B) =
+\Omega(n)$.
 \end{proposition}
 
 \begin{proof}[Proof sketch]
