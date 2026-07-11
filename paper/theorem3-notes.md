@@ -148,6 +148,45 @@ theorem statement.
    z-sites at leaves, each pair targeting only the *leftmost* leaf below
    it (point targets: non-laminar-product law, K growing).
 
+## 5b. Findings from the implementation (2026-07-11)
+
+The protocol and its compiler are implemented (`CocycleRankWidthGroups`,
+r = 1) and machine-verified: the automaton's transition function is shared
+between `sta_from_delta` and a direct tree `simulate`, so the simulator
+tests verify exactly the automaton's run. All corner instances, the
+point-target family, mixed-claim instances, an F_px-exercising instance,
+and a seeded fuzzer over random width-1 tensors agree exhaustively/sampled
+with the reference law; every compiler constant is guarded by an
+AssertionError instantiating a restriction lemma, and none fired.
+
+Design corrections discovered by the machine check:
+
+1. **Raw-side merges.** Pre-rebasing both children's registers to the
+   joint basis before the merge *destroys* the values the sibling products
+   consume: the sibling traffic factors through the *child* cuts (that is
+   the theorem), so the merge letter itself must fold the raw sides. Final
+   architecture: L keeps wy/phy raw, R keeps wx/phx raw, m is never
+   pre-rebased (its dropped columns feed the cross m->claim terms at the
+   same merge); the merge letter carries 13 constants: 6 folds (including
+   the two mixed-bank couplings), fml/fmr for m, the three sibling
+   products, and the two cross m->claim translations.
+2. **The letter budget is worse than estimated.** 13 constants means
+   2 p^13 merge letters; moreover the micro-op letters act *totally* on
+   the register states, so the flat per-pair transition diagrams are dense
+   (live on all state pairs), unlike every previous class in the package.
+   Consequence: the flat enumeration builder cannot construct the
+   full-alphabet automata at any p, and even sub-alphabet builds are
+   multi-GB (gate under AUTSTR_HEAVY, run under a systemd-run memory cap).
+   The engineering fix is factored (MTBDD-native) transition letters; the
+   *theoretical* constant-alphabet claim of section 4 is unaffected but
+   the cheap 7-register hot path does not realise it -- the generic
+   normalization (buffer registers + generator words) trades alphabet for
+   state count and advice length, as the lemma says, not for free.
+3. `CocycleRankWidthGroups(p, merge_letters=...)` instantiates the
+   presentation over a sub-alphabet collected from compiled advices
+   (`used_merge_letters`), which is a legitimate uniform presentation of
+   the sub-class its advice language covers; the end-to-end test uses it.
+
 ## 6. Open ends toward the full proof
 
 - Write the restriction lemmas once, parameterised by flattening pair
