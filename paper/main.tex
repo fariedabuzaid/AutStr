@@ -2,7 +2,7 @@
 %% First draft -- STACS/LIPIcs preprint style.
 %% TODO before submission/arXiv: affiliation, ORCID, funding, ccsdesc check,
 %% verify all bibliography details against DBLP, event macros.
-\documentclass[a4paper,UKenglish,autoref,thm-restate]{lipics-v2021}
+\documentclass[a4paper,UKenglish,autoref]{lipics-v2021}
 
 \usepackage{microtype}
 
@@ -735,12 +735,33 @@ are exercised on every compiled layout.
   inside a tensor-isomorphism-complete problem~\cite{GrochowQiao2021}.
   Note that computing a witnessing layout is itself nontrivial; for $k=1$
   rank-decompositions are FPT-computable~\cite{HlinenyOum2008}.
-\item \emph{Unbounded centers.} The library contains a uniformly
-  tree-automatic class of class-$2$ groups with \emph{growing} $k$ and
-  laminar commutator targets (tree-indexed extraspecial groups), which is
-  \emph{not} subsumed by \autoref{thm:tree}; its cuts also carry
-  one-dimensional interfaces. A common generalisation---cut-rank of the
-  full cocycle data with distributed central targets---seems within reach.
+\item \emph{Unbounded centers.} \autoref{thm:tree} fixes the center
+  dimension $k$, yet the library also contains a uniformly tree-automatic
+  class with \emph{growing} center---tree-indexed extraspecial groups, one
+  central generator per leaf, commutators hitting the laminar families of
+  the tree---which \autoref{thm:tree} does not subsume. We believe both
+  are instances of one theorem, and we sketch the route. Place the central
+  generators on the layout tree alongside the $x_i$ and regard the cocycle
+  as a tensor $T \in \Fp^{n \times n \times K}$; for a subtree $S$, bound
+  the ranks of the crossing \emph{flattenings} of $T$ (single sites
+  against pairs of sites, in all three orientations, on both sides of the
+  cut). Upward-flowing traffic factorises as in \autoref{lem:treestream}.
+  The new ingredient is \emph{inward-flowing} traffic---pairs resolved
+  outside a subtree contributing to central checks inside it---which a
+  deterministic bottom-up automaton can meet by a claim-and-verify
+  protocol: the residuals of the checks inside $S$ must lie in the column
+  space of the claim flattening, the automaton computes their unique
+  coordinates in an advice-chosen basis of full column rank (rejecting if
+  the system is inconsistent), passes these claims upward, and each merge
+  reconciles a child's claims against its sibling's exports; every
+  reconciliation matrix exists by the same sub-row restriction arguments
+  as in \autoref{lem:treestream}. The tree-indexed extraspecial class is
+  precisely the width-$1$ instance---laminarity makes every claim
+  flattening a rank-one all-ones matrix, and the claim coordinate is that
+  class's ``deficit owed by the ancestors''---while \autoref{thm:tree} is
+  the instance with all central sites on a chain above the root. A full
+  proof and a machine-verified implementation along these lines are in
+  preparation.
 \item \emph{Wider widths in practice.} The advice letters of
   \autoref{thm:tree} grow as $p^{\Theta(kr^2)}$; the implementation
   therefore bounds flat alphabets. Factored transition labels (shared

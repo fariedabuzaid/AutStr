@@ -1,0 +1,10 @@
+main.pdf
+*.aux
+*.log
+*.out
+*.bbl
+*.blg
+*.fls
+*.fdb_latexmk
+*.vtc
+*.synctex.gz
