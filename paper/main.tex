@@ -64,21 +64,24 @@ enumeration of finite groups, and their isomorphism problem is equivalent to
 isometry of alternating matrix spaces and complete for the tensor-isomorphism
 class. We identify a structural parameter of such groups under which they
 become uniformly tame for automata-based methods: the \emph{cut-rank} of the
-commutation form over a linear or tree layout, i.e.\ its $\Fp$ rank-width.
-For every prime $p$ and all fixed $k, r$, the class of central extensions of
-$\Zp^n$ by $\Zp^k$ whose commutation form admits a layout of cut-rank at most
-$r$ is uniformly automatic: a single finite automaton, reading a linear-size
-advice that spells out rank-$r$ factorisations of the crossing blocks,
-decides the multiplication of every group in the class. The automaton state
-is exactly the cut-rank interface, so the parameter and the presentation
-coincide. Consequences include linear-time first-order model checking on all
-members, decidability of the uniform first-order theory of the class, and a
-common generalisation of several known automatic presentations: extraspecial
-$p$-groups, groups with commutation graphs of bounded pathwidth or
-treewidth, and---although its commutation graph is complete and has
-pathwidth $n-1$---the group in which no two generators commute. Generic
-forms have cut-rank $\Omega(n)$ under every layout, so the class is a thin,
-structured slice of the wild stratum. The constructions are implemented and
+commutation data over a linear or tree layout, i.e.\ its $\Fp$ rank-width.
+For every prime $p$ and fixed width, the class of groups whose commutation
+form admits a layout of bounded cut-rank is uniformly automatic: a single
+finite automaton, reading a linear-size advice that spells out rank
+factorisations of the crossing blocks, decides the multiplication of every
+group in the class---the automaton state is exactly the cut-rank interface.
+In the general form of our main theorem the center itself is distributed
+over the layout: a deterministic claim-and-verify protocol meets commutator
+targets spread across the tree, and the known automatic families with
+growing center are its width-one instances. Consequences include linear-time
+first-order model checking on all members and decidability of the uniform
+first-order theory of each class. Extraspecial $p$-groups, commutation
+graphs of bounded pathwidth or treewidth, laminar tree-indexed extraspecial
+groups, and the group in which no two generators commute---whose commutation
+graph is complete, of pathwidth $n-1$ and cut-rank $1$---are all special
+layouts. Generic forms have cut-rank $\Omega(n)$ under every layout, so the
+class is a thin, structured slice of the wild stratum. All three
+constructions, including the general protocol, are implemented and
 machine-verified in the \AutStr{} library. We leave open a converse in the
 spirit of Courcelle--Oum and the complexity of isometry for matrix spaces of
 bounded rank-width.
@@ -147,7 +150,8 @@ the labels of all commutation pairs with exactly one endpoint in $S$, and
 the \emph{cut-rank} of $S$ is $\rk_{\Fp} M_S$. A \emph{linear layout} is an
 ordering of the generators; its width is the maximal cut-rank of an initial
 segment. A \emph{tree layout} places the generators on a binary tree; its
-width is the maximal cut-rank of a subtree. For fixed $k$ and $r$ we prove:
+width is the maximal cut-rank of a subtree. For fixed $p$, $k$ and $r$ we
+prove:
 
 \begin{itemize}
 \item the class of all $(B, \text{linear layout of width} \le r)$ is
@@ -155,15 +159,32 @@ width is the maximal cut-rank of a subtree. For fixed $k$ and $r$ we prove:
   $p^{k+r}$ states (\autoref{thm:word});
 \item the class of all $(B, \text{tree layout of width} \le r)$ is
   uniformly tree-automatic, with essentially $p^{k+2r}$ states
-  (\autoref{thm:tree}).
+  (\autoref{thm:tree});
+\item most generally, the \emph{central generators may live on the layout
+  tree themselves}, with commutator targets distributed arbitrarily: the
+  class of all cocycle \emph{tensors} whose six crossing flattenings have
+  rank $\le r$ at every subtree cut is uniformly tree-automatic
+  (\autoref{thm:distributed}) --- the common generalisation of
+  \autoref{thm:tree} and of the tree-indexed extraspecial groups with
+  growing center.
 \end{itemize}
 
 The advice has one letter per generator and spells out, cut by cut, a
 rank-$r$ factorisation of the crossing block: a basis-change matrix, the
 coefficient of the newly read digit, and a read-off matrix that recovers the
-commutator corrections. Every well-formed advice string presents a member of
-the class, because the streamed cocycle is bilinear by construction; so the
-presentation is exact, not merely an over-approximation.
+commutator corrections. In the first two theorems every well-formed advice
+string presents a member of the class, because the streamed cocycle is
+bilinear by construction; so the presentation is exact, not merely an
+over-approximation. The first two theorems stream all central digits at a
+fixed end of the layout, so every correction flows \emph{upward}. The
+general theorem also meets \emph{inward} traffic---pairs resolved outside a
+subtree contributing to central checks inside it---which no bottom-up pass
+can receive: a deterministic \emph{claim-and-verify} protocol has the
+automaton commit, in an advice-chosen basis of full column rank, to the
+unique linear expectations that the outside must later fulfil, and every
+merge reconciles a child's claims against its sibling's exports. The known
+laminar family is exactly the width-one instance of this protocol, its
+``deficit owed by the ancestors'' being the claim coordinate.
 
 Three families illustrate the reach of the parameter and its independence
 from the usual width measures. A perfect matching of commutation pairs, all
@@ -199,11 +220,15 @@ generic form has cut-rank $\Omega(n)$ under \emph{every} layout
 (\autoref{prop:generic}), so the class is thin, as any decidable slice of a
 wild stratum must be.
 
-Both constructions are implemented in the \AutStr{}
-library~\cite{AutStr} and machine-verified: the multiplication automata are
-checked exhaustively against the group law on several layouts and forms,
-the word and tree presentations are checked against each other on shared
-layouts, and the first-order examples of this paper run as regression tests
+All three constructions are implemented in the \AutStr{}
+library~\cite{AutStr} and machine-verified: the layout compilers derive
+every advice constant by solving a linear system whose solvability is one
+of this paper's factorisation lemmas, guarded by an assertion---so each
+successful compilation is a machine-checked certificate that the lemmas
+hold on that instance. The multiplication automata are checked exhaustively
+against the group law on several layouts, forms and tensors, the three
+presentations are checked against each other on shared instances, and the
+first-order examples of this paper run as regression tests
 (\autoref{sec:implementation}).
 
 \subparagraph*{Open problems.}
@@ -567,6 +592,240 @@ block whose rank defines cut-rank; conversely a layout is such a
 decomposition after suppressing structural nodes.
 \end{proof}
 
+\section{Distributed centers: the general theorem}
+\label{sec:distributed}
+
+\autoref{thm:tree} fixes the center dimension $k$ and streams all central
+digits on a chain above the root, so every correction flows upward. The
+class that motivated this work does neither: the \emph{tree-indexed
+extraspecial groups} place one central generator at every leaf of a shape
+tree, with the commutator of the pair at an inner node hitting the product
+of all central generators below it---a growing center with laminar targets,
+uniformly tree-automatic by a $(p+1)$-state automaton. This section proves
+the common generalisation.
+
+\subparagraph*{Site trees and cocycle tensors.}
+A \emph{site tree} is a binary tree whose $N$ nodes are \emph{sites}, each
+an $x$-site (generator) or a $z$-site (central generator), enumerated in
+post-order; $X, Z \subseteq [N]$ denote the $x$- and $z$-positions. A
+\emph{cocycle tensor} is a finitely supported family $T = (T_{jiv})$ over
+$\Fp$ with $i < j$ in $X$ and $v \in Z$. It presents $G(T)$: the central
+extension of $\Fp^X$ by $\Fp^Z$ with correction $C(a, a')_v = \sum_{i<j}
+T_{jiv}\, a_j a'_i$, to which \autoref{lem:cocycle} applies verbatim.
+Elements $(b, a)$ are digit labellings of the site tree; the check at a
+$z$-site $v$ is $(b_z - b_x - b_y)_v = C(a_x, a_y)_v$, while $x$-sites
+carry position-wise digit sums.
+
+\begin{definition}[crossing flattenings, width]
+\label{def:flattenings}
+Let $S$ be a subtree (a post-order interval). Sort the entries $T_{jiv}$
+with at least one but not all sites in $S$ into six matrices:
+\begin{align*}
+F_y &: \text{rows } i \in S, \text{ cols } (j, v) \notin S
+  &&\text{($y$-digit functionals, upward)}\\
+F_x &: \text{rows } j \in S, \text{ cols } (i, v) \notin S
+  &&\text{($x$-digit functionals, upward)}\\
+F_m &: \text{rows } (j, i) \subseteq S, \text{ cols } v \notin S
+  &&\text{(resolved pair-sums, upward)}\\
+F_g &: \text{rows } v \in S, \text{ cols } (j, i) \not\subseteq S
+  &&\text{(claims: expected inward flow)}\\
+F_{py} &: \text{rows } i \in S, \text{ cols } (j \notin S, v \in S)
+  &&\text{(mixed: inside $y$-coefficients of future $x$-digits)}\\
+F_{px} &: \text{rows } j \in S, \text{ cols } (i \notin S, v \in S)
+  &&\text{(mixed, $x$-side).}
+\end{align*}
+The \emph{width} of the cut is the maximum of the six ranks over $\Fp$,
+and the width of the layout is the maximum over all subtree cuts.
+\end{definition}
+
+\begin{remark}[reshaping changes rank]
+No single bipartition rank controls all six: reshaping a flattening changes
+its rank. For the point-target tensor $T_{jiv} = [\, v = \ell(i)\,]$ the
+flattening $[(i,v)] \times [j]$ has rank one while $[i] \times [(j,v)]$ has
+full rank, and conversely for other tensors; each of the six corresponds to
+a distinct kind of traffic the automaton must carry, so the width must
+bound each of them.
+\end{remark}
+
+\begin{example}[the corners, quantitatively]
+\label{ex:corners}
+(i) With all $z$-sites on a chain above the root, $F_g, F_{py}, F_{px}$ are
+empty at every layout cut and $\rk F_m \le k$: a form of tree cut-rank $r$
+in the sense of \autoref{thm:tree} has width $\le \max(r, k)$.
+(ii) For the laminar tree-indexed extraspecial groups, generator pairs are
+co-located and targets lie below their pair, so $F_y = F_x = F_m = 0$;
+every ancestor pair owes every central leaf below the cut equally, so each
+claim flattening is an all-ones matrix: width $1$.
+(iii) \emph{Point targets}: as in (ii) but each pair hits only the leftmost
+leaf below it. Width $1$, growing center, non-laminar law: this family
+belongs to neither \autoref{thm:tree} nor the laminar class, so
+\autoref{thm:distributed} strictly extends the union of its corners.
+(iv) \emph{Scattered targets}: $m$ private central generators on a chain
+below $m$ commuting pairs, pair $t$ targeting $z_t$, have width exactly
+$m$: the claim flattening at the $z$-chain is an identity matrix. Inward
+traffic is genuinely charged by \autoref{def:flattenings}.
+\end{example}
+
+\subparagraph*{The protocol.}
+The automaton carries seven $\Fp^r$-registers. Four are functional
+exports as in \autoref{thm:tree}: $w^y = V^y_S\, (a_y)|_S$ and $w^x$
+(row bases of $F_y, F_x$), and their mixed counterparts $\varphi^y =
+V^{py}_S (a_y)|_S$ and $\varphi^x$ (bases of $F_{py}, F_{px}$): inside
+coefficients that a future outside digit will multiply, the product
+flowing back \emph{into} the subtree's checks. The register $m$ carries,
+in a basis $B^m_S$ of the row space of $F_m$, the contribution vector that
+pairs resolved inside $S$ owe to targets outside. The register $g$ holds
+the \emph{claim}: writing $\rho_v = (b_z - b_x - b_y)_v - \sum_{(j,i)
+\subseteq S} T_{jiv} a_{x,j} a_{y,i}$ for the residual of the check at $v
+\in S \cap Z$, the vector $\rho|_S$ must equal the outside's future
+contribution, which ranges over the column space of $F_g$; the advice
+fixes a basis $W_S$ of that space with full column rank, and the automaton
+carries the unique $g$ with $W_S\, g = \rho|_S$, rejecting if no solution
+exists. Uniqueness makes the automaton deterministic; the consistency of
+these systems \emph{is} the verified property. The seventh register
+buffers a sibling's claim between a merge and its consistency check.
+
+\begin{lemma}[advice data]
+\label{lem:data}
+Fix a layout of width $\le r$ and bases as above for every subtree. Then
+every node admits transition data over $\Fp$; in particular, at a binary
+node $u$ with children $L, R$ and joint interval $J = S_L \cup S_R$:
+\begin{enumerate}
+\item \emph{folds}: $V^y_J|_L = \Theta\, V^y_L$ and $V^{py}_J|_L = \Theta'
+  V^{py}_L + \Theta'' V^y_L$ for some matrices $\Theta$, and symmetrically
+  on the $x$-side for $R$;
+\item \emph{sibling factorisations}: the three blocks of split pairs $(i
+  \in L,\, j \in R)$---with targets outside $J$, in $L$, and in $R$---factor
+  as $(V^x_R)^{\mathsf T}\, \hat Q\, V^y_L$ against $B^m_J$, as
+  $(V^x_R)^{\mathsf T} \hat Q'\, V^{py}_L$ against $W_L$, and as
+  $(V^y_L)^{\mathsf T} \hat Q''\, V^{px}_R$ against $W_R$, respectively;
+\item \emph{cross translations}: $B^m_L$ restricted to the columns $R \cap
+  Z$ factors through $W_R$, and symmetrically;
+\item \emph{claim join}: $W_J|_L = W_L\, \Phi_L$ and $W_J|_R = W_R\,
+  \Phi_R$.
+\end{enumerate}
+Analogous (simpler) data exists at leaves and unary nodes, including the
+claim extension at a $z$-site, whose residual first absorbs the
+$B^m$-column of its own position.
+\end{lemma}
+
+\begin{proof}
+Each claim is a restriction argument in the shape of \autoref{lem:stream},
+possibly iterated through \autoref{lem:twosided}. (1): a column of
+$F_y(J)$ restricted to rows in $L$ is a column of $F_y(L)$, since its
+consumer pair lies outside $J \supseteq L$; a column of $F_{py}(J)$
+restricted to $L$ is a column of $F_{py}(L)$ if its target lies in $L$ and
+a column of $F_y(L)$ if its target lies in $R$ (outside $L$)---whence the
+mixed fold. (2): factor the block first over the target coordinate: rows
+of the outside-target block are rows of $F_m(J)$, rows of the $L$-target
+block are columns of $F_g(L)$ (their pairs are not inside $L$), and
+likewise for $R$; the residual matrix over $(j, i)$ then has its
+$i$-rows in the row space of $V^y_L$ or $V^{py}_L$ and its $j$-columns in
+the column space of $(V^x_R)^{\mathsf T}$ or $(V^{px}_R)^{\mathsf T}$,
+because each is a row of the corresponding child flattening; apply
+\autoref{lem:twosided}. (3): the column of a pair $(j,i) \subseteq L$ at
+targets $R \cap Z$ is a column of $F_g(R)$, hence in the column space of
+$W_R$. (4): a row of $F_g(J)$ restricted to $L$-rows is a row of
+$F_g(L)$, since the crossing pairs of $J$ are crossing pairs of $L$.
+\end{proof}
+
+\begin{theorem}[distributed centers]
+\label{thm:distributed}
+For all fixed $p$ and $r$, the class of pairs (site tree, cocycle tensor
+of width $\le r$), each presenting $G(T)$, is uniformly tree-automatic.
+The multiplication automaton has $p^{7r} + 1$ states; the advice has
+$O(1)$ letters per site over an alphabet of size $p^{\Theta(r^3)}$.
+\end{theorem}
+
+\begin{proof}
+The advice expands each site into its site letter followed by a bounded
+chain of micro-operations carrying the data of \autoref{lem:data}; element
+digits repeat along a site's stretch (the universe automaton enforces
+constancy, so the multiplication automaton may assume it). We maintain,
+bottom-up at every subtree $S$, the invariants stated with the protocol:
+the four functional registers, the pair-sum register $m$, and the claim
+$W_S\, g = \rho|_S$, the run being alive iff every claim system so far was
+consistent. At a leaf the registers initialise from the digit and the
+basis columns. At a unary $x$-site $w$, the read-off pairs $\{w, i\}$
+contribute $a_{x,w} \cdot (R\, w^y)$ to $m$ if their targets lie outside
+(the read-off row factors through $V^y$ by the restriction argument) and
+discharge the claim through $\varphi^y$ if their targets lie inside; the
+registers then rebase by \autoref{lem:data}(1)-shaped data and absorb the
+own digit. At a $z$-site $v$, the residual $(b_z - b_x - b_y)_v -
+(\text{$B^m$-column of } v) \cdot m$ joins the claim: the extended system
+$[W_{S'} ]\, g' = (\rho|_{S}, \rho_v)$ is solved uniquely against the new
+full-column-rank basis, rejecting on inconsistency. At a binary node the
+merge transition consumes the \emph{raw} child registers---the sibling
+traffic factors through the child cuts, not the joint one, so the folds of
+\autoref{lem:data}(1) are applied by the merge itself: the three split
+blocks are discharged by the pairings of \autoref{lem:data}(2) into $m$
+and into the two claims, the cross translations (3) discharge each child's
+pair-sums against the sibling's claim, and the claims join by (4): the
+composed left-hand value determines $g$ for the joint basis, the composed
+right-hand value is buffered in the seventh register, and a linear check
+enforces $\Phi_R\, g = g_R$-consistency---the generalisation of ``sibling
+branches must owe equal deficits''. At the root nothing is outside, all
+six flattenings are empty, the claim has dimension zero, and the automaton
+accepts iff no check failed; unwinding the invariants, this holds iff the
+digit sums hold and $b_z = b_x + b_y + C(a_x, a_y)$ coordinate-wise, i.e.\
+iff $z = x \cdot y$ in $G(T)$. Counting: seven registers in $\Fp^r$ give
+$p^{7r}$ live states; the merge letters carry the folds
+($\Theta(r^2)$ entries), the three pairing families ($\Theta(r^3)$), and
+the cross translations ($\Theta(r^2)$), all other letters $O(r^2)$.
+\end{proof}
+
+\begin{remark}[exactness and the advice set]
+\label{rem:exactness}
+Unlike in \autoref{thm:word}, not every well-shaped advice presents a
+group: a claim check can make the streamed relation partial. Take as the
+advice set the well-shaped words whose presented structure satisfies the
+first-order group axioms: this set is regular by the fundamental theorem
+of automatic structures with advice~\cite{AbuZaidGraedelReinhardt2017},
+every advice in it presents a class-$2$ group, and any group whose cocycle
+streams through $r$-dimensional interfaces has width $O(r)$ by reading the
+invariants backwards. The presentation is therefore exact for the class up
+to a constant widening.
+\end{remark}
+
+\begin{corollary}
+\label{cor:corners}
+\autoref{thm:tree} is the instance of \autoref{thm:distributed} with all
+$z$-sites on a chain above the root, and the laminar tree-indexed
+extraspecial groups are a width-one instance in which only the claim and
+mixed flattenings are alive: their $(p+1)$-state automaton is the
+degenerate protocol, the claim coordinate being the deficit owed by the
+ancestors. By \autoref{ex:corners}(iii) the general theorem is strictly
+stronger than the union of its corners.
+\end{corollary}
+
+\begin{remark}[growing commutator subgroups]
+The width-one point-target and laminar families have centers and commutator
+subgroups of rank $\Theta(n)$, so \autoref{thm:distributed} escapes the
+collapse of \autoref{prop:collapse}: with distributed centers, bounded
+width no longer confines the class to a bounded core times an abelian
+factor, and the isomorphism-theoretic content of the parameter begins
+already at width one.
+\end{remark}
+
+\begin{remark}[alphabets, honestly]
+\label{rem:alphabet}
+The advice alphabet of any uniform word- or tree-presentation can be
+traded into advice length: the full transformation monoid on $Q$ states is
+generated by three elements, finite direct products of transformation
+monoids are generated by constantly many, and the advice is compile-time
+data---so each letter's action can be spelled as an instruction word of
+length $\mathrm{poly}(|Q|)$ over a fixed universal alphabet, at the cost
+of a $|D|$-fold state blow-up for the element-digit buffer (and a
+$|Q|^2$-fold one on trees, where a merge packs the state pair before the
+instruction word acts). Our microcode realises the structured special
+case: linear register updates give per-site stretch $O(r^3)$ instead of
+$\mathrm{poly}(p^{7r})$. One caveat is genuine and measured in
+\autoref{sec:implementation}: the protocol's micro-operations act
+\emph{totally} on the register space, so its flat transition tables are
+dense---unlike the fixed-center automata, whose sparseness is what makes
+them cheap.
+\end{remark}
+
 \section{The class seen from group theory}
 \label{sec:grouptheory}
 
@@ -661,7 +920,7 @@ boundary of automaticity; \autoref{sec:open} makes the conjecture precise.
 \label{sec:consequences}
 
 The generic machinery of uniformly automatic classes
-\cite{AbuZaidGraedelReinhardt2017} yields, for both presentations:
+\cite{AbuZaidGraedelReinhardt2017} yields, for all three presentations:
 
 \begin{corollary}[compiled model checking]
 \label{cor:mc}
@@ -700,75 +959,99 @@ automaton per property serves the entire class.
 \section{Implementation and machine verification}
 \label{sec:implementation}
 
-Both constructions are implemented in the open-source library
-\AutStr~\cite{AutStr} as the classes \texttt{CutRankGroups} ($p, k, r$;
-\autoref{thm:word}) and \texttt{CutRankTreeGroups} (\autoref{thm:tree}),
-together with layout compilers that realise \autoref{lem:stream} and
-\autoref{lem:treestream} by Gaussian elimination over $\Fp$ and fail
-exactly when a cut exceeds the width bound. The test suite verifies, among
-other things: exhaustive agreement of the multiplication automata with the
-group law of \autoref{lem:cocycle} on spine and balanced layouts for the
-zero, complete, matching and star forms; agreement of the word and tree
-presentations on shared (chain) layouts; the complete form at $n = 14$
-through the constant-size automaton; the Pauli triangle including
-first-order definable centrality; and the width guards (a form of cut-rank
-$2$ is rejected at $r = 1$ and handled at $r = 2$). The first-order
-examples of \autoref{sec:consequences} run through the library's generic
-query evaluation. We regard the implementation as part of the evidence:
-the solvability claims of \autoref{lem:stream} and \autoref{lem:treestream}
-are exercised on every compiled layout.
+All three constructions are implemented in the open-source library
+\AutStr~\cite{AutStr}: \texttt{CutRankGroups} (\autoref{thm:word}),
+\texttt{CutRankTreeGroups} (\autoref{thm:tree}) and
+\texttt{CocycleRankWidthGroups} (\autoref{thm:distributed}, width $1$),
+each with a layout compiler realising the factorisation lemmas by Gaussian
+elimination over $\Fp$. The compilers are self-certifying: every advice
+constant is obtained by solving a linear system whose solvability is an
+instance of \autoref{lem:stream}, \autoref{lem:twosided},
+\autoref{lem:treestream} or \autoref{lem:data}, guarded by an
+assertion---a compilation that succeeds is a machine-checked certificate
+that the factorisations exist for that instance, and no assertion has
+fired on any width-admissible input. The test suite checks the
+multiplication automata exhaustively against the group law of
+\autoref{lem:cocycle} on spine and balanced layouts for the zero,
+complete, matching and star forms; the word and tree presentations against
+each other on shared chain layouts; the embedded corners of
+\autoref{thm:distributed} against the independent implementations of
+\autoref{thm:tree} and of the laminar class; the point-target family;
+instances exercising each of the six flattenings; and a seeded fuzzer over
+random width-one tensors. For the general protocol, the transition
+function is shared verbatim between the automaton constructor and a direct
+tree interpreter, so the fast tests verify exactly the automaton's run;
+the full automaton pipeline additionally builds and decides multiplication
+end to end within a 4\,GB memory cap.
+
+The three presentations form a deliberate generality-versus-cost
+hierarchy; measured at $p = 2$, $k = r = 1$ on a commodity laptop:
+
+\begin{center}
+\begin{tabular}{lllll}
+\hline
+class & center & states & build & compiled FO queries\\
+\hline
+laminar tree-extraspecial & growing, laminar & $p + 1$ & instant & fast\\
+\texttt{CutRankGroups} & fixed $k$ & $p^{k+r}$ & $0.02$s & fast\\
+\texttt{CutRankTreeGroups} & fixed $k$ & $p^{k+2r}$ & $1.6$s & fast\\
+\texttt{CocycleRankWidthGroups} & distributed & $p^{7r}$ & minutes,
+$\le 4$GB & $> 12$GB\\
+\hline
+\end{tabular}
+\end{center}
+
+The gap in the last row is structural, as anticipated in
+\autoref{rem:alphabet}: the fixed-center automata are sparse---almost
+every convolution symbol is dead, which is what the library's
+decision-diagram engine exploits---while the protocol's micro-operations
+act totally on the register space, so its flat per-pair transition tables
+are dense. Under the memory cap the general automaton multiplies
+correctly on all test instances; compiled evaluation of quantified
+formulas over it exceeds the cap and awaits factored transition labels in
+the engine. The practical reading of the table: use the corner class that
+fits the instances at hand; the general machine is needed exactly when
+commutator targets are genuinely distributed and non-laminar.
 
 \section{Open problems}
 \label{sec:open}
 
 \begin{enumerate}
 \item \emph{Converse / characterisation.} Does uniform (word-, tree-)
-  automaticity of a class of forms with fixed $k$ force bounded (linear)
-  cut-rank under suitably chosen layouts? A positive answer would be a
+  automaticity of a class of forms or tensors force bounded width under
+  suitably chosen layouts? A positive answer would be a
   Courcelle--Oum-style characterisation~\cite{CourcelleOum2007} of
-  automaticity on the class-$2$ stratum; \autoref{prop:generic} and the
-  negative result of~\cite{NiesStephan2023} are the supporting evidence.
+  automaticity on the class-$2$ stratum. \autoref{prop:generic}, the
+  negative result of~\cite{NiesStephan2023}, and the exactness direction
+  of \autoref{rem:exactness}---bounded-interface streams have bounded
+  width---are the supporting evidence; \autoref{ex:corners}(iv) shows the
+  six flattenings charge exactly the traffic a bottom-up automaton must
+  carry.
 \item \emph{Isometry in P.} Is isometry of alternating matrix spaces of
   bounded $\Fp$ rank-width decidable in polynomial time? This is the
   matrix-space analogue of isomorphism testing for graphs of bounded
   rank-width~\cite{GroheSchweitzer2015} and would identify a tame island
-  inside a tensor-isomorphism-complete problem~\cite{GrochowQiao2021}.
-  Note that computing a witnessing layout is itself nontrivial; for $k=1$
-  rank-decompositions are FPT-computable~\cite{HlinenyOum2008}.
-\item \emph{Unbounded centers.} \autoref{thm:tree} fixes the center
-  dimension $k$, yet the library also contains a uniformly tree-automatic
-  class with \emph{growing} center---tree-indexed extraspecial groups, one
-  central generator per leaf, commutators hitting the laminar families of
-  the tree---which \autoref{thm:tree} does not subsume. We believe both
-  are instances of one theorem, and we sketch the route. Place the central
-  generators on the layout tree alongside the $x_i$ and regard the cocycle
-  as a tensor $T \in \Fp^{n \times n \times K}$; for a subtree $S$, bound
-  the ranks of the crossing \emph{flattenings} of $T$ (single sites
-  against pairs of sites, in all three orientations, on both sides of the
-  cut). Upward-flowing traffic factorises as in \autoref{lem:treestream}.
-  The new ingredient is \emph{inward-flowing} traffic---pairs resolved
-  outside a subtree contributing to central checks inside it---which a
-  deterministic bottom-up automaton can meet by a claim-and-verify
-  protocol: the residuals of the checks inside $S$ must lie in the column
-  space of the claim flattening, the automaton computes their unique
-  coordinates in an advice-chosen basis of full column rank (rejecting if
-  the system is inconsistent), passes these claims upward, and each merge
-  reconciles a child's claims against its sibling's exports; every
-  reconciliation matrix exists by the same sub-row restriction arguments
-  as in \autoref{lem:treestream}. The tree-indexed extraspecial class is
-  precisely the width-$1$ instance---laminarity makes every claim
-  flattening a rank-one all-ones matrix, and the claim coordinate is that
-  class's ``deficit owed by the ancestors''---while \autoref{thm:tree} is
-  the instance with all central sites on a chain above the root. A full
-  proof and a machine-verified implementation along these lines are in
-  preparation.
-\item \emph{Wider widths in practice.} The advice letters of
-  \autoref{thm:tree} grow as $p^{\Theta(kr^2)}$; the implementation
-  therefore bounds flat alphabets. Factored transition labels (shared
-  BDDs) would make tree widths $r \ge 2$ practical.
+  inside a tensor-isomorphism-complete problem~\cite{GrochowQiao2021};
+  with distributed centers the same question extends to isomorphism of
+  the width-$r$ tensor classes of \autoref{thm:distributed}. Computing a
+  witnessing layout is itself nontrivial; for $k = 1$ rank-decompositions
+  are FPT-computable~\cite{HlinenyOum2008}.
+\item \emph{Wider widths in practice.} The theory of
+  \autoref{thm:distributed} covers all $r$; the implementation verifies
+  the protocol at $r = 1$. Width $r \ge 2$ needs matrix-valued
+  micro-operations (entry chains), and compiled query evaluation over the
+  general automaton needs factored transition labels in the engine
+  (\autoref{sec:implementation}); both are engineering rather than
+  mathematics, but they currently gate the algorithmic meta-theorems of
+  \autoref{sec:consequences} on the general class in practice.
+\item \emph{Beyond exponent $p$ and class $2$.} Exponent $p^2$ adds a
+  linear (Frattini) layer to the extension data; class $3$ makes the
+  correction a degree-three stream. Does the cut-rank philosophy---bound
+  the rank of every flattening a one-pass evaluation must
+  transport---extend along the Lazard correspondence to higher class, and
+  where exactly does it stop short of the non-automaticity
+  of~\cite{NiesStephan2023}?
 \end{enumerate}
-
-%% TODO: acknowledgements / funding once decided.
 
 \bibliography{refs}
 

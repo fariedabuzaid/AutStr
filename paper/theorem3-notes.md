@@ -2,9 +2,13 @@
 
 Working notes (2026-07-11). Target: the common generalisation of Theorem 2
 (`CutRankTreeGroups`, fixed k) and `TreeExtraspecialGroups` (growing K,
-laminar targets). Status: definitions and protocol fixed; width measures
-implemented and validated (`autstr/cocycle_groups.py`); automaton + advice
-compiler = next milestone.
+laminar targets). STATUS: DONE -- protocol, compiler and automaton
+implemented and machine-verified (`autstr/cocycle_groups.py`), and the
+theorem is integrated into the paper as `thm:distributed`
+(main.tex section "Distributed centers: the general theorem"). These notes
+remain as the engineering companion: sections 5b and 6 track what the paper
+does not carry (letter budgets, measured memory envelopes, r >= 2 op
+chains).
 
 ## 1. Objects
 
