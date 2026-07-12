@@ -47,19 +47,22 @@ SENTENCES = {
     # nested alternation: for all x there is y that fails to commute with some z
     'alt3': ('all x.(exists y.(exists z.('
              '(M(x,y,z) and (not M(y,x,z))) or Eq(x,x))))'),
+    # four-quantifier alternation -- the deepest, most product-explosive query
+    'alt4': ('all x.(exists y.(all z.(exists w.('
+             '(M(x,y,z) and (not M(z,x,w))) or Eq(y,w)))))'),
 }
 
 
-def _word_member(p, d, n):
+def _word_member(p, d, r, k, n):
     from autstr.groups import CutRankGroups
-    c = CutRankGroups(p, d=d)
+    c = CutRankGroups(p, k=k, r=r, d=d)
     advice = c.advice(n, c.clique_form(n))
     return c, advice
 
 
-def _tree_member(p, d, n):
+def _tree_member(p, d, r, k, n):
     from autstr.tree_groups import CutRankTreeGroups
-    c = CutRankTreeGroups(p, d=d)
+    c = CutRankTreeGroups(p, k=k, r=r, d=d)
     shape = c.balanced(n)
     advice = c.advice(shape, c.clique_form(n))
     return c, advice
@@ -68,13 +71,13 @@ def _tree_member(p, d, n):
 MEMBERS = {'word': _word_member, 'tree': _tree_member}
 
 
-def _run_explicit(kind, p, d, n, sname):
-    c, advice = MEMBERS[kind](p, d, n)
+def _run_explicit(kind, p, d, r, k, n, sname):
+    c, advice = MEMBERS[kind](p, d, r, k, n)
     return bool(c.check(SENTENCES[sname], advice))
 
 
-def _run_implicit(kind, p, d, n, sname):
-    c, advice = MEMBERS[kind](p, d, n)
+def _run_implicit(kind, p, d, r, k, n, sname):
+    c, advice = MEMBERS[kind](p, d, r, k, n)
     return bool(c.check_implicit(SENTENCES[sname], advice))
 
 
@@ -90,7 +93,7 @@ RUNNERS = {'explicit': _run_explicit, 'implicit': _run_implicit}
 RESULT_TAG = "__RESULT__"
 
 
-def _run_task(path, kind, p, d, n, sname, mem_bytes):
+def _run_task(path, kind, p, d, r, k, n, sname, mem_bytes):
     """Executed in the child interpreter: cap memory, run, print the result."""
     if mem_bytes:
         import resource
@@ -99,7 +102,7 @@ def _run_task(path, kind, p, d, n, sname, mem_bytes):
         except (ValueError, OSError):
             pass
     try:
-        value = RUNNERS[path](kind, int(p), int(d), int(n), sname)
+        value = RUNNERS[path](kind, int(p), int(d), int(r), int(k), int(n), sname)
         print(f"{RESULT_TAG}\tok\t{value}")
     except MemoryError:
         print(f"{RESULT_TAG}\toom\t")
@@ -110,9 +113,9 @@ def _run_task(path, kind, p, d, n, sname, mem_bytes):
 def run_isolated(path, args, timeout, mem_bytes):
     """Run one workload in a fresh subprocess. Returns (status, value, secs).
     status in {ok, timeout, oom, killed, error}."""
-    kind, p, d, n, sname = args
-    cmd = [sys.executable, __file__, '--task', path, kind,
-           str(p), str(d), str(n), sname, '--mem-bytes', str(mem_bytes)]
+    kind, p, d, r, k, n, sname = args
+    cmd = [sys.executable, __file__, '--task', path, kind, str(p), str(d),
+           str(r), str(k), str(n), sname, '--mem-bytes', str(mem_bytes)]
     start = time.time()
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True,
@@ -143,8 +146,8 @@ def main():
     ap.add_argument('--max-n-word', type=int, default=8)
     ap.add_argument('--max-n-tree', type=int, default=6)
     # internal single-task mode (spawned by the driver, not called by hand)
-    ap.add_argument('--task', nargs=6, default=None,
-                    metavar=('PATH', 'KIND', 'P', 'D', 'N', 'SENTENCE'))
+    ap.add_argument('--task', nargs=8, default=None,
+                    metavar=('PATH', 'KIND', 'P', 'D', 'R', 'K', 'N', 'SENTENCE'))
     ap.add_argument('--mem-bytes', type=int, default=0)
     args = ap.parse_args()
 
@@ -153,14 +156,27 @@ def main():
         return
 
     mem_bytes = int(args.mem_gb * 1024 ** 3)
-    rings = [(2, 1), (3, 1), (2, 2), (3, 2), (2, 3), (2, 4)]   # Z2,Z3,Z4,Z9,Z8,Z16
-    kinds = [('word', args.max_n_word), ('tree', args.max_n_tree)]
+    nw, nt = args.max_n_word, args.max_n_tree
+    # (kind, p, d, r, k, max_n). Two frontiers:
+    #  - width/center (r,k) at d=1 (field): the base automaton is q^(r^2+r+kr)
+    #    letters -> O(sigma^4) to build; explicit needs GBs (a laptop OOMs),
+    #    implicit stays light.
+    #  - ring depth d>1 at r=k=1: the alphabet wall (Z/8, Z/9, Z/16).
+    series = [
+        ('word', 2, 1, 1, 1, nw), ('word', 3, 1, 1, 1, nw),
+        ('word', 2, 1, 2, 1, 5), ('word', 2, 1, 1, 2, 5),    # r=2 / k=2 field
+        ('word', 3, 1, 2, 1, 4), ('word', 2, 1, 3, 1, 4),    # heavier field
+        ('word', 2, 2, 1, 1, nw), ('word', 3, 2, 1, 1, nw),  # Z/4, Z/9
+        ('word', 2, 3, 1, 1, nw), ('word', 2, 4, 1, 1, nw),  # Z/8, Z/16
+        ('tree', 2, 1, 1, 1, nt), ('tree', 3, 1, 1, 1, nt),
+        ('tree', 2, 1, 2, 1, 4), ('tree', 2, 1, 1, 2, 4),    # r=2 / k=2 field
+        ('tree', 2, 2, 1, 1, nt), ('tree', 3, 2, 1, 1, nt),  # Z/4, Z/9
+        ('tree', 2, 3, 1, 1, nt),                            # Z/8
+    ]
 
     t0 = time.time()
-    rows = []           # (kind, q, n, sentence, exp_status, exp_t, imp_status, imp_t, agree)
-    # prune monotonically: once a path fails for a (kind, q, sentence) series at
-    # some n, skip larger n for that path.
-    dead = set()        # (path, kind, p, d, sentence)
+    rows = []
+    dead = set()        # (path, kind, p, d, r, k, sentence): prune larger n
 
     def budget_left():
         return args.budget_seconds - (time.time() - t0)
@@ -169,35 +185,31 @@ def main():
           f"mem cap {args.mem_gb:.0f} GB\n", flush=True)
 
     stop = False
-    for (kind, max_n) in kinds:
-        for (p, d) in rings:
-            q = p ** d
-            for sname, sentence in SENTENCES.items():
-                for n in range(2, max_n + 1):
-                    if budget_left() < 5:
-                        stop = True
-                        break
-                    cell = {'kind': kind, 'q': q, 'p': p, 'd': d, 'n': n,
-                            'sentence': sname}
-                    for path, timeout in (('explicit', args.explicit_timeout),
-                                          ('implicit', args.implicit_timeout)):
-                        key = (path, kind, p, d, sname)
-                        if key in dead:
-                            cell[path] = ('skipped', None)
-                            continue
-                        if budget_left() < min(timeout, 30):
-                            cell[path] = ('nobudget', None)
-                            continue
-                        status, value, secs = run_isolated(
-                            path, (kind, p, d, n, sname),
-                            min(timeout, budget_left()), mem_bytes)
-                        cell[path] = (status, value, secs)
-                        if status != 'ok':
-                            dead.add(key)      # prune larger n for this series
-                    rows.append(cell)
-                    _print_cell(cell)
-                if stop:
+    for (kind, p, d, r, k, max_n) in series:
+        for sname in SENTENCES:
+            for n in range(2, max_n + 1):
+                if budget_left() < 5:
+                    stop = True
                     break
+                cell = {'kind': kind, 'q': p ** d, 'p': p, 'd': d, 'r': r,
+                        'k': k, 'n': n, 'sentence': sname}
+                for path, timeout in (('explicit', args.explicit_timeout),
+                                      ('implicit', args.implicit_timeout)):
+                    key = (path, kind, p, d, r, k, sname)
+                    if key in dead:
+                        cell[path] = ('skipped', None)
+                        continue
+                    if budget_left() < min(timeout, 30):
+                        cell[path] = ('nobudget', None)
+                        continue
+                    status, value, secs = run_isolated(
+                        path, (kind, p, d, r, k, n, sname),
+                        min(timeout, budget_left()), mem_bytes)
+                    cell[path] = (status, value, secs)
+                    if status != 'ok':
+                        dead.add(key)          # prune larger n for this series
+                rows.append(cell)
+                _print_cell(cell)
             if stop:
                 break
         if stop:
@@ -227,8 +239,12 @@ def _agree(cell):
     return ''
 
 
+def _label(cell):
+    return f"Z/{cell['q']} r{cell['r']} k{cell['k']}"
+
+
 def _print_cell(cell):
-    print(f"[{cell['kind']:4s} Z/{cell['q']:<2d} n={cell['n']} "
+    print(f"[{cell['kind']:4s} {_label(cell):12s} n={cell['n']} "
           f"{cell['sentence']:12s}] explicit={_cellstr(cell.get('explicit'))} "
           f"| implicit={_cellstr(cell.get('implicit'))} {_agree(cell)}",
           flush=True)
@@ -242,31 +258,31 @@ def _render(rows, args, elapsed):
              f"- timeouts: explicit {args.explicit_timeout:.0f}s, "
              f"implicit {args.implicit_timeout:.0f}s",
              "",
-             "| class | ring | n | sentence | explicit | implicit | agree |",
-             "|-------|------|---|----------|----------|----------|-------|"]
+             "| class | member | n | sentence | explicit | implicit | agree |",
+             "|-------|--------|---|----------|----------|----------|-------|"]
     mismatches = 0
     for c in rows:
         agree = _agree(c)
         if 'MISMATCH' in agree:
             mismatches += 1
         lines.append(
-            f"| {c['kind']} | Z/{c['q']} | {c['n']} | {c['sentence']} | "
+            f"| {c['kind']} | {_label(c)} | {c['n']} | {c['sentence']} | "
             f"{_cellstr(c.get('explicit'))} | {_cellstr(c.get('implicit'))} | "
             f"{agree} |")
     # boundary summary
     lines += ["", "## Feasibility boundary (largest n with status ok)", "",
-              "| class | ring | explicit max n | implicit max n |",
-              "|-------|------|----------------|----------------|"]
+              "| class | member | explicit max n | implicit max n |",
+              "|-------|--------|----------------|----------------|"]
     series = {}
     for c in rows:
-        key = (c['kind'], c['q'])
+        key = (c['kind'], _label(c))
         s = series.setdefault(key, {'explicit': 0, 'implicit': 0})
         for path in ('explicit', 'implicit'):
             e = c.get(path)
             if e and e[0] == 'ok':
                 s[path] = max(s[path], c['n'])
-    for (kind, q), s in sorted(series.items()):
-        lines.append(f"| {kind} | Z/{q} | {s['explicit'] or '-'} | "
+    for (kind, label), s in sorted(series.items()):
+        lines.append(f"| {kind} | {label} | {s['explicit'] or '-'} | "
                      f"{s['implicit'] or '-'} |")
     lines += ["", f"**mismatches: {mismatches}** "
               f"(implicit and explicit must agree wherever both finish)."]
