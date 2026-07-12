@@ -3,12 +3,20 @@
 Validation layer for the tensor cut-rank generalisation of the bounded
 rank-width group classes (see paper/theorem3-notes.md). A *site tree* is a
 binary tree whose nodes are generators: 'x' sites and central 'z' sites.
-The commutator data is a tensor T[j, i, v] over Z_p (i < j x-positions in
-post-order, v a z-position), presenting the central extension with the
-bilinear cocycle
+The commutator data is a tensor T[j, i, v] over the chain ring R = Z/p^d
+(i < j x-positions in post-order, v a z-position), presenting the central
+extension with the bilinear cocycle
 
     (b, a)(b', a') = (b + b' + C(a, a'), a + a'),
     C(a, a')_v     = sum_{i<j} T[j, i, v] a_j a'_i .
+
+The center coordinates b range over R = Z/p^d (exponent-p^d center, "Idea 2"
+of paper/scratch-chainring.tex); the quotient coordinates a range over F_p.
+The default d = 1 is the field case R = F_p. Over the ring the width is the
+*module cut-rank* -- the free rank of the saturated interface -- which the
+``chain_ring`` module supplies (Lemma "lem:sat"); the two-sided factorisation
+that the tree merge needs also lives there (``chain_ring.factor_two_sided``,
+Corollary "cor:merge").
 
 This module provides the reference group law and the *six crossing
 flattenings* whose ranks measure, per subtree cut, the traffic a bottom-up
@@ -27,8 +35,8 @@ from typing import Dict, List, Sequence, Tuple
 
 import numpy as np
 
-from autstr.groups import _rref_mod
-from autstr.sparse_tree_automata import Tree
+from autstr import chain_ring as cr
+from autstr.sparse_tree_automata import SparseTreeAutomaton, Tree
 from autstr.tree_presentations import TreeAutomaticPresentation
 from autstr.tree_uniform import UniformlyTreeAutomaticClass, sta_from_delta
 
@@ -63,14 +71,33 @@ def _layout(shape: Tree):
 
 
 class CocycleSites:
-    """A site tree over Z_p with its cocycle tensors: reference law and
-    cut-width measures. Elements are (b, a) with b indexed by the z-sites
-    and a by the x-sites, both in ascending post-order."""
+    """A site tree over the chain ring R = Z/p^d with its cocycle tensors:
+    reference law and cut-width measures.
 
-    def __init__(self, p: int, shape: Tree):
-        if p < 2 or any(p % d == 0 for d in range(2, int(p ** 0.5) + 1)):
+    Elements are (b, a) with b the center coordinates (one per z-site) and a
+    the quotient coordinates (one per x-site), both over R = Z/p^d and in
+    ascending post-order. With ``d = 1`` (the default) R is the field F_p and
+    this is exactly the original field construction; ``d > 1`` is the
+    exponent-p^d case of "Idea 2" (paper/scratch-chainring.tex), where the
+    commutator cocycle is R-bilinear and the tensor coefficients live in R. The
+    quotient shares the exponent p^d: a class-2 group whose commutator subgroup
+    has exponent p^d cannot have an exponent-p quotient.
+
+    The width measure ``cut_width`` is the *module cut-rank*: the free rank of
+    the saturated interface (``chain_ring.module_cut_rank``), which coincides
+    with the ordinary F_p flattening rank when d = 1 but, over the ring,
+    correctly counts valuation-carrying (p-divisible) generators that vanish
+    under a naive mod-p reduction.
+    """
+
+    def __init__(self, p: int, shape: Tree, d: int = 1):
+        if p < 2 or any(p % f == 0 for f in range(2, int(p ** 0.5) + 1)):
             raise ValueError(f"p must be prime, got {p}")
+        if d < 1:
+            raise ValueError(f"center ring depth d must be >= 1, got {d}")
         self.p = p
+        self.d = d
+        self.q = p ** d            # size of the center ring R = Z/p^d
         self.shape = shape
         self.seq, self.pos, self.size = _layout(shape)
         self.n_sites = len(self.seq)
@@ -94,13 +121,21 @@ class CocycleSites:
                 raise ValueError(f"{v} is not a z-position")
 
     def multiply(self, T: Dict, g, h):
-        """The reference group law of G(T)."""
+        """The reference group law of G(T) over R = Z/p^d.
+
+        Both the center coordinates b and the quotient coordinates a range over
+        R; the cocycle C is R-bilinear, which is what makes the law associative
+        over the ring. (Keeping a over F_p while C is R-valued would break
+        associativity for d > 1: a carry a_j + a'_j >= p drops a term p*T*a''
+        that is nonzero mod p^d. In a class-2 group with commutator subgroup of
+        exponent p^d the quotient necessarily has exponent p^d as well, since
+        [x,y]^p = [x^p,y] = 1 would otherwise force G' to have exponent p.)"""
         (b1, a1), (b2, a2) = g, h
-        b = [(u + w) % self.p for u, w in zip(b1, b2)]
+        b = [(u + w) % self.q for u, w in zip(b1, b2)]
         for (j, i, v), coeff in T.items():
             b[self._zi[v]] = (b[self._zi[v]]
-                              + coeff * a1[self._xi[j]] * a2[self._xi[i]]) % self.p
-        return tuple(b), tuple((u + w) % self.p for u, w in zip(a1, a2))
+                              + coeff * a1[self._xi[j]] * a2[self._xi[i]]) % self.q
+        return tuple(b), tuple((u + w) % self.q for u, w in zip(a1, a2))
 
     def identity(self):
         return (0,) * len(self.Z), (0,) * len(self.X)
@@ -133,7 +168,12 @@ class CocycleSites:
         return out
 
     @staticmethod
-    def _rank(entries: Dict, p: int) -> int:
+    def _rank(entries: Dict, p: int, d: int = 1) -> int:
+        """The module cut-rank of one flattening over R = Z/p^d: the free rank
+        of the saturation of its row module (``chain_ring.module_cut_rank``).
+        At d = 1 this is the ordinary F_p rank; at d > 1 it correctly counts
+        p-divisible generators (a valuation-1 coefficient still contributes a
+        rank), which a naive mod-p reduction would drop."""
         if not entries:
             return 0
         rows = sorted({r for r, _ in entries})
@@ -141,13 +181,14 @@ class CocycleSites:
         M = np.zeros((len(rows), len(cols)), dtype=np.int64)
         rindex = {r: a for a, r in enumerate(rows)}
         cindex = {c: a for a, c in enumerate(cols)}
+        q = p ** d
         for (r, c), coeff in entries.items():
-            M[rindex[r], cindex[c]] = coeff % p
-        return len(_rref_mod(M, p)[1])
+            M[rindex[r], cindex[c]] = coeff % q
+        return cr.module_cut_rank(M, p, d)
 
     def cut_profile(self, T: Dict) -> Dict[int, Dict[str, int]]:
         """For every proper subtree cut (keyed by its root position), the
-        ranks of the six crossing flattenings."""
+        module cut-ranks of the six crossing flattenings over R = Z/p^d."""
         self.check_tensor(T)
         profile = {}
         for node in self.seq:
@@ -155,7 +196,7 @@ class CocycleSites:
             if sz == self.n_sites:
                 continue
             entries = self._flattening_entries(T, t - sz + 1, t)
-            profile[t] = {name: self._rank(entries[name], self.p)
+            profile[t] = {name: self._rank(entries[name], self.p, self.d)
                           for name in FLATTENINGS}
         return profile
 

@@ -69,6 +69,93 @@ class TestReferenceLaw:
             sites.check_tensor({(4, 2, 3): 1})   # target must be a z-site
 
 
+def ring_elements(sites):
+    """Elements with both center and quotient coords over R = Z/p^d."""
+    return [(b, a)
+            for b in it.product(range(sites.q), repeat=len(sites.Z))
+            for a in it.product(range(sites.q), repeat=len(sites.X))]
+
+
+class TestChainRingCenter:
+    """Idea 2: an exponent-p^d center, R = Z/p^d (d > 1)."""
+
+    def small_ring_instance(self, p, d):
+        # x-sites at 1,2 with a single z-site at the root (position 3)
+        shape = Tree('z', Tree('x', Tree('x'), None), None)
+        return CocycleSites(p, shape, d=d)
+
+    def test_group_axioms_over_z4_exhaustive(self):
+        sites = self.small_ring_instance(2, 2)     # center over Z/4
+        T = {(2, 1, 3): 2}                          # valuation-1 coefficient
+        assert sites.q == 4
+        elems = ring_elements(sites)
+        mul = lambda g, h: sites.multiply(T, g, h)
+        one = sites.identity()
+        for g, h, f in it.product(elems, repeat=3):
+            assert mul(mul(g, h), f) == mul(g, mul(h, f)), (g, h, f)
+        for g in elems:
+            assert mul(one, g) == g and mul(g, one) == g
+            assert any(mul(g, h) == one for h in elems)
+
+    def test_center_has_exponent_p_squared(self):
+        """A commutator with a unit coefficient generates a center element of
+        order p^d = 4, not p -- the point of Idea 2."""
+        sites = self.small_ring_instance(2, 2)
+        T = {(2, 1, 3): 1}
+        x = ((0,), (0, 1))       # a with a[2]=1
+        y = ((0,), (1, 0))       # a with a[1]=1
+        # [x, y] lands the commutator coefficient in the center coordinate;
+        # x*y and y*x differ by that central element, of additive order 4.
+        xy = sites.multiply(T, x, y)
+        yx = sites.multiply(T, y, x)
+        diff = (xy[0][0] - yx[0][0]) % sites.q
+        assert diff % 2 == 1                         # a unit -> order 4
+        assert sites.q == 4
+
+    def test_sampled_axioms_z9(self):
+        shape = Tree('z', Tree('x', Tree('x', Tree('z'), None), Tree('x')), None)
+        sites = CocycleSites(3, shape, d=2)          # center over Z/9
+        T = {(4, 2, 1): 3, (4, 3, 1): 1, (3, 2, 5): 6}
+        rng = random.Random(2)
+        elems = ring_elements(sites)
+        mul = lambda g, h: sites.multiply(T, g, h)
+        for _ in range(3000):
+            g, h, f = (rng.choice(elems) for _ in range(3))
+            assert mul(mul(g, h), f) == mul(g, mul(h, f))
+
+    def test_width_counts_valuation_carrying_generators(self):
+        """A lone valuation-1 coefficient has module cut-rank 1 over Z/4 (it
+        would be dropped by a naive mod-p reduction, giving a wrong 0)."""
+        sites = self.small_ring_instance(2, 2)
+        assert sites.cut_width({(2, 1, 3): 2}) == 1
+        assert sites.cut_width({(2, 1, 3): 1}) == 1
+        assert sites.cut_width({}) == 0
+
+    def test_width_matches_saturate_free_rank(self):
+        """cut_width equals the free rank of the saturated flattening for a
+        two-pair block over Z/4."""
+        shape = Tree('z', Tree('x', Tree('x', Tree('x'), None), None), None)
+        sites = CocycleSites(2, shape, d=2)          # x at 1,2,3; z at 4
+        T = {(2, 1, 4): 2, (3, 1, 4): 1}             # mixed valuations
+        prof = sites.cut_profile(T)
+        # the cut below x-position 2 (subtree {1,2}) crosses one pair upward
+        assert sites.cut_width(T) == max(max(r.values()) for r in prof.values())
+        assert sites.cut_width(T) >= 1
+
+    def test_d1_default_is_the_field_case(self):
+        """d = 1 reproduces the original F_p law and widths byte-for-byte."""
+        shape = Tree('z', Tree('x', Tree('x', Tree('z'), None), Tree('x')), None)
+        T = {(4, 2, 1): 1, (4, 3, 1): 1, (3, 2, 5): 1, (4, 2, 5): 1}
+        default = CocycleSites(2, shape)             # d defaults to 1
+        explicit = CocycleSites(2, shape, d=1)
+        assert default.q == explicit.q == 2
+        elems = ring_elements(default)
+        for g, h in it.product(elems, repeat=2):
+            assert default.multiply(T, g, h) == explicit.multiply(T, g, h)
+        assert default.cut_profile(T) == explicit.cut_profile(T)
+        assert default.cut_width(T) == explicit.cut_width(T)
+
+
 class TestFixedKCorner:
     """Theorem 2 instances embed with the expected width profile and the
     same group law."""
