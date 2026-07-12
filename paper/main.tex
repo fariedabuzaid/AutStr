@@ -2,7 +2,11 @@
 %% First draft -- STACS/LIPIcs preprint style.
 %% TODO before submission/arXiv: affiliation, ORCID, funding, ccsdesc check,
 %% verify all bibliography details against DBLP, event macros.
-\documentclass[a4paper,UKenglish,autoref]{lipics-v2021}
+%% CAMERA-READY (once accepted): remove the `anonymous' class option below.
+%% This automatically de-anonymizes the author block and restores the AutStr
+%% library name, its \cite{AutStr} self-citation, and the supplement URL --
+%% see the \AutStr / \AutStrCite definitions below. No other edits needed.
+\documentclass[a4paper,UKenglish,autoref,anonymous]{lipics-v2021}
 
 \usepackage{microtype}
 
@@ -51,7 +55,16 @@
 \newcommand{\conv}{\otimes}
 \newcommand{\lin}[1]{\mathcal{C}^{\mathrm{lin}}_{#1}}
 \newcommand{\tre}[1]{\mathcal{C}^{\mathrm{tree}}_{#1}}
-\newcommand{\AutStr}{\textsf{AutStr}}
+%% The software library is authored by us; under the anonymous class option we
+%% hide its (googlable) name and suppress the self-citation whose bib entry
+%% carries our name and repository URL. Dropping the option restores both.
+\ifx\authoranonymous\relax
+  \newcommand{\AutStr}{\textcolor{red}{[name omitted for review]}}
+  \newcommand{\AutStrCite}{}
+\else
+  \newcommand{\AutStr}{\textsf{AutStr}}
+  \newcommand{\AutStrCite}{~\cite{AutStr}}
+\fi
 
 \begin{document}
 
@@ -221,7 +234,7 @@ generic form has cut-rank $\Omega(n)$ under \emph{every} layout
 wild stratum must be.
 
 All three constructions are implemented in the \AutStr{}
-library~\cite{AutStr} and machine-verified: the layout compilers derive
+library\AutStrCite{} and machine-verified: the layout compilers derive
 every advice constant by solving a linear system whose solvability is one
 of this paper's factorisation lemmas, guarded by an assertion---so each
 successful compilation is a machine-checked certificate that the lemmas
@@ -1001,7 +1014,7 @@ automaton per property serves the entire class.
 \label{sec:implementation}
 
 All three constructions are implemented in the open-source library
-\AutStr~\cite{AutStr}: \texttt{CutRankGroups} (\autoref{thm:word}),
+\AutStr\AutStrCite{}: \texttt{CutRankGroups} (\autoref{thm:word}),
 \texttt{CutRankTreeGroups} (\autoref{thm:tree}) and
 \texttt{CocycleRankWidthGroups} (\autoref{thm:distributed}, width $1$),
 each with a layout compiler realising the factorisation lemmas by Gaussian
@@ -1093,6 +1106,16 @@ commutator targets are genuinely distributed and non-laminar.
   where exactly does it stop short of the non-automaticity
   of~\cite{NiesStephan2023}?
 \end{enumerate}
+
+\section*{Declaration of Generative AI Usage}
+\label{sec:ai-disclosure}
+
+In accordance with the Schloss Dagstuhl Publishing policy, the authors declare the use of generative artificial intelligence (AI) in the preparation of this manuscript. 
+
+Specifically, large language models (\texttt{Claude Fable 5} and \texttt{Claude Opus}) were utilized in interactive sessions to assist in drafting the narrative text of the paper. This drafting process was strictly guided by detailed instructions, mathematical directions, and structural proof and construction sketches provided entirely by the human authors. Conversely, all literature research, citation collection, and the final bibliography reflect exclusively the authors' own independent scholarly research without AI intervention. 
+
+The authors have reviewed, verified, and edited all generated outputs and take full, final responsibility for the correctness, scientific integrity, and overall content of this work.
+
 
 \bibliography{refs}
 
