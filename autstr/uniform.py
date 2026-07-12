@@ -137,12 +137,13 @@ class UniformlyAutomaticClass:
             names |= UniformlyAutomaticClass._variable_names(phi.second)
         return names
 
-    def _relativize(self, phi: logic.Expression, advice_var: str) -> str:
+    @staticmethod
+    def _relativize(phi: logic.Expression, advice_var: str) -> str:
         """Rewrite a class formula into a formula over the wrapped
         presentation: atoms get the advice variable prepended and quantifiers
         are relativized to the domain Dom(advice, ·). Negated quantifiers are
         rewritten to quantified negations on the fly."""
-        rec = lambda psi: self._relativize(psi, advice_var)
+        rec = lambda psi: UniformlyAutomaticClass._relativize(psi, advice_var)
         if isinstance(phi, logic.AllExpression):
             x = str(phi.variable)
             return f"all {x}.((not Dom({advice_var},{x})) or {rec(phi.term)})"
@@ -236,6 +237,26 @@ class UniformlyAutomaticClass:
         return dfa.accepts([
             tuple(columns[v][i] for v in variables) for i in range(len(advice))
         ])
+
+    def _implicit_element_alphabet(self):
+        alphabet = getattr(self, 'element_alphabet', None)
+        if alphabet is None:
+            raise ValueError(
+                "check_implicit needs the class's element-tape alphabet; set "
+                "`.element_alphabet` (the per-position element symbols).")
+        return alphabet
+
+    def check_implicit(self, phi, advice, **assignments) -> bool:
+        """Model check a formula against the member S_advice *without* compiling
+        a query automaton: the formula is evaluated on the fly over the base
+        automata (implicit product / on-the-fly powerset / acceptance flip). Same
+        contract as `check`; scales to classes whose query automaton is
+        infeasible to build. See `autstr.implicit`."""
+        from autstr import implicit
+        return implicit.check_class_string(
+            phi, advice, assignments, dict(self.presentation.automata),
+            self._implicit_element_alphabet(),
+            self._relativize, self._variable_names)
 
     def define(self, name: str, phi: Union[str, logic.Expression]) -> SparseDFA:
         """Define a new class relation by a first-order formula over the

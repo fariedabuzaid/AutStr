@@ -811,6 +811,7 @@ class CutRankGroups:
                 'M': self._multiplication_automaton(),
                 'Eq': self._eq_automaton(),
             }, padding_symbol=PAD)
+            self._cls.element_alphabet = list(self.digits)
         return self._cls
 
     def _letter_name(self, entries: Sequence[int]) -> str:
@@ -1039,6 +1040,87 @@ class CutRankGroups:
         n = len(advice) - self.k
         words = {name: self.encode(el, n) for name, el in elements.items()}
         return self.cls.check(phi, advice, **words)
+
+    def _implicit_atoms(self) -> Dict:
+        """Functional base automata (Dom, Adv, M, Eq) built straight from the
+        transition deltas -- no explicit product automaton, so this works for the
+        large-q members whose `cls` cannot be built. Each entry is a builder
+        ``args -> ImplicitDFA`` over the formula's argument tapes."""
+        from autstr.implicit import ImplicitDFA
+        p, k, r, q = self.p, self.k, self.r, self.q
+        digitset = set(self.digits)
+        letters = self.letters
+
+        def shape(args, extra_ok):
+            # advice-shape run shared by Dom/Adv/Eq: k center markers then letters
+            adv = args[0]
+
+            def step(state, s):
+                if state == 'dead' or not extra_ok(s):
+                    return 'dead'
+                a = s[adv]
+                if a == CMARK and state != 'ok' and state[1] < k:
+                    return 'ok' if state[1] + 1 == k else ('c', state[1] + 1)
+                if a in letters and state == 'ok':
+                    return 'ok'
+                return 'dead'
+            return ImplicitDFA(args, lambda: ('c', 0), step,
+                               lambda st: st == 'ok')
+
+        def Dom(args):
+            xv = args[1]
+            return shape(args, lambda s: s[xv] in digitset)
+
+        def Adv(args):
+            return shape(args, lambda s: True)
+
+        def Eq(args):
+            xv, yv = args[1], args[2]
+            return shape(args, lambda s: s[xv] in digitset and s[xv] == s[yv])
+
+        def M(args):
+            adv, xv, yv, zv = args
+
+            def step(state, s):
+                if state == 'dead':
+                    return 'dead'
+                x, y, z = s[xv], s[yv], s[zv]
+                if not (x in digitset and y in digitset and z in digitset):
+                    return 'dead'
+                a = s[adv]
+                xi, yi, zi = int(x), int(y), int(z)
+                if a == CMARK and state[0] == 'c':
+                    j, dd = state[1], state[2]
+                    dd = dd[:j] + ((zi - xi - yi) % q,) + dd[j + 1:]
+                    return ('x', dd, (0,) * r) if j + 1 == k else ('c', j + 1, dd)
+                if a in letters and state[0] == 'x':
+                    if (xi + yi - zi) % q:
+                        return 'dead'
+                    T, v, R = letters[a]
+                    dd, w = state[1], state[2]
+                    dd = tuple((dd[l] - xi * sum(R[l][t] * w[t] for t in range(r))) % q
+                               for l in range(k))
+                    w = tuple((sum(T[t][u] * w[u] for u in range(r)) + v[t] * yi) % q
+                              for t in range(r))
+                    return ('x', dd, w)
+                return 'dead'
+            return ImplicitDFA(args, lambda: ('c', 0, (0,) * k), step,
+                               lambda st: st != 'dead' and st[0] == 'x'
+                               and st[1] == (0,) * k)
+
+        return {'Dom': Dom, 'Adv': Adv, 'M': M, 'Eq': Eq}
+
+    def check_implicit(self, phi, advice: Sequence[str], **elements) -> bool:
+        """Like `check`, but evaluated implicitly (no query or base automaton) --
+        the only viable model checker for the large-alphabet ring members whose
+        `cls` cannot be built. See `autstr.implicit`."""
+        from autstr import implicit
+        n = len(advice) - self.k
+        words = {name: self.encode(el, n) for name, el in elements.items()}
+        return implicit.check_class_string(
+            phi, advice, words, self._implicit_atoms(), list(self.digits),
+            UniformlyAutomaticClass._relativize,
+            UniformlyAutomaticClass._variable_names)
 
     def get_structure(self, advice: Sequence[str]) -> AutomaticPresentation:
         return self.cls.get_structure(advice)

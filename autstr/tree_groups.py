@@ -318,6 +318,7 @@ class CutRankTreeGroups:
                 'M': self._multiplication_automaton(),
                 'Eq': self._eq_automaton(),
             }, padding_symbol=PAD)
+            self._cls.element_alphabet = list(self.digits)
         return self._cls
 
     # ---------------- the automata ----------------
@@ -740,6 +741,130 @@ class CutRankTreeGroups:
         variables can be assigned elements as (b, a) tuples."""
         trees = {name: self.encode(el, advice) for name, el in elements.items()}
         return self.cls.check(phi, advice, **trees)
+
+    def _implicit_atoms(self) -> Dict:
+        """Functional bottom-up base automata (Dom, Adv, M, Eq) from the tree
+        deltas -- no explicit product, so this works for the large-q members
+        whose `cls` cannot be built. Each entry is a builder ``args -> ImplicitTA``."""
+        from autstr.implicit import ImplicitTA
+        p, k, r, q = self.p, self.k, self.r, self.q
+        digitset = self._digitset
+
+        def dot(M, w):
+            return tuple(sum(row[j] * w[j] for j in range(r)) % q for row in M)
+
+        def shape(args, q_of):
+            adv = args[0]
+
+            def step(sym, left, right):
+                if left == 'dead' or right == 'dead' or not q_of(sym):
+                    return 'dead'
+                a = sym[adv]
+                if left is None and right is None:
+                    return 'lay' if a in self.leaf_letters else 'dead'
+                if (left is None) != (right is None):
+                    child = left if right is None else right
+                    if a in self.unary_letters:
+                        return 'lay' if child == 'lay' else 'dead'
+                    if a == CMARK:
+                        if child == 'lay':
+                            return ('c', 1)
+                        if isinstance(child, tuple) and child[0] == 'c' \
+                                and child[1] < k:
+                            return ('c', child[1] + 1)
+                    return 'dead'
+                if a in self.binary_letters:
+                    return 'lay' if left == 'lay' and right == 'lay' else 'dead'
+                return 'dead'
+            return ImplicitTA(args, step, lambda st: st == ('c', k))
+
+        def Dom(args):
+            return shape(args, lambda sym: sym[args[1]] in digitset)
+
+        def Adv(args):
+            return shape(args, lambda sym: True)
+
+        def Eq(args):
+            return shape(args, lambda sym: sym[args[1]] in digitset
+                         and sym[args[1]] == sym[args[2]])
+
+        def M(args):
+            adv, xv, yv, zv = args
+
+            def step(sym, left, right):
+                if left == 'dead' or right == 'dead':
+                    return 'dead'
+                x, y, z = sym[xv], sym[yv], sym[zv]
+                if not (x in digitset and y in digitset and z in digitset):
+                    return 'dead'
+                a = sym[adv]
+                xi, yi, zi = int(x), int(y), int(z)
+                if a == CMARK:
+                    child = left if right is None else (right if left is None else None)
+                    if child is None or not isinstance(child, tuple):
+                        return 'dead'
+                    if child[0] == 't':
+                        j, s = 0, child[1]
+                    elif child[0] == 'c':
+                        j, s = child[1], child[2]
+                    else:
+                        return 'dead'
+                    if j >= k or (zi - xi - yi) % q != s[j]:
+                        return 'dead'
+                    return ('c', j + 1, s[:j] + (0,) + s[j + 1:])
+                if (xi + yi - zi) % q:
+                    return 'dead'
+                if a in self.leaf_letters:
+                    if left is not None or right is not None:
+                        return 'dead'
+                    v = self.leaf_letters[a]
+                    return ('t', (0,) * k,
+                            tuple(v[i] * xi % q for i in range(r)),
+                            tuple(v[i] * yi % q for i in range(r)))
+                if a in self.unary_letters:
+                    child = left if right is None else (right if left is None else None)
+                    if child is None or child[0] != 't':
+                        return 'dead'
+                    T, v, R = self.unary_letters[a]
+                    s, wx, wy = child[1], child[2], child[3]
+                    s = tuple((s[l] + xi * dot(R, wy)[l]) % q for l in range(k))
+                    Twx, Twy = dot(T, wx), dot(T, wy)
+                    return ('t', s,
+                            tuple((Twx[i] + v[i] * xi) % q for i in range(r)),
+                            tuple((Twy[i] + v[i] * yi) % q for i in range(r)))
+                if a in self.binary_letters:
+                    if left is None or right is None \
+                            or left[0] != 't' or right[0] != 't':
+                        return 'dead'
+                    TL, TR, v, RL, RR, Q = self.binary_letters[a]
+                    sL, wxL, wyL = left[1], left[2], left[3]
+                    sR, wxR, wyR = right[1], right[2], right[3]
+                    readL, readR = dot(RL, wyL), dot(RR, wyR)
+                    s = tuple((sL[l] + sR[l] + xi * (readL[l] + readR[l])
+                               + sum(Q[l][u][t] * wxR[u] * wyL[t]
+                                     for u in range(r) for t in range(r))) % q
+                              for l in range(k))
+                    TwxL, TwxR = dot(TL, wxL), dot(TR, wxR)
+                    TwyL, TwyR = dot(TL, wyL), dot(TR, wyR)
+                    return ('t', s,
+                            tuple((TwxL[i] + TwxR[i] + v[i] * xi) % q for i in range(r)),
+                            tuple((TwyL[i] + TwyR[i] + v[i] * yi) % q for i in range(r)))
+                return 'dead'
+            return ImplicitTA(args, step, lambda st: st == ('c', k, (0,) * k))
+
+        return {'Dom': Dom, 'Adv': Adv, 'M': M, 'Eq': Eq}
+
+    def check_implicit(self, phi, advice: Tree, **elements) -> bool:
+        """Like `check`, but evaluated implicitly (no query or base tree
+        automaton) -- the only viable model checker for the large-alphabet ring
+        members whose `cls` cannot be built. See `autstr.implicit`."""
+        from autstr import implicit
+        from autstr.uniform import UniformlyAutomaticClass
+        trees = {name: self.encode(el, advice) for name, el in elements.items()}
+        return implicit.check_class_tree(
+            phi, advice, trees, self._implicit_atoms(), list(self.digits),
+            UniformlyAutomaticClass._relativize,
+            UniformlyAutomaticClass._variable_names)
 
     def get_structure(self, advice: Tree) -> TreeAutomaticPresentation:
         return self.cls.get_structure(advice)

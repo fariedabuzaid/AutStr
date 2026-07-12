@@ -184,6 +184,17 @@ class UniformlyTreeAutomaticClass(UniformlyAutomaticClass):
         return sta.accepts(tree_to_arrays(conv, sta.base_alphabet_frozen,
                                           sta.symbol_arity))
 
+    def check_implicit(self, phi, advice: Tree, **assignments) -> bool:
+        """Model check a formula against the member S_advice without compiling a
+        query tree automaton: the formula is evaluated bottom-up on the fly over
+        the base tree automata. Same contract as `check`; scales to classes whose
+        query automaton is infeasible. See `autstr.implicit`."""
+        from autstr import implicit
+        return implicit.check_class_tree(
+            phi, advice, assignments, dict(self.presentation.automata),
+            self._implicit_element_alphabet(),
+            self._relativize, self._variable_names)
+
     def define(self, name: str, phi: Union[str, logic.Expression]
                ) -> SparseTreeAutomaton:
         """Define a new class relation by a first-order formula over the
