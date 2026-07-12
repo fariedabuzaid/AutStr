@@ -56,6 +56,7 @@ from typing import Dict, List, Sequence, Tuple, Union
 
 import numpy as np
 
+from autstr import chain_ring as cr
 from autstr.presentations import AutomaticPresentation
 from autstr.sparse_automata import SparseDFA
 from autstr.uniform import UniformlyAutomaticClass, dfa_from_delta
@@ -730,14 +731,17 @@ def _solve_xa_eq_b(A: np.ndarray, B: np.ndarray, p: int) -> np.ndarray:
 
 
 class CutRankGroups:
-    """For a fixed prime p, center dimension k and width r, the uniformly
-    automatic class of class-2 central extensions of Z_p^n by Z_p^k whose
-    commutation form admits a linear layout of cut-rank <= r (bounded
-    *linear rank-width* over F_p).
+    """For a fixed prime p, center dimension k, width r and ring depth d, the
+    uniformly automatic class of class-2 groups over R = Z/p^d whose commutation
+    form admits a linear layout of module cut-rank <= r (bounded *linear
+    rank-width* over R). With d = 1 (the default) R is the field F_p and this is
+    the original construction; d > 1 is the exponent-p^d ("Idea 2") case, where
+    the form is R-valued and the width is measured on the saturated interface
+    (the streaming lifts unconditionally, carrying the saturated free basis --
+    paper/scratch-chainring.tex sec 4).
 
-    A member is an alternating form: labels B[j,i] in Z_p^k for i < j,
-    presenting x_j x_i = x_i x_j y^B[j,i] with the y's central of order p
-    and x_i^p = 1. Elements are (b, a) with b in Z_p^k, a in Z_p^n and
+    A member is a form with labels B[j,i] in R^k for i < j, presenting
+    x_j x_i = x_i x_j y^B[j,i]. Elements are (b, a) with b in R^k, a in R^n and
 
         (b, a)(b', a') = (b + b' + C(a, a'), a + a'),
         C(a, a') = sum_{i<j} B[j,i] a_j a'_i,
@@ -767,34 +771,55 @@ class CutRankGroups:
     Cen(x) := all y,z,w (M(x,y,z) and M(y,x,w) -> z = w).
     """
 
-    def __init__(self, p: int, k: int = 1, r: int = 1):
-        if p < 2 or p > 9 or any(p % d == 0 for d in range(2, int(p ** 0.5) + 1)):
+    def __init__(self, p: int, k: int = 1, r: int = 1, d: int = 1):
+        if p < 2 or p > 9 or any(p % f == 0 for f in range(2, int(p ** 0.5) + 1)):
             raise ValueError(f"p must be a prime in 2..9 (single digits), got {p}")
         if k < 1 or r < 1:
             raise ValueError("need k >= 1 central and r >= 1 state dimensions")
-        n_letters = p ** (r * r + r + k * r)
+        if d < 1:
+            raise ValueError(f"center ring depth d must be >= 1, got {d}")
+        n_letters = p ** (d * (r * r + r + k * r))
         if n_letters > 20000:
             raise ValueError(
                 f"advice alphabet would have {n_letters} letters; "
-                f"choose smaller p, k or r")
-        self.p, self.k, self.r = p, k, r
-        self.digits = [str(d) for d in range(p)]
+                f"choose smaller p, k, r or d")
+        self.p, self.k, self.r, self.d = p, k, r, d
+        self.q = p ** d                       # center/quotient ring R = Z/p^d
+        self.digits = [str(x) for x in range(self.q)]
         self.letters: Dict[str, tuple] = {}
-        for digs in it.product(range(p), repeat=r * r + r + k * r):
-            T = tuple(tuple(digs[i * r + j] for j in range(r)) for i in range(r))
-            v = tuple(digs[r * r: r * r + r])
-            R = tuple(tuple(digs[r * r + r + l * r + s] for s in range(r))
+        for entries in it.product(range(self.q), repeat=r * r + r + k * r):
+            T = tuple(tuple(entries[i * r + j] for j in range(r)) for i in range(r))
+            v = tuple(entries[r * r: r * r + r])
+            R = tuple(tuple(entries[r * r + r + l * r + s] for s in range(r))
                       for l in range(k))
-            self.letters['a' + ''.join(map(str, digs))] = (T, v, R)
+            self.letters[self._letter_name(entries)] = (T, v, R)
         self.sigma = {PAD, CMARK} | set(self.digits) | set(self.letters)
         self._advice_tape = {PAD, CMARK} | set(self.letters)
         self._element_tape = {PAD} | set(self.digits)
+        self._cls = None
 
-        self.cls = UniformlyAutomaticClass({
-            'U': self._universe_automaton(),
-            'M': self._multiplication_automaton(),
-            'Eq': self._eq_automaton(),
-        }, padding_symbol=PAD)
+    @property
+    def cls(self) -> UniformlyAutomaticClass:
+        """The uniformly automatic presentation, built lazily: the multiplication
+        automaton is a 4-tape product over the |sigma|-letter alphabet, so its
+        construction is O(|sigma|^4) and only feasible for a small ring alphabet
+        (essentially Z/4, width 1). The reference law, `advice` compiler, width
+        measure and `simulate` do not need it and stay cheap for any q."""
+        if self._cls is None:
+            self._cls = UniformlyAutomaticClass({
+                'U': self._universe_automaton(),
+                'M': self._multiplication_automaton(),
+                'Eq': self._eq_automaton(),
+            }, padding_symbol=PAD)
+        return self._cls
+
+    def _letter_name(self, entries: Sequence[int]) -> str:
+        """Advice-letter key for the flat entry list [T (r*r), v (r), R (k*r)],
+        each ring entry spelled as its d base-p digits (fixed width d, so the
+        d = 1 field encoding is the original single-digit form)."""
+        return 'a' + ''.join(
+            str(dig) for e in entries
+            for dig in cr.to_digits(int(e) % self.q, self.p, self.d))
 
     # ---------------- the automata ----------------
 
@@ -821,37 +846,37 @@ class CutRankGroups:
         d = b_z - b_x - b_y; each x-position checks the digit sum, subtracts
         its commutator contribution x_t * (R w) from the deficit and updates
         the carried functionals w <- T w + v * y_t; accept iff d = 0."""
-        p, k, r = self.p, self.k, self.r
+        p, k, r, q = self.p, self.k, self.r, self.q
         states = ['dead']
         for j in range(k):
-            for d in it.product(range(p), repeat=j):
+            for d in it.product(range(q), repeat=j):
                 states.append(('c', j, d + (0,) * (k - j)))
-        for d in it.product(range(p), repeat=k):
-            for w in it.product(range(p), repeat=r):
+        for d in it.product(range(q), repeat=k):
+            for w in it.product(range(q), repeat=r):
                 states.append(('x', d, w))
 
-        def delta(q, sym):
+        def delta(state, sym):
             a, x, y, z = sym
-            if q == 'dead' or not all(s in self.digits for s in (x, y, z)):
+            if state == 'dead' or not all(s in self.digits for s in (x, y, z)):
                 return 'dead'
             xi, yi, zi = int(x), int(y), int(z)
-            if a == CMARK and q[0] == 'c':
-                j, d = q[1], q[2]
-                d = d[:j] + ((zi - xi - yi) % p,) + d[j + 1:]
+            if a == CMARK and state[0] == 'c':
+                j, d = state[1], state[2]
+                d = d[:j] + ((zi - xi - yi) % q,) + d[j + 1:]
                 return ('x', d, (0,) * r) if j + 1 == k else ('c', j + 1, d)
-            if a in self.letters and q[0] == 'x':
-                if (xi + yi - zi) % p:
+            if a in self.letters and state[0] == 'x':
+                if (xi + yi - zi) % q:
                     return 'dead'
                 T, v, R = self.letters[a]
-                d, w = q[1], q[2]
-                d = tuple((d[l] - xi * sum(R[l][s] * w[s] for s in range(r))) % p
+                d, w = state[1], state[2]
+                d = tuple((d[l] - xi * sum(R[l][s] * w[s] for s in range(r))) % q
                           for l in range(k))
-                w = tuple((sum(T[s][u] * w[u] for u in range(r)) + v[s] * yi) % p
+                w = tuple((sum(T[s][u] * w[u] for u in range(r)) + v[s] * yi) % q
                           for s in range(r))
                 return ('x', d, w)
             return 'dead'
 
-        finals = {('x', (0,) * k, w) for w in it.product(range(p), repeat=r)}
+        finals = {('x', (0,) * k, w) for w in it.product(range(q), repeat=r)}
         return dfa_from_delta(self.sigma, states, 4, delta, ('c', 0, (0,) * k),
                               finals,
                               tapes=[self._advice_tape] + [self._element_tape] * 3,
@@ -890,14 +915,15 @@ class CutRankGroups:
         for (j, i), label in form.items():
             if i <= t < j:
                 for l in range(self.k):
-                    M[(j - t - 1) * self.k + l, i - 1] = label[l] % self.p
+                    M[(j - t - 1) * self.k + l, i - 1] = label[l] % self.q
         return M
 
     def linear_cut_rank(self, n: int, form: Dict) -> int:
-        """The width the given layout of the form needs: the maximal rank
-        over Z_p of its crossing blocks."""
+        """The width the given layout of the form needs: the maximal module
+        cut-rank over R = Z/p^d of its crossing blocks (the free rank of the
+        saturated interface; the ordinary F_p rank when d = 1)."""
         self._check_form(n, form)
-        return max((len(_rref_mod(self._crossing(n, form, t), self.p)[1])
+        return max((cr.module_cut_rank(self._crossing(n, form, t), self.p, self.d)
                     for t in range(1, n)), default=0)
 
     def advice(self, n: int, form: Dict[Tuple[int, int], Sequence[int]]) -> List[str]:
@@ -906,7 +932,7 @@ class CutRankGroups:
         expresses the next basis and the current read-off row over it;
         raises if some cut exceeds rank r."""
         self._check_form(n, form)
-        p, k, r = self.p, self.k, self.r
+        p, k, r, d, q = self.p, self.k, self.r, self.d, self.q
         word = [CMARK] * k
         V_prev = np.zeros((r, 0), dtype=np.int64)
         for t in range(1, n + 1):
@@ -914,21 +940,27 @@ class CutRankGroups:
             for i in range(1, t):
                 label = form.get((t, i))
                 if label:
-                    Bt[:, i - 1] = [c % p for c in label]
-            R = _solve_xa_eq_b(V_prev, Bt, p)
+                    Bt[:, i - 1] = [c % q for c in label]
+            # read-off of the new position over the carried interface:
+            # R V_prev = Bt (rows of Bt lie in the crossing row module)
+            R = cr.solve_left(V_prev, Bt, p, d)
             V = np.zeros((r, t), dtype=np.int64)
             if t < n:
-                basis, pivots = _rref_mod(self._crossing(n, form, t), p)
-                if len(pivots) > r:
+                # carry the SATURATED free basis of the crossing block; its
+                # projection to earlier columns stays inside the previous
+                # saturation, so the transition T below always exists
+                basis, _ = cr.saturate(self._crossing(n, form, t), p, d)
+                if basis.shape[0] > r:
                     raise ValueError(
-                        f"cut {t} has rank {len(pivots)} > r = {r}; this form "
-                        f"needs width {self.linear_cut_rank(n, form)}")
+                        f"cut {t} has module cut-rank {basis.shape[0]} > r = {r}; "
+                        f"this form needs width {self.linear_cut_rank(n, form)}")
                 V[:basis.shape[0]] = basis
-            T = _solve_xa_eq_b(V_prev, V[:, :t - 1], p)
-            digs = [T[i, j] for i in range(r) for j in range(r)]
-            digs += [V[s, t - 1] for s in range(r)]
-            digs += [R[l, s] for l in range(k) for s in range(r)]
-            word.append('a' + ''.join(str(int(d) % p) for d in digs))
+            # basis change between cuts: T V_prev = V restricted to earlier cols
+            T = cr.solve_left(V_prev, V[:, :t - 1], p, d)
+            entries = [T[i, j] for i in range(r) for j in range(r)]
+            entries += [V[s, t - 1] for s in range(r)]
+            entries += [R[l, s] for l in range(k) for s in range(r)]
+            word.append(self._letter_name(entries))
             V_prev = V
         return word
 
@@ -947,26 +979,56 @@ class CutRankGroups:
     # ---------------- encodings and class operations ----------------
 
     def multiply(self, n: int, form: Dict, g, h):
-        """Reference implementation of the group law given by the form."""
+        """Reference implementation of the group law given by the form, over
+        R = Z/p^d (both quotient and center coordinates range over R)."""
         (b1, a1), (b2, a2) = g, h
-        b = [(u + v) % self.p for u, v in zip(b1, b2)]
+        b = [(u + v) % self.q for u, v in zip(b1, b2)]
         for (j, i), label in form.items():
             c = a1[j - 1] * a2[i - 1]
             for l in range(self.k):
-                b[l] = (b[l] + label[l] * c) % self.p
-        return tuple(b), tuple((u + v) % self.p for u, v in zip(a1, a2))
+                b[l] = (b[l] + label[l] * c) % self.q
+        return tuple(b), tuple((u + v) % self.q for u, v in zip(a1, a2))
+
+    def simulate(self, advice: Sequence[str], gx, gy, gz) -> bool:
+        """Run the multiplication automaton directly over the tapes: True iff
+        the advice accepts gx * gy = gz. Mirrors the M transition without
+        building the 4-tape product DFA, so the streamed compile can be checked
+        against the reference law for any ring alphabet (the full automaton is
+        only buildable for small q). gx, gy, gz are (b, a) elements."""
+        p, k, r, q = self.p, self.k, self.r, self.q
+        n = len(advice) - k
+        ex, ey, ez = (self.encode(g, n) for g in (gx, gy, gz))
+        deficit = [0] * k
+        for j in range(k):
+            if advice[j] != CMARK:
+                return False
+            deficit[j] = (int(ez[j]) - int(ex[j]) - int(ey[j])) % q
+        w = [0] * r
+        for t in range(k, k + n):
+            letter = self.letters.get(advice[t])
+            if letter is None:
+                return False
+            xi, yi, zi = int(ex[t]), int(ey[t]), int(ez[t])
+            if (xi + yi - zi) % q:
+                return False
+            T, v, R = letter
+            deficit = [(deficit[l] - xi * sum(R[l][s] * w[s] for s in range(r))) % q
+                       for l in range(k)]
+            w = [(sum(T[s][u] * w[u] for u in range(r)) + v[s] * yi) % q
+                 for s in range(r)]
+        return all(x == 0 for x in deficit)
 
     def identity(self, n: int):
         return (0,) * self.k, (0,) * n
 
     def encode(self, element, n: int) -> List[str]:
-        """Encode (b, a) with b in Z_p^k, a in Z_p^n."""
+        """Encode (b, a) with b in R^k, a in R^n, R = Z/p^d."""
         b, a = element
         if len(b) != self.k or len(a) != n:
-            raise ValueError(f"element must be (Z_p^{self.k}, Z_p^{n})")
-        if not all(0 <= d < self.p for d in tuple(b) + tuple(a)):
-            raise ValueError(f"components must lie in Z_{self.p}")
-        return [str(d) for d in b] + [str(d) for d in a]
+            raise ValueError(f"element must be (R^{self.k}, R^{n}), R = Z/{self.q}")
+        if not all(0 <= x < self.q for x in tuple(b) + tuple(a)):
+            raise ValueError(f"components must lie in Z/{self.q}")
+        return [str(x) for x in b] + [str(x) for x in a]
 
     def evaluate(self, phi) -> Tuple[SparseDFA, List[str]]:
         return self.cls.evaluate(phi)

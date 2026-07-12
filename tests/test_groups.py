@@ -1,9 +1,14 @@
 import itertools as it
+import os
+import random
 
 import pytest
 
 from autstr.groups import (CutRankGroups, ExtraspecialGroups,
                            FiniteAbelianGroups, IndexTwoCyclicGroups)
+
+heavy = pytest.mark.skipif(not os.environ.get('AUTSTR_HEAVY'),
+                           reason="exhaustive ring sweep; run with AUTSTR_HEAVY=1")
 
 
 @pytest.fixture(scope="module")
@@ -396,3 +401,140 @@ class TestCutRankGroups:
             crg2.advice(3, {(1, 2): (1,)})  # needs i < j
         with pytest.raises(ValueError):
             crg2.advice(3, {(2, 1): (1, 0)})  # label length != k
+
+
+class TestCutRankGroupsChainRing:
+    """The exponent-p^d ("Idea 2") linear layout: the word automaton over the
+    chain ring R = Z/p^d, carrying saturated free interfaces."""
+
+    def elements(self, crg, n):
+        return [(b, a)
+                for b in it.product(range(crg.q), repeat=crg.k)
+                for a in it.product(range(crg.q), repeat=n)]
+
+    def forms(self, crg, n):
+        forms = {'zero': {}, 'clique': crg.clique_form(n),
+                 'matching': crg.matching_form(n)}
+        if n >= 4:
+            forms['star'] = {(j, 1): (1,) for j in range(2, n + 1)}
+        return forms
+
+    def test_d1_encoding_is_unchanged(self):
+        """d = 1 reproduces the original field alphabet and letter format."""
+        c = CutRankGroups(2)
+        assert c.q == 2 and c.d == 1
+        assert c.digits == ['0', '1']
+        assert len(c.letters) == 2 ** 3
+        # single-digit letters, e.g. 'a010'
+        assert all(len(name) == 4 for name in c.letters)
+
+    def test_reference_law_is_a_group_over_z4(self):
+        """Identity/inverses exhaustively and associativity sampled over Z/4
+        (both quotient and center coordinates over R)."""
+        crg = CutRankGroups(2, d=2)
+        n = 2
+        rng = random.Random(6)
+        for form in self.forms(crg, n).values():
+            elems = self.elements(crg, n)
+            mul = lambda g, h: crg.multiply(n, form, g, h)
+            one = crg.identity(n)
+            for g in elems:
+                assert mul(one, g) == g and mul(g, one) == g
+                assert any(mul(g, h) == one for h in elems)
+            for _ in range(20000):
+                g, h, f = (rng.choice(elems) for _ in range(3))
+                assert mul(mul(g, h), f) == mul(g, mul(h, f))
+
+    def test_simulate_matches_reference_over_z8_z9(self):
+        """The saturated streaming compile agrees with the reference law over
+        Z/8 (p=2, d=3) and Z/9 (p=3, d=2), r = 1. Checked via `simulate`, which
+        runs the M transition without building the (infeasible for these
+        alphabets) product automaton -- validated equal to the real automaton
+        on the buildable Z/4 case in `test_ring_automaton_agrees_...`."""
+        for p, d, n in [(2, 3, 3), (3, 2, 3)]:
+            crg = CutRankGroups(p, d=d)
+            rng = random.Random(10 * p + d)
+            elems = self.elements(crg, n)
+            for form in self.forms(crg, n).values():
+                advice = crg.advice(n, form)
+                for _ in range(400):
+                    g, h = rng.choice(elems), rng.choice(elems)
+                    z = crg.multiply(n, form, g, h)
+                    assert crg.simulate(advice, g, h, z), (p, d, g, h)
+                    wrong = (((z[0][0] + 1) % crg.q,), z[1])
+                    assert not crg.simulate(advice, g, h, wrong), (p, d, g, h)
+
+    def test_width_counts_valuation_carrying_labels(self):
+        """A single valuation-1 label (2,) over Z/4 has module cut-rank 1 (a
+        naive mod-p reduction would drop it and report 0)."""
+        crg = CutRankGroups(2, d=2)
+        assert crg.linear_cut_rank(3, {(3, 1): (2,)}) == 1
+        assert crg.linear_cut_rank(6, crg.clique_form(6)) == 1
+        assert crg.linear_cut_rank(3, {}) == 0
+
+    @staticmethod
+    def _mword(crg, advice, n, g, h, z):
+        """Convolve advice and the three element encodings into a word for the
+        raw multiplication automaton (tapes: advice, x, y, z)."""
+        gx, hy, zz = crg.encode(g, n), crg.encode(h, n), crg.encode(z, n)
+        return [(advice[i], gx[i], hy[i], zz[i]) for i in range(len(advice))]
+
+    def test_ring_automaton_agrees_with_reference_z4(self):
+        """M over Z/4 agrees with the reference law and rejects wrong center
+        digits, on layouts of very different pathwidth (sampled products).
+
+        Runs the pre-built multiplication automaton directly rather than a
+        model-checking query, so no large query DFA is built for the ring
+        alphabet."""
+        crg = CutRankGroups(2, d=2)
+        M = crg.cls.class_automata['M']
+        n = 3
+        rng = random.Random(5)
+        elems = self.elements(crg, n)
+        for form in self.forms(crg, n).values():
+            advice = crg.advice(n, form)
+            for _ in range(200):
+                g, h = rng.choice(elems), rng.choice(elems)
+                expected = crg.multiply(n, form, g, h)
+                # the built automaton and the transition-level simulate agree
+                assert M.accepts(self._mword(crg, advice, n, g, h, expected))
+                assert crg.simulate(advice, g, h, expected)
+                wrong = (((expected[0][0] + 1) % crg.q,), expected[1])
+                assert not M.accepts(self._mword(crg, advice, n, g, h, wrong))
+                assert not crg.simulate(advice, g, h, wrong)
+
+    def test_width_guard_rejects_over_r_at_z4(self):
+        """A module-cut-rank-2 form is rejected by the r = 1 compiler over Z/4.
+        (Width-2 ring automata exceed the advice-alphabet cap -- q^(r^2+r+kr)
+        = 4^8 for r = 2 -- so the buildable ring corner is small.)"""
+        form = {(3, 1): (1,), (4, 2): (1,), (2, 1): (1,)}
+        narrow = CutRankGroups(2, d=2)
+        assert narrow.linear_cut_rank(4, form) == 2
+        with pytest.raises(ValueError):
+            narrow.advice(4, form)
+        with pytest.raises(ValueError):
+            CutRankGroups(2, r=2, d=2)        # alphabet over the 20000 cap
+
+    def test_encode_range_is_the_ring(self):
+        crg = CutRankGroups(2, d=2)
+        crg.encode(((3,), (2, 1)), 2)         # 0..3 allowed over Z/4
+        with pytest.raises(ValueError):
+            crg.encode(((4,), (0, 0)), 2)     # 4 is out of range
+
+    @heavy
+    def test_simulate_exhaustive_ring_sweep(self):
+        """Exhaustive streaming-vs-reference sweep over several rings and
+        layouts (run on the VM). The full product automaton is infeasible for
+        these alphabets, so correctness is checked at the transition level via
+        `simulate`, which equals the built automaton on Z/4."""
+        cases = [(2, 2, 4), (2, 3, 3), (3, 2, 3)]      # (p, d, n)
+        for p, d, n in cases:
+            crg = CutRankGroups(p, d=d)
+            elems = self.elements(crg, n)
+            for form in self.forms(crg, n).values():
+                advice = crg.advice(n, form)
+                for g, h in it.product(elems, repeat=2):
+                    z = crg.multiply(n, form, g, h)
+                    assert crg.simulate(advice, g, h, z), (p, d, form, g, h)
+                    wrong = (((z[0][0] + 1) % crg.q,), z[1])
+                    assert not crg.simulate(advice, g, h, wrong)

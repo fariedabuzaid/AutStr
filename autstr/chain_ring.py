@@ -22,14 +22,37 @@ at d = 1, so the later linear/tree automata (field and ring) can share one
 
 The field fast path ``autstr.groups._rref_mod`` (reduced row echelon over F_p)
 is the d = 1 specialisation of ``saturate``; unifying the two is a later pass.
-Only ``_rref_mod`` is reused here, to locate unit r x r minors mod p.
+This module is a leaf (nothing in ``autstr`` is imported here) so that the group
+constructions can build on it without an import cycle; the small mod-p echelon
+helper ``_rref_mod_p`` below mirrors ``groups._rref_mod`` for locating unit
+r x r minors.
 """
-import itertools as it
 from typing import List, Tuple
 
 import numpy as np
 
-from autstr.groups import _rref_mod
+
+def _rref_mod_p(A: np.ndarray, p: int) -> Tuple[np.ndarray, List[int]]:
+    """Reduced row echelon over F_p: (nonzero rows, pivot columns). A local
+    copy of ``groups._rref_mod`` kept here to avoid an import cycle."""
+    A = np.asarray(A, dtype=np.int64).copy() % p
+    m, n = A.shape
+    pivots: List[int] = []
+    row = 0
+    for col in range(n):
+        if row == m:
+            break
+        sel = next((i for i in range(row, m) if A[i, col]), None)
+        if sel is None:
+            continue
+        A[[row, sel]] = A[[sel, row]]
+        A[row] = (A[row] * pow(int(A[row, col]), p - 2, p)) % p
+        for i in range(m):
+            if i != row and A[i, col]:
+                A[i] = (A[i] - A[i, col] * A[row]) % p
+        pivots.append(col)
+        row += 1
+    return A[:row], pivots
 
 
 # ---------------------------------------------------------------- scalars
@@ -208,7 +231,7 @@ def right_invertible(V: np.ndarray, p: int, d: int) -> bool:
     unit -- the "saturated interface" hypothesis of the factorisation lemma."""
     V = np.asarray(V, dtype=np.int64)
     r = V.shape[0]
-    _, pivots = _rref_mod(V % p, p)
+    _, pivots = _rref_mod_p(V, p)
     return len(pivots) == r
 
 
@@ -218,7 +241,7 @@ def right_inverse(V: np.ndarray, p: int, d: int) -> np.ndarray:
     q = p ** d
     V = np.asarray(V, dtype=np.int64) % q
     r, n = V.shape
-    _, pivots = _rref_mod(V % p, p)
+    _, pivots = _rref_mod_p(V, p)
     if len(pivots) != r:
         raise ValueError("V is not right-invertible over Z/p^d")
     sub_inv = inv_mod_pp(V[:, pivots], p, d)          # r x r, unit determinant
@@ -226,6 +249,85 @@ def right_inverse(V: np.ndarray, p: int, d: int) -> np.ndarray:
     for a, col in enumerate(pivots):
         Y[col, :] = sub_inv[a, :]
     return Y % q
+
+
+def solve_left(V: np.ndarray, B: np.ndarray, p: int, d: int) -> np.ndarray:
+    """The general ring solve ``X`` with ``X @ V == B`` over R = Z/p^d.
+
+    ``V`` is (r x m) and may be rank-deficient (e.g. a padded basis with zero
+    rows); ``B`` is (s x m); the result ``X`` is (s x r). Every row of B must
+    lie in ``rowsp(V)`` -- otherwise there is no solution and a ValueError is
+    raised. Free coordinates of the solution are set to 0.
+
+    Solves ``A @ Y = C`` with ``A = V^T`` (m x r) and ``C = B^T`` by Smith-style
+    diagonalisation of A: row operations are mirrored on C and column
+    operations are accumulated in ``Wc`` so the solution maps back as
+    ``Y = Wc @ Z``. This is the ring generalisation of the field solver
+    ``autstr.groups._solve_xa_eq_b`` (X A = B) used by the linear layout
+    compiler, and drives the saturated streaming update over the chain ring.
+    """
+    q = p ** d
+    V = np.asarray(V, dtype=np.int64) % q
+    B = np.asarray(B, dtype=np.int64) % q
+    r, m = V.shape
+    s = B.shape[0]
+    if B.shape[1] != m:
+        raise ValueError("solve_left: V and B must share their column count")
+    A = V.T.copy() % q                          # m x r
+    C = B.T.copy() % q                          # m x s
+    Wc = np.eye(r, dtype=np.int64)
+    exps: List[int] = []
+    for t in range(min(m, r)):
+        best = None
+        for i in range(t, m):
+            for j in range(t, r):
+                if A[i, j] % q == 0:
+                    continue
+                val = valuation(A[i, j], p, d)
+                if best is None or val < best[0]:
+                    best = (val, i, j)
+                    if val == 0:
+                        break
+            if best is not None and best[0] == 0:
+                break
+        if best is None:
+            break
+        val, bi, bj = best
+        if bi != t:
+            A[[t, bi]] = A[[bi, t]]
+            C[[t, bi]] = C[[bi, t]]
+        if bj != t:
+            A[:, [t, bj]] = A[:, [bj, t]]
+            Wc[:, [t, bj]] = Wc[:, [bj, t]]
+        pv = p ** val
+        uinv = unit_inverse((int(A[t, t]) // pv) % q, p, d)
+        A[:, t] = (A[:, t] * uinv) % q           # normalise pivot to p^val
+        Wc[:, t] = (Wc[:, t] * uinv) % q
+        for i in range(m):                       # clear column t (row ops -> C)
+            if i != t and A[i, t] % q != 0:
+                k = int(A[i, t]) // pv
+                A[i] = (A[i] - k * A[t]) % q
+                C[i] = (C[i] - k * C[t]) % q
+        for j in range(r):                       # clear row t (col ops -> Wc)
+            if j != t and A[t, j] % q != 0:
+                k = int(A[t, j]) // pv
+                A[:, j] = (A[:, j] - k * A[:, t]) % q
+                Wc[:, j] = (Wc[:, j] - k * Wc[:, t]) % q
+        exps.append(val)
+    Z = np.zeros((r, s), dtype=np.int64)
+    for t, e in enumerate(exps):                 # p^e z = rhs, per pivot row
+        pe = p ** e
+        for col in range(s):
+            rhs = int(C[t, col]) % q
+            if rhs % pe != 0:
+                raise ValueError("solve_left: no X with X @ V == B "
+                                 "(a row of B is not in rowsp(V))")
+            Z[t, col] = (rhs // pe) % (p ** (d - e))
+    for t in range(len(exps), m):                # zero rows of A: need C == 0
+        if np.any(C[t, :] % q != 0):
+            raise ValueError("solve_left: no X with X @ V == B "
+                             "(a row of B is not in rowsp(V))")
+    return ((Wc @ Z) % q).T % q                  # X = Y^T, Y = Wc @ Z
 
 
 def factor_two_sided(X: np.ndarray, Vbar: np.ndarray, Wbar: np.ndarray,
