@@ -104,6 +104,7 @@ class IndexTwoCyclicGroups:
         for family, symbol in self.families.items():
             automata['F' + symbol[1]] = self._family_automaton(symbol)
         self.cls = UniformlyAutomaticClass(automata, padding_symbol=PAD)
+        self.cls.element_alphabet = ['0', '1']
 
         # Bootstrap: negation, conjugation by u, the constant w, and finally
         # the group multiplication, all defined first-order from the primitives
@@ -425,6 +426,11 @@ class IndexTwoCyclicGroups:
         words = {name: self.encode(el, advice) for name, el in elements.items()}
         return self.cls.check(phi, advice, **words)
 
+    def check_implicit(self, phi, advice: Sequence[str], **elements) -> bool:
+        """Like `check`, evaluated implicitly (no query automaton)."""
+        words = {name: self.encode(el, advice) for name, el in elements.items()}
+        return self.cls.check_implicit(phi, advice, **words)
+
     def get_structure(self, advice: Sequence[str]) -> AutomaticPresentation:
         return self.cls.get_structure(advice)
 
@@ -454,6 +460,8 @@ class ExtraspecialGroups:
             'Cen': self._center_automaton(),
             'Eq': self._eq_automaton(),
         }, padding_symbol=PAD)
+        # element tape holds a c-digit then (a_i, b_i) pair symbols
+        self.cls.element_alphabet = list(self.digits) + list(self.pairs)
 
     def _universe_automaton(self) -> SparseDFA:
         """U(p, x): x = [c-digit][(a_i, b_i) pairs], exactly advice length."""
@@ -558,6 +566,11 @@ class ExtraspecialGroups:
         words = {name: self.encode(el, n) for name, el in elements.items()}
         return self.cls.check(phi, self.advice(n), **words)
 
+    def check_implicit(self, phi, n: int, **elements) -> bool:
+        """Like `check`, evaluated implicitly (no query automaton)."""
+        words = {name: self.encode(el, n) for name, el in elements.items()}
+        return self.cls.check_implicit(phi, self.advice(n), **words)
+
     def get_structure(self, n: int) -> AutomaticPresentation:
         return self.cls.get_structure(self.advice(n))
 
@@ -577,6 +590,7 @@ class FiniteAbelianGroups:
             'U': self._universe_automaton(),
             'A': self._addition_automaton(),
         }, padding_symbol=PAD)
+        self.cls.element_alphabet = ['0', '1', SEP]
 
     def _universe_automaton(self) -> SparseDFA:
         """U(p, x): p is a sequence of canonical nonempty binary blocks (MSB
@@ -680,6 +694,11 @@ class FiniteAbelianGroups:
         single int for a cyclic group)."""
         words = {name: self.encode(e, orders) for name, e in elements.items()}
         return self.cls.check(phi, self.advice(orders), **words)
+
+    def check_implicit(self, phi, orders: Sequence[int], **elements) -> bool:
+        """Like `check`, evaluated implicitly (no query automaton)."""
+        words = {name: self.encode(e, orders) for name, e in elements.items()}
+        return self.cls.check_implicit(phi, self.advice(orders), **words)
 
     def get_structure(self, orders: Sequence[int]) -> AutomaticPresentation:
         return self.cls.get_structure(self.advice(orders))
@@ -786,6 +805,7 @@ class CutRankGroups:
         self.p, self.k, self.r, self.d = p, k, r, d
         self.q = p ** d                       # center/quotient ring R = Z/p^d
         self.digits = [str(x) for x in range(self.q)]
+        self._digitset = set(self.digits)
         self.letters: Dict[str, tuple] = {}
         for entries in it.product(range(self.q), repeat=r * r + r + k * r):
             T = tuple(tuple(entries[i * r + j] for j in range(r)) for i in range(r))
@@ -997,27 +1017,46 @@ class CutRankGroups:
         against the reference law for any ring alphabet (the full automaton is
         only buildable for small q). gx, gy, gz are (b, a) elements."""
         p, k, r, q = self.p, self.k, self.r, self.q
-        n = len(advice) - k
+        n = len(advice) - self.k
         ex, ey, ez = (self.encode(g, n) for g in (gx, gy, gz))
-        deficit = [0] * k
-        for j in range(k):
-            if advice[j] != CMARK:
-                return False
-            deficit[j] = (int(ez[j]) - int(ex[j]) - int(ey[j])) % q
-        w = [0] * r
-        for t in range(k, k + n):
-            letter = self.letters.get(advice[t])
-            if letter is None:
-                return False
-            xi, yi, zi = int(ex[t]), int(ey[t]), int(ez[t])
+        state = self._m_initial()
+        for i in range(len(advice)):
+            state = self._m_step(state, advice[i], ex[i], ey[i], ez[i])
+        return self._m_accepting(state)
+
+    # ---------------- the multiplication transition (shared) ----------------
+
+    def _m_initial(self):
+        return ('c', 0, (0,) * self.k)
+
+    def _m_accepting(self, state) -> bool:
+        return state != 'dead' and state[0] == 'x' and state[1] == (0,) * self.k
+
+    def _m_step(self, state, a, x, y, z):
+        """One step of the multiplication automaton over R = Z/p^d, shared by
+        `simulate` and the implicit M atom. `a` is the advice symbol, `x, y, z`
+        the element symbols at this position."""
+        p, k, r, q = self.p, self.k, self.r, self.q
+        if state == 'dead':
+            return 'dead'
+        if not (x in self._digitset and y in self._digitset and z in self._digitset):
+            return 'dead'
+        xi, yi, zi = int(x), int(y), int(z)
+        if a == CMARK and state[0] == 'c':
+            j, d = state[1], state[2]
+            d = d[:j] + ((zi - xi - yi) % q,) + d[j + 1:]
+            return ('x', d, (0,) * r) if j + 1 == k else ('c', j + 1, d)
+        if a in self.letters and state[0] == 'x':
             if (xi + yi - zi) % q:
-                return False
-            T, v, R = letter
-            deficit = [(deficit[l] - xi * sum(R[l][s] * w[s] for s in range(r))) % q
-                       for l in range(k)]
-            w = [(sum(T[s][u] * w[u] for u in range(r)) + v[s] * yi) % q
-                 for s in range(r)]
-        return all(x == 0 for x in deficit)
+                return 'dead'
+            T, v, R = self.letters[a]
+            d, w = state[1], state[2]
+            d = tuple((d[l] - xi * sum(R[l][s] * w[s] for s in range(r))) % q
+                      for l in range(k))
+            w = tuple((sum(T[s][u] * w[u] for u in range(r)) + v[s] * yi) % q
+                      for s in range(r))
+            return ('x', d, w)
+        return 'dead'
 
     def identity(self, n: int):
         return (0,) * self.k, (0,) * n
@@ -1047,8 +1086,8 @@ class CutRankGroups:
         large-q members whose `cls` cannot be built. Each entry is a builder
         ``args -> ImplicitDFA`` over the formula's argument tapes."""
         from autstr.implicit import ImplicitDFA
-        p, k, r, q = self.p, self.k, self.r, self.q
-        digitset = set(self.digits)
+        k = self.k
+        digitset = self._digitset
         letters = self.letters
 
         def shape(args, extra_ok):
@@ -1080,33 +1119,10 @@ class CutRankGroups:
 
         def M(args):
             adv, xv, yv, zv = args
-
-            def step(state, s):
-                if state == 'dead':
-                    return 'dead'
-                x, y, z = s[xv], s[yv], s[zv]
-                if not (x in digitset and y in digitset and z in digitset):
-                    return 'dead'
-                a = s[adv]
-                xi, yi, zi = int(x), int(y), int(z)
-                if a == CMARK and state[0] == 'c':
-                    j, dd = state[1], state[2]
-                    dd = dd[:j] + ((zi - xi - yi) % q,) + dd[j + 1:]
-                    return ('x', dd, (0,) * r) if j + 1 == k else ('c', j + 1, dd)
-                if a in letters and state[0] == 'x':
-                    if (xi + yi - zi) % q:
-                        return 'dead'
-                    T, v, R = letters[a]
-                    dd, w = state[1], state[2]
-                    dd = tuple((dd[l] - xi * sum(R[l][t] * w[t] for t in range(r))) % q
-                               for l in range(k))
-                    w = tuple((sum(T[t][u] * w[u] for u in range(r)) + v[t] * yi) % q
-                              for t in range(r))
-                    return ('x', dd, w)
-                return 'dead'
-            return ImplicitDFA(args, lambda: ('c', 0, (0,) * k), step,
-                               lambda st: st != 'dead' and st[0] == 'x'
-                               and st[1] == (0,) * k)
+            return ImplicitDFA(
+                args, self._m_initial,
+                lambda state, s: self._m_step(state, s[adv], s[xv], s[yv], s[zv]),
+                self._m_accepting)
 
         return {'Dom': Dom, 'Adv': Adv, 'M': M, 'Eq': Eq}
 

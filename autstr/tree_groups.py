@@ -69,6 +69,7 @@ class TreeExtraspecialGroups:
             'M': self._multiplication_automaton(),
             'E': self._equality_automaton(),
         }, padding_symbol=PAD, max_states=max_states)
+        self.cls.element_alphabet = list(self.element_letters)
 
     # ---------------- the automata ----------------
 
@@ -184,6 +185,10 @@ class TreeExtraspecialGroups:
         can be assigned element trees (see `encode`); unassigned ones are
         quantified existentially."""
         return self.cls.check(phi, self.advice(shape), **elements)
+
+    def check_implicit(self, phi, shape: Tree, **elements) -> bool:
+        """Like `check`, evaluated implicitly (no query tree automaton)."""
+        return self.cls.check_implicit(phi, self.advice(shape), **elements)
 
     def get_structure(self, shape: Tree) -> TreeAutomaticPresentation:
         """The tree-automatic presentation of the single group G_shape."""
@@ -633,75 +638,93 @@ class CutRankTreeGroups:
 
     def simulate(self, advice: Tree, gx, gy, gz) -> bool:
         """Run the multiplication automaton directly over the convolved trees:
-        True iff the advice accepts gx * gy = gz. Mirrors the M transition
-        (post-order, bottom-up) without building the product tree automaton, so
-        the saturated tree merge can be checked against the reference law for
-        any ring alphabet. gx, gy, gz are (b, a) elements over the advice shape."""
-        k, r, q = self.k, self.r, self.q
+        True iff the advice accepts gx * gy = gz. A bottom-up pass of the shared
+        `_m_step` transition, without building the product tree automaton, so the
+        saturated tree merge can be checked against the reference law for any ring
+        alphabet. gx, gy, gz are (b, a) elements over the advice shape."""
         tx, ty, tz = (self.encode(g, advice) for g in (gx, gy, gz))
+
+        def rec(an, xn, yn, zn):
+            left = (rec(an.left, xn.left, yn.left, zn.left)
+                    if an.left is not None else None)
+            right = (rec(an.right, xn.right, yn.right, zn.right)
+                     if an.right is not None else None)
+            return self._m_step(an.label, xn.label, yn.label, zn.label,
+                                left, right)
+
+        return self._m_accepting(rec(advice, tx, ty, tz))
+
+    # ---------------- the multiplication transition (shared) ----------------
+
+    def _m_accepting(self, state) -> bool:
+        return state == ('c', self.k, (0,) * self.k)
+
+    def _m_step(self, a, x, y, z, left, right):
+        """One bottom-up step of the tree multiplication automaton over
+        R = Z/p^d, shared by `simulate` and the implicit M atom. `a` is the
+        advice label; `x, y, z` the element labels; `left`/`right` the child
+        states (None for a missing child, 'dead' once any child died)."""
+        k, r, q = self.k, self.r, self.q
+        if left == 'dead' or right == 'dead':
+            return 'dead'
+        if not (x in self._digitset and y in self._digitset and z in self._digitset):
+            return 'dead'
+        xi, yi, zi = int(x), int(y), int(z)
 
         def dot(M, w):
             return tuple(sum(row[j] * w[j] for j in range(r)) % q for row in M)
 
-        def post(an, xn, yn, zn):
-            """Bottom-up state (s, wx, wy) of a layout subtree, or None (dead)."""
-            a = an.label
-            xi, yi, zi = int(xn.label), int(yn.label), int(zn.label)
-            if (xi + yi - zi) % q:
-                return None
-            lc = (an.left, xn.left, yn.left, zn.left)
-            rc = (an.right, xn.right, yn.right, zn.right)
-            if a in self.leaf_letters:
-                if an.left is not None or an.right is not None:
-                    return None
-                v = self.leaf_letters[a]
-                return ((0,) * k, tuple(v[i] * xi % q for i in range(r)),
-                        tuple(v[i] * yi % q for i in range(r)))
-            if a in self.unary_letters:
-                sub = post(*(lc if an.left is not None else rc))
-                if sub is None:
-                    return None
-                s, wx, wy = sub
-                T, v, R = self.unary_letters[a]
-                s = tuple((s[l] + xi * dot(R, wy)[l]) % q for l in range(k))
-                Twx, Twy = dot(T, wx), dot(T, wy)
-                return (s, tuple((Twx[i] + v[i] * xi) % q for i in range(r)),
-                        tuple((Twy[i] + v[i] * yi) % q for i in range(r)))
-            if a in self.binary_letters:
-                subL, subR = post(*lc), post(*rc)
-                if subL is None or subR is None:
-                    return None
-                sL, wxL, wyL = subL
-                sR, wxR, wyR = subR
-                TL, TR, v, RL, RR, Q = self.binary_letters[a]
-                readL, readR = dot(RL, wyL), dot(RR, wyR)
-                s = tuple((sL[l] + sR[l] + xi * (readL[l] + readR[l])
-                           + sum(Q[l][u][t] * wxR[u] * wyL[t]
-                                 for u in range(r) for t in range(r))) % q
-                          for l in range(k))
-                TwxL, TwxR = dot(TL, wxL), dot(TR, wxR)
-                TwyL, TwyR = dot(TL, wyL), dot(TR, wyR)
-                return (s, tuple((TwxL[i] + TwxR[i] + v[i] * xi) % q for i in range(r)),
-                        tuple((TwyL[i] + TwyR[i] + v[i] * yi) % q for i in range(r)))
-            return None
-
-        # the top k nodes of every tree are the center chain; descend past them
-        # to the layout root, run the subtree recursion, then consume the chain
-        chain = []
-        an, xn, yn, zn = advice, tx, ty, tz
-        for _ in range(k):
-            chain.append((an, xn, yn, zn))
-            an, xn, yn, zn = an.left, xn.left, yn.left, zn.left
-        state = post(an, xn, yn, zn)
-        if state is None:
-            return False
-        s = state[0]
-        # center coordinate j is the (k-1-j)-th chain node from the top
-        for j in range(k):
-            _, xc, yc, zc = chain[k - 1 - j]
-            if (int(zc.label) - int(xc.label) - int(yc.label)) % q != s[j]:
-                return False
-        return True
+        if a == CMARK:
+            child = left if right is None else (right if left is None else None)
+            if child is None or not isinstance(child, tuple):
+                return 'dead'
+            if child[0] == 't':
+                j, s = 0, child[1]
+            elif child[0] == 'c':
+                j, s = child[1], child[2]
+            else:
+                return 'dead'
+            if j >= k or (zi - xi - yi) % q != s[j]:
+                return 'dead'
+            return ('c', j + 1, s[:j] + (0,) + s[j + 1:])
+        if (xi + yi - zi) % q:
+            return 'dead'
+        if a in self.leaf_letters:
+            if left is not None or right is not None:
+                return 'dead'
+            v = self.leaf_letters[a]
+            return ('t', (0,) * k,
+                    tuple(v[i] * xi % q for i in range(r)),
+                    tuple(v[i] * yi % q for i in range(r)))
+        if a in self.unary_letters:
+            child = left if right is None else (right if left is None else None)
+            if child is None or child[0] != 't':
+                return 'dead'
+            T, v, R = self.unary_letters[a]
+            s, wx, wy = child[1], child[2], child[3]
+            s = tuple((s[l] + xi * dot(R, wy)[l]) % q for l in range(k))
+            Twx, Twy = dot(T, wx), dot(T, wy)
+            return ('t', s,
+                    tuple((Twx[i] + v[i] * xi) % q for i in range(r)),
+                    tuple((Twy[i] + v[i] * yi) % q for i in range(r)))
+        if a in self.binary_letters:
+            if left is None or right is None \
+                    or left[0] != 't' or right[0] != 't':
+                return 'dead'
+            TL, TR, v, RL, RR, Q = self.binary_letters[a]
+            sL, wxL, wyL = left[1], left[2], left[3]
+            sR, wxR, wyR = right[1], right[2], right[3]
+            readL, readR = dot(RL, wyL), dot(RR, wyR)
+            s = tuple((sL[l] + sR[l] + xi * (readL[l] + readR[l])
+                       + sum(Q[l][u][t] * wxR[u] * wyL[t]
+                             for u in range(r) for t in range(r))) % q
+                      for l in range(k))
+            TwxL, TwxR = dot(TL, wxL), dot(TR, wxR)
+            TwyL, TwyR = dot(TL, wyL), dot(TR, wyR)
+            return ('t', s,
+                    tuple((TwxL[i] + TwxR[i] + v[i] * xi) % q for i in range(r)),
+                    tuple((TwyL[i] + TwyR[i] + v[i] * yi) % q for i in range(r)))
+        return 'dead'
 
     def _strip_center(self, tree: Tree) -> Tree:
         node = tree
@@ -747,11 +770,8 @@ class CutRankTreeGroups:
         deltas -- no explicit product, so this works for the large-q members
         whose `cls` cannot be built. Each entry is a builder ``args -> ImplicitTA``."""
         from autstr.implicit import ImplicitTA
-        p, k, r, q = self.p, self.k, self.r, self.q
+        k = self.k
         digitset = self._digitset
-
-        def dot(M, w):
-            return tuple(sum(row[j] * w[j] for j in range(r)) % q for row in M)
 
         def shape(args, q_of):
             adv = args[0]
@@ -790,67 +810,11 @@ class CutRankTreeGroups:
 
         def M(args):
             adv, xv, yv, zv = args
-
-            def step(sym, left, right):
-                if left == 'dead' or right == 'dead':
-                    return 'dead'
-                x, y, z = sym[xv], sym[yv], sym[zv]
-                if not (x in digitset and y in digitset and z in digitset):
-                    return 'dead'
-                a = sym[adv]
-                xi, yi, zi = int(x), int(y), int(z)
-                if a == CMARK:
-                    child = left if right is None else (right if left is None else None)
-                    if child is None or not isinstance(child, tuple):
-                        return 'dead'
-                    if child[0] == 't':
-                        j, s = 0, child[1]
-                    elif child[0] == 'c':
-                        j, s = child[1], child[2]
-                    else:
-                        return 'dead'
-                    if j >= k or (zi - xi - yi) % q != s[j]:
-                        return 'dead'
-                    return ('c', j + 1, s[:j] + (0,) + s[j + 1:])
-                if (xi + yi - zi) % q:
-                    return 'dead'
-                if a in self.leaf_letters:
-                    if left is not None or right is not None:
-                        return 'dead'
-                    v = self.leaf_letters[a]
-                    return ('t', (0,) * k,
-                            tuple(v[i] * xi % q for i in range(r)),
-                            tuple(v[i] * yi % q for i in range(r)))
-                if a in self.unary_letters:
-                    child = left if right is None else (right if left is None else None)
-                    if child is None or child[0] != 't':
-                        return 'dead'
-                    T, v, R = self.unary_letters[a]
-                    s, wx, wy = child[1], child[2], child[3]
-                    s = tuple((s[l] + xi * dot(R, wy)[l]) % q for l in range(k))
-                    Twx, Twy = dot(T, wx), dot(T, wy)
-                    return ('t', s,
-                            tuple((Twx[i] + v[i] * xi) % q for i in range(r)),
-                            tuple((Twy[i] + v[i] * yi) % q for i in range(r)))
-                if a in self.binary_letters:
-                    if left is None or right is None \
-                            or left[0] != 't' or right[0] != 't':
-                        return 'dead'
-                    TL, TR, v, RL, RR, Q = self.binary_letters[a]
-                    sL, wxL, wyL = left[1], left[2], left[3]
-                    sR, wxR, wyR = right[1], right[2], right[3]
-                    readL, readR = dot(RL, wyL), dot(RR, wyR)
-                    s = tuple((sL[l] + sR[l] + xi * (readL[l] + readR[l])
-                               + sum(Q[l][u][t] * wxR[u] * wyL[t]
-                                     for u in range(r) for t in range(r))) % q
-                              for l in range(k))
-                    TwxL, TwxR = dot(TL, wxL), dot(TR, wxR)
-                    TwyL, TwyR = dot(TL, wyL), dot(TR, wyR)
-                    return ('t', s,
-                            tuple((TwxL[i] + TwxR[i] + v[i] * xi) % q for i in range(r)),
-                            tuple((TwyL[i] + TwyR[i] + v[i] * yi) % q for i in range(r)))
-                return 'dead'
-            return ImplicitTA(args, step, lambda st: st == ('c', k, (0,) * k))
+            return ImplicitTA(
+                args,
+                lambda sym, left, right: self._m_step(
+                    sym[adv], sym[xv], sym[yv], sym[zv], left, right),
+                self._m_accepting)
 
         return {'Dom': Dom, 'Adv': Adv, 'M': M, 'Eq': Eq}
 

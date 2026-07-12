@@ -449,6 +449,7 @@ class CocycleRankWidthGroups:
                 'M': self._multiplication_automaton(),
                 'Eq': self._eq_automaton(),
             }, padding_symbol=PAD)
+            self._cls.element_alphabet = list(self.element_letters)
         return self._cls
 
     # ---------------- the automata ----------------
@@ -732,6 +733,12 @@ class CocycleRankWidthGroups:
         p = self.p
         if sites.p != p:
             raise ValueError("sites and class must share p")
+        if sites.d != 1:
+            raise NotImplementedError(
+                "CocycleRankWidthGroups is over the field F_p; the distributed-"
+                "center automaton is not yet generalized to the chain ring "
+                f"(sites has d={sites.d}). CocycleSites supports d>1 for the "
+                "reference law and module cut-rank only.")
         sites.check_tensor(T)
         width = sites.cut_width(T)
         if width > 1:
@@ -1008,6 +1015,12 @@ class CocycleRankWidthGroups:
         trees = {name: self.encode(el, sites, advice)
                  for name, el in elements.items()}
         return self.cls.check(phi, advice, **trees)
+
+    def check_implicit(self, phi, sites: CocycleSites, advice: Tree, **elements) -> bool:
+        """Like `check`, evaluated implicitly (no query tree automaton)."""
+        trees = {name: self.encode(el, sites, advice)
+                 for name, el in elements.items()}
+        return self.cls.check_implicit(phi, advice, **trees)
 
     def get_structure(self, advice: Tree) -> TreeAutomaticPresentation:
         return self.cls.get_structure(advice)
