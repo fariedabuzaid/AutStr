@@ -1,10 +1,14 @@
 import itertools as it
+import os
 import random
 
 import pytest
 
 from autstr.sparse_tree_automata import Tree
 from autstr.tree_groups import TreeExtraspecialGroups
+
+heavy = pytest.mark.skipif(not os.environ.get('AUTSTR_HEAVY'),
+                           reason="exhaustive ring sweep; run with AUTSTR_HEAVY=1")
 
 
 # ====================================================================
@@ -348,3 +352,141 @@ class TestCutRankTreeGroups:
             crt2.encode(((0,), (0, 0)), crt2.spine(3))  # wrong length
         with pytest.raises(ValueError):
             crt2.encode(((0,), (2, 0, 0)), crt2.spine(3))  # bad digit
+
+
+class TestCutRankTreeGroupsChainRing:
+    """The exponent-p^d ("Idea 2") tree layout: the saturated tree merge over
+    the chain ring R = Z/p^d, whose crux is the two-sided sibling factorisation
+    (chain_ring.factor_two_sided, Cor. cor:merge)."""
+
+    def elements(self, crt, shape):
+        seq, _, _ = crt._layout(shape)
+        n = len(seq)
+        return [((b,), a) for b in range(crt.q)
+                for a in it.product(range(crt.q), repeat=n)] if crt.k == 1 else [
+            (b, a) for b in it.product(range(crt.q), repeat=crt.k)
+            for a in it.product(range(crt.q), repeat=n)]
+
+    def cases(self, crt, n):
+        star = {(j, 1): (1,) for j in range(2, n + 1)}
+        val1 = {(j, i): (2,) for j in range(2, n + 1) for i in range(1, j)}  # valuation 1
+        return [(crt.spine(n), crt.clique_form(n)),
+                (crt.spine(n), crt.matching_form(n)),
+                (crt.balanced(n), crt.clique_form(n)),
+                (crt.balanced(n), crt.matching_form(n)),
+                (crt.balanced(n), star),
+                (crt.balanced(n), val1)]         # exercises factor_two_sided
+
+    def test_d1_encoding_is_unchanged(self):
+        from autstr.tree_groups import CutRankTreeGroups
+        c = CutRankTreeGroups(2)
+        assert c.q == 2 and c.d == 1
+        assert c.digits == ['0', '1']
+        assert c.leaf_letters and all(name[0] == 'a' for name in c.leaf_letters)
+
+    def test_simulate_matches_built_automaton_field(self):
+        """At d = 1 the tree automaton is buildable; simulate reproduces it
+        exactly, tying the transition-level check to the real DFA."""
+        from autstr.tree_groups import CutRankTreeGroups
+        c = CutRankTreeGroups(2)
+        M = c.cls.class_automata['M']
+        variables = ['advice', 'x', 'y', 'z']    # raw M tape order
+        n = 4
+        rng = random.Random(1)
+        for shape, form in self.cases(c, n):
+            advice = c.advice(shape, form)
+            elems = self.elements(c, shape)
+            for _ in range(60):
+                g, h = rng.choice(elems), rng.choice(elems)
+                z = c.multiply(n, form, g, h)
+                tx, ty, tz = (c.encode(e, advice) for e in (g, h, z))
+                tapes = {'advice': advice, 'x': tx, 'y': ty, 'z': tz}
+                word = _convolve_trees(variables, tapes)
+                assert M.accepts(word) == c.simulate(advice, g, h, z)
+                assert c.simulate(advice, g, h, z)
+
+    def test_reference_law_group_axioms_z4(self):
+        from autstr.tree_groups import CutRankTreeGroups
+        c = CutRankTreeGroups(2, d=2)
+        shape = c.balanced(3)
+        seq, _, _ = c._layout(shape); n = len(seq)
+        form = c.clique_form(n)
+        elems = self.elements(c, shape)
+        mul = lambda g, h: c.multiply(n, form, g, h)
+        one = c.identity(n)
+        rng = random.Random(3)
+        for g in elems:
+            assert mul(one, g) == g and mul(g, one) == g
+        for _ in range(6000):
+            g, h, f = (rng.choice(elems) for _ in range(3))
+            assert mul(mul(g, h), f) == mul(g, mul(h, f))
+
+    def test_tree_merge_matches_reference_z4(self):
+        """The saturated streaming compile agrees with the reference law over
+        Z/4 on spine and balanced layouts, including a valuation-1 form whose
+        sibling blocks force the ring two-sided factorisation."""
+        from autstr.tree_groups import CutRankTreeGroups
+        c = CutRankTreeGroups(2, d=2)
+        n = 4
+        rng = random.Random(5)
+        for shape, form in self.cases(c, n):
+            advice = c.advice(shape, form)
+            elems = self.elements(c, shape)
+            for _ in range(250):
+                g, h = rng.choice(elems), rng.choice(elems)
+                z = c.multiply(n, form, g, h)
+                assert c.simulate(advice, g, h, z), (form, g, h)
+                wrong = (((z[0][0] + 1) % c.q,), z[1])
+                assert not c.simulate(advice, g, h, wrong)
+
+    def test_tree_cut_rank_counts_valuation_over_z4(self):
+        from autstr.tree_groups import CutRankTreeGroups
+        c = CutRankTreeGroups(2, d=2)
+        n = 4
+        val1 = {(j, i): (2,) for j in range(2, n + 1) for i in range(1, j)}
+        assert c.tree_cut_rank(c.balanced(n), val1) == 1     # not 0
+        assert c.tree_cut_rank(c.balanced(n), c.clique_form(n)) == 1
+        assert c.tree_cut_rank(c.balanced(n), {}) == 0
+
+    def test_width_guard_over_z4(self):
+        from autstr.tree_groups import CutRankTreeGroups
+        c = CutRankTreeGroups(2, d=2)
+        # a spine layout whose middle cut needs rank 2
+        form = {(2, 1): (1,), (4, 3): (1,), (4, 1): (1,), (3, 2): (1,)}
+        if c.tree_cut_rank(c.spine(4), form) > 1:
+            with pytest.raises(ValueError):
+                c.advice(c.spine(4), form)
+
+    def test_encode_range_is_the_ring(self):
+        from autstr.tree_groups import CutRankTreeGroups
+        c = CutRankTreeGroups(2, d=2)
+        c.encode(((3,), (2, 1)), c.spine(2))
+        with pytest.raises(ValueError):
+            c.encode(((4,), (0, 0)), c.spine(2))
+
+    @heavy
+    def test_tree_merge_exhaustive_z4(self):
+        """Exhaustive streaming-vs-reference over Z/4 on every layout/form."""
+        from autstr.tree_groups import CutRankTreeGroups
+        c = CutRankTreeGroups(2, d=2)
+        n = 4
+        for shape, form in self.cases(c, n):
+            advice = c.advice(shape, form)
+            elems = self.elements(c, shape)
+            for g, h in it.product(elems, repeat=2):
+                z = c.multiply(n, form, g, h)
+                assert c.simulate(advice, g, h, z), (form, g, h)
+                wrong = (((z[0][0] + 1) % c.q,), z[1])
+                assert not c.simulate(advice, g, h, wrong)
+
+
+def _convolve_trees(variables, tapes):
+    """Convolve equally-shaped labelled trees into a single symbol-tuple tree
+    (order given by `variables`)."""
+    def rec(nodes):
+        node0 = next(n for n in nodes if n is not None)
+        label = tuple(n.label for n in nodes)
+        left = rec([n.left for n in nodes]) if node0.left is not None else None
+        right = rec([n.right for n in nodes]) if node0.right is not None else None
+        return Tree(label, left, right)
+    return rec([tapes[v] for v in variables])

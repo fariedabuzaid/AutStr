@@ -38,7 +38,7 @@ from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
-from autstr.groups import _rref_mod, _solve_xa_eq_b
+from autstr import chain_ring as cr
 from autstr.sparse_tree_automata import SparseTreeAutomaton, Tree
 from autstr.tree_presentations import TreeAutomaticPresentation
 from autstr.tree_uniform import UniformlyTreeAutomaticClass, sta_from_delta
@@ -195,11 +195,16 @@ class TreeExtraspecialGroups:
 # ====================================================================
 
 class CutRankTreeGroups:
-    """For a fixed prime p, center dimension k and width r, the uniformly
-    tree-automatic class of class-2 central extensions of Z_p^n by Z_p^k
-    whose commutation form admits a *tree* layout of cut-rank <= r over F_p
-    (bounded rank-width) — the tree analog of `autstr.groups.CutRankGroups`,
-    which is recovered exactly on spine layouts.
+    """For a fixed prime p, center dimension k, width r and ring depth d, the
+    uniformly tree-automatic class of class-2 groups over R = Z/p^d whose
+    commutation form admits a *tree* layout of module cut-rank <= r (bounded
+    rank-width over R) — the tree analog of `autstr.groups.CutRankGroups`, which
+    is recovered exactly on spine layouts. With d = 1 (the default) R is the
+    field F_p and this is the original construction; d > 1 is the exponent-p^d
+    ("Idea 2") case. The tree merge is the one step the field proof genuinely
+    uses a field: the sibling block factorises as V_R^T Q V_L, which is false
+    over R with a naive interface but holds once the carried bases are the
+    SATURATED free interfaces (chain_ring.factor_two_sided, Cor. cor:merge).
 
     Generators are the post-order positions 1..n of a binary layout tree;
     the form is a dict {(j, i): label in Z_p^k, i < j} presenting
@@ -217,7 +222,7 @@ class CutRankTreeGroups:
     split between siblings (the merge pairs the right child's x-functionals
     against the left child's y-functionals — in post-order the left subtree
     lies entirely below the right one). The advice letter at a node holds
-    the factorization data over Z_p::
+    the factorization data over R = Z/p^d (each entry as d base-p digits)::
 
         leaf:   'a' + v (r)
         unary:  'b' + T (r x r) + v (r) + R (k x r)
@@ -227,67 +232,93 @@ class CutRankTreeGroups:
     with w <- T_L w_L + T_R w_R + v*digit (both factors), correction
     s <- s_L + s_R + x_t*(R_L wy_L + R_R wy_R) + wx_R^T Q_l wy_L, and the
     'c' chain consuming s coordinate by coordinate: z_c - x_c - y_c = s.
-    That is p^(k+2r) layout states however large the tree. `advice`
-    compiles (shape, form) into letters — rref row bases of the crossing
-    blocks plus solving the consistency systems, including the two-sided
-    factorization V_R^T Q V_L of the sibling block — and fails precisely
-    when some subtree's cut-rank exceeds r; `tree_cut_rank` measures the
-    width a layout needs. Every well-shaped advice presents some group in
-    the class: the streamed cocycle is bilinear by construction.
+    That is q^(k+2r) layout states however large the tree. `advice` compiles
+    (shape, form) into letters — saturated free bases of the crossing blocks
+    plus solving the consistency systems, including the two-sided factorization
+    V_R^T Q V_L of the sibling block — and fails precisely when some subtree's
+    module cut-rank exceeds r; `tree_cut_rank` measures the width a layout needs.
+    Every well-shaped advice presents some group in the class: the streamed
+    cocycle is bilinear by construction.
+
+    The multiplication automaton is a product over the whole letter alphabet, so
+    building it is only feasible for a small ring alphabet; `cls` is therefore
+    lazy and `simulate` runs the transition directly over the tapes for larger q.
 
     Signature: M(x,y,z), Eq(x,y); the center is first-order definable.
     """
 
-    def __init__(self, p: int, k: int = 1, r: int = 1):
-        if p < 2 or p > 9 or any(p % d == 0 for d in range(2, int(p ** 0.5) + 1)):
+    def __init__(self, p: int, k: int = 1, r: int = 1, d: int = 1):
+        if p < 2 or p > 9 or any(p % f == 0 for f in range(2, int(p ** 0.5) + 1)):
             raise ValueError(f"p must be a prime in 2..9 (single digits), got {p}")
         if k < 1 or r < 1:
             raise ValueError("need k >= 1 central and r >= 1 state dimensions")
-        n_letters = (p ** r + p ** (r * r + r + k * r)
-                     + p ** (2 * r * r + r + 2 * k * r + k * r * r))
+        if d < 1:
+            raise ValueError(f"center ring depth d must be >= 1, got {d}")
+        q = p ** d
+        n_letters = (q ** r + q ** (r * r + r + k * r)
+                     + q ** (2 * r * r + r + 2 * k * r + k * r * r))
         if n_letters > 20000:
             raise ValueError(
                 f"advice alphabet would have {n_letters} letters; choose "
-                f"smaller p, k or r (factored letters are future work)")
-        self.p, self.k, self.r = p, k, r
-        self.digits = [str(d) for d in range(p)]
+                f"smaller p, k, r or d (factored letters are future work)")
+        self.p, self.k, self.r, self.d = p, k, r, d
+        self.q = q                              # center/quotient ring R = Z/p^d
+        self.digits = [str(x) for x in range(q)]
         self._digitset = set(self.digits)
 
-        def mat(digs, off, rows, cols):
-            return tuple(tuple(digs[off + i * cols + j] for j in range(cols))
+        def mat(entries, off, rows, cols):
+            return tuple(tuple(entries[off + i * cols + j] for j in range(cols))
                          for i in range(rows))
 
         self.leaf_letters = {
-            'a' + ''.join(map(str, digs)): tuple(digs)
-            for digs in it.product(range(p), repeat=r)}
+            self._letter_name('a', entries): tuple(entries)
+            for entries in it.product(range(q), repeat=r)}
         self.unary_letters = {}
-        for digs in it.product(range(p), repeat=r * r + r + k * r):
-            T = mat(digs, 0, r, r)
-            v = digs[r * r: r * r + r]
-            R = mat(digs, r * r + r, k, r)
-            self.unary_letters['b' + ''.join(map(str, digs))] = (T, v, R)
+        for entries in it.product(range(q), repeat=r * r + r + k * r):
+            T = mat(entries, 0, r, r)
+            v = entries[r * r: r * r + r]
+            R = mat(entries, r * r + r, k, r)
+            self.unary_letters[self._letter_name('b', entries)] = (T, v, R)
         self.binary_letters = {}
-        for digs in it.product(range(p), repeat=2 * r * r + r + 2 * k * r + k * r * r):
+        for entries in it.product(range(q), repeat=2 * r * r + r + 2 * k * r + k * r * r):
             off = 0
-            TL = mat(digs, off, r, r); off += r * r
-            TR = mat(digs, off, r, r); off += r * r
-            v = digs[off: off + r]; off += r
-            RL = mat(digs, off, k, r); off += k * r
-            RR = mat(digs, off, k, r); off += k * r
-            Q = tuple(mat(digs, off + l * r * r, r, r) for l in range(k))
-            self.binary_letters['d' + ''.join(map(str, digs))] = (TL, TR, v, RL, RR, Q)
+            TL = mat(entries, off, r, r); off += r * r
+            TR = mat(entries, off, r, r); off += r * r
+            v = entries[off: off + r]; off += r
+            RL = mat(entries, off, k, r); off += k * r
+            RR = mat(entries, off, k, r); off += k * r
+            Q = tuple(mat(entries, off + l * r * r, r, r) for l in range(k))
+            self.binary_letters[self._letter_name('d', entries)] = (TL, TR, v, RL, RR, Q)
 
         self.sigma = ({PAD, CMARK} | self._digitset | set(self.leaf_letters)
                       | set(self.unary_letters) | set(self.binary_letters))
         self.advice_letters = ({CMARK} | set(self.leaf_letters)
                                | set(self.unary_letters) | set(self.binary_letters))
         self.element_letters = self._digitset
+        self._cls = None
 
-        self.cls = UniformlyTreeAutomaticClass({
-            'U': self._universe_automaton(),
-            'M': self._multiplication_automaton(),
-            'Eq': self._eq_automaton(),
-        }, padding_symbol=PAD)
+    def _letter_name(self, prefix: str, entries: Sequence[int]) -> str:
+        """Advice-letter key: the prefix ('a' leaf, 'b' unary, 'd' binary) plus
+        every ring entry spelled as its d base-p digits (fixed width d, so the
+        d = 1 field encoding is the original single-digit form)."""
+        return prefix + ''.join(
+            str(dig) for e in entries
+            for dig in cr.to_digits(int(e) % self.q, self.p, self.d))
+
+    @property
+    def cls(self) -> UniformlyTreeAutomaticClass:
+        """The uniformly tree-automatic presentation, built lazily: the tree
+        multiplication automaton is a product over the whole letter alphabet, so
+        its construction is only feasible for a small ring alphabet. The
+        reference law, `advice` compiler, width measure and `simulate` never
+        need it and stay cheap for any q."""
+        if self._cls is None:
+            self._cls = UniformlyTreeAutomaticClass({
+                'U': self._universe_automaton(),
+                'M': self._multiplication_automaton(),
+                'Eq': self._eq_automaton(),
+            }, padding_symbol=PAD)
+        return self._cls
 
     # ---------------- the automata ----------------
 
@@ -332,10 +363,10 @@ class CutRankTreeGroups:
 
     def _multiplication_automaton(self) -> SparseTreeAutomaton:
         """M(advice, x, y, z): z = x·y via the factored streaming cocycle."""
-        p, k, r = self.p, self.k, self.r
+        p, k, r, q = self.p, self.k, self.r, self.q
 
         def dot(M, w):
-            return tuple(sum(row[j] * w[j] for j in range(r)) % p for row in M)
+            return tuple(sum(row[j] * w[j] for j in range(r)) % q for row in M)
 
         def delta(lq, rq, sym):
             a, x, y, z = sym
@@ -354,18 +385,18 @@ class CutRankTreeGroups:
                     j, s = child[1], child[2]
                 else:
                     return 'dead'
-                if j >= k or (zi - xi - yi) % p != s[j]:
+                if j >= k or (zi - xi - yi) % q != s[j]:
                     return 'dead'
                 return ('c', j + 1, s[:j] + (0,) + s[j + 1:])
-            if (xi + yi - zi) % p:
+            if (xi + yi - zi) % q:
                 return 'dead'
             if a in self.leaf_letters:
                 if lq is not None or rq is not None:
                     return 'dead'
                 v = self.leaf_letters[a]
                 return ('t', (0,) * k,
-                        tuple(v[i] * xi % p for i in range(r)),
-                        tuple(v[i] * yi % p for i in range(r)))
+                        tuple(v[i] * xi % q for i in range(r)),
+                        tuple(v[i] * yi % q for i in range(r)))
             if a in self.unary_letters:
                 child = lq if rq is None else (rq if lq is None else None)
                 if child is None or child[0] != 't':
@@ -373,11 +404,11 @@ class CutRankTreeGroups:
                 T, v, R = self.unary_letters[a]
                 s, wx, wy = child[1], child[2], child[3]
                 read = dot(R, wy)
-                s = tuple((s[l] + xi * read[l]) % p for l in range(k))
+                s = tuple((s[l] + xi * read[l]) % q for l in range(k))
                 Twx, Twy = dot(T, wx), dot(T, wy)
                 return ('t', s,
-                        tuple((Twx[i] + v[i] * xi) % p for i in range(r)),
-                        tuple((Twy[i] + v[i] * yi) % p for i in range(r)))
+                        tuple((Twx[i] + v[i] * xi) % q for i in range(r)),
+                        tuple((Twy[i] + v[i] * yi) % q for i in range(r)))
             if a in self.binary_letters:
                 if lq is None or rq is None or lq[0] != 't' or rq[0] != 't':
                     return 'dead'
@@ -387,23 +418,23 @@ class CutRankTreeGroups:
                 readL, readR = dot(RL, wyL), dot(RR, wyR)
                 s = tuple((sL[l] + sR[l] + xi * (readL[l] + readR[l])
                            + sum(Q[l][u][t] * wxR[u] * wyL[t]
-                                 for u in range(r) for t in range(r))) % p
+                                 for u in range(r) for t in range(r))) % q
                           for l in range(k))
                 TwxL, TwxR = dot(TL, wxL), dot(TR, wxR)
                 TwyL, TwyR = dot(TL, wyL), dot(TR, wyR)
                 return ('t', s,
-                        tuple((TwxL[i] + TwxR[i] + v[i] * xi) % p for i in range(r)),
-                        tuple((TwyL[i] + TwyR[i] + v[i] * yi) % p for i in range(r)))
+                        tuple((TwxL[i] + TwxR[i] + v[i] * xi) % q for i in range(r)),
+                        tuple((TwyL[i] + TwyR[i] + v[i] * yi) % q for i in range(r)))
             return 'dead'
 
         states = ['dead']
-        vecs_r = list(it.product(range(p), repeat=r))
-        for s in it.product(range(p), repeat=k):
+        vecs_r = list(it.product(range(q), repeat=r))
+        for s in it.product(range(q), repeat=k):
             for wx in vecs_r:
                 for wy in vecs_r:
                     states.append(('t', s, wx, wy))
         for j in range(1, k + 1):
-            for rest in it.product(range(p), repeat=k - j):
+            for rest in it.product(range(q), repeat=k - j):
                 states.append(('c', j, (0,) * j + rest))
         finals = {('c', k, (0,) * k)}
         return sta_from_delta(self.sigma, states, 4, delta, finals,
@@ -476,7 +507,7 @@ class CutRankTreeGroups:
                 continue
             inner, outer = (i, j) if i_in else (j, i)
             for l in range(self.k):
-                M[outside[outer] * self.k + l, inner - lo] = label[l] % self.p
+                M[outside[outer] * self.k + l, inner - lo] = label[l] % self.q
         return M
 
     def _pair_rows(self, form: Dict, t: int, lo: int, hi: int) -> np.ndarray:
@@ -486,12 +517,13 @@ class CutRankTreeGroups:
         for i in range(lo, hi + 1):
             label = form.get((t, i))
             if label:
-                B[:, i - lo] = [c % self.p for c in label]
+                B[:, i - lo] = [c % self.q for c in label]
         return B
 
     def tree_cut_rank(self, shape: Tree, form: Dict) -> int:
-        """The width the given tree layout needs: the maximal rank over Z_p
-        of the crossing blocks of its subtrees."""
+        """The width the given tree layout needs: the maximal module cut-rank
+        over R = Z/p^d of the crossing blocks of its subtrees (the free rank of
+        the saturated interface; the ordinary F_p rank when d = 1)."""
         seq, pos, size = self._layout(shape)
         n = len(seq)
         self._check_form(n, form)
@@ -499,19 +531,21 @@ class CutRankTreeGroups:
         for node in seq:
             t, sz = pos[id(node)], size[id(node)]
             if sz < n:
-                rank = len(_rref_mod(self._crossing(n, form, t - sz + 1, t),
-                                     self.p)[1])
+                rank = cr.module_cut_rank(self._crossing(n, form, t - sz + 1, t),
+                                          self.p, self.d)
                 best = max(best, rank)
         return best
 
     def advice(self, shape: Tree, form: Dict[Tuple[int, int], Sequence[int]]) -> Tree:
         """Compile a layout and a form into the advice tree; raises if some
         subtree's crossing block exceeds rank r."""
-        p, k, r = self.p, self.k, self.r
+        p, k, r, d, q = self.p, self.k, self.r, self.d, self.q
         seq, pos, size = self._layout(shape)
         n = len(seq)
         self._check_form(n, form)
-        digs = lambda A: ''.join(str(int(d) % p) for d in np.asarray(A).flatten())
+        digs = lambda A: ''.join(
+            str(dig) for e in np.asarray(A).flatten()
+            for dig in cr.to_digits(int(e) % q, p, d))
         V: Dict[int, np.ndarray] = {}
         built: Dict[int, Tree] = {}
         for node in seq:
@@ -519,11 +553,12 @@ class CutRankTreeGroups:
             lo = t - sz + 1
             Vt = np.zeros((r, sz), dtype=np.int64)
             if sz < n:
-                basis, pivots = _rref_mod(self._crossing(n, form, lo, t), p)
-                if len(pivots) > r:
+                # carry the SATURATED free basis of the subtree's crossing block
+                basis, _ = cr.saturate(self._crossing(n, form, lo, t), p, d)
+                if basis.shape[0] > r:
                     raise ValueError(
-                        f"subtree at position {t} has crossing rank "
-                        f"{len(pivots)} > r = {r}; this layout needs width "
+                        f"subtree at position {t} has module cut-rank "
+                        f"{basis.shape[0]} > r = {r}; this layout needs width "
                         f"{self.tree_cut_rank(shape, form)}")
                 Vt[:basis.shape[0]] = basis
             L, R = node.left, node.right
@@ -532,30 +567,31 @@ class CutRankTreeGroups:
             elif L is None or R is None:
                 child = L if L is not None else R
                 cp, csz = pos[id(child)], size[id(child)]
-                T = _solve_xa_eq_b(V[cp], Vt[:, :csz], p)
-                Rm = _solve_xa_eq_b(V[cp], self._pair_rows(form, t, lo, t - 1), p)
+                T = cr.solve_left(V[cp], Vt[:, :csz], p, d)
+                Rm = cr.solve_left(V[cp], self._pair_rows(form, t, lo, t - 1), p, d)
                 letter = 'b' + digs(T) + digs(Vt[:, -1]) + digs(Rm)
             else:
                 lp, rp = pos[id(L)], pos[id(R)]
                 lsz, rsz = size[id(L)], size[id(R)]
                 VL, VR = V[lp], V[rp]
-                TL = _solve_xa_eq_b(VL, Vt[:, :lsz], p)
-                TR = _solve_xa_eq_b(VR, Vt[:, lsz:sz - 1], p)
-                RL = _solve_xa_eq_b(VL, self._pair_rows(form, t, lo, lp), p)
-                RR = _solve_xa_eq_b(VR, self._pair_rows(form, t, lp + 1, t - 1), p)
+                TL = cr.solve_left(VL, Vt[:, :lsz], p, d)
+                TR = cr.solve_left(VR, Vt[:, lsz:sz - 1], p, d)
+                RL = cr.solve_left(VL, self._pair_rows(form, t, lo, lp), p, d)
+                RR = cr.solve_left(VR, self._pair_rows(form, t, lp + 1, t - 1), p, d)
                 letter = ('d' + digs(TL) + digs(TR) + digs(Vt[:, -1])
                           + digs(RL) + digs(RR))
                 for l in range(k):
-                    # sibling block X[j, i] = B[j, i][l], i in L, j in R;
-                    # factor as V_R^T Q_l V_L
+                    # sibling block X[j, i] = B[j, i][l], i in L, j in R,
+                    # factored as V_R^T Q_l V_L over R = Z/p^d. This is the one
+                    # step that is FALSE over the ring with a naive interface;
+                    # the saturated bases VL, VR make it hold (Cor. cor:merge).
                     X = np.zeros((rsz, lsz), dtype=np.int64)
                     for jj in range(lp + 1, t):
                         for ii in range(lo, lp + 1):
                             label = form.get((jj, ii))
                             if label:
-                                X[jj - lp - 1, ii - lo] = label[l] % p
-                    Y = _solve_xa_eq_b(VR, X.T, p).T   # Q_l V_L, (r x lsz)
-                    Ql = _solve_xa_eq_b(VL, Y, p)
+                                X[jj - lp - 1, ii - lo] = label[l] % q
+                    Ql = cr.factor_two_sided(X, VL, VR, p, d)
                     letter += digs(Ql)
             V[t] = Vt
             built[id(node)] = Tree(letter,
@@ -581,18 +617,90 @@ class CutRankTreeGroups:
     # ---------------- encodings and class operations ----------------
 
     def multiply(self, n: int, form: Dict, g, h):
-        """Reference implementation of the group law (identical to the word
-        class: the group depends on the form, not the layout)."""
+        """Reference implementation of the group law over R = Z/p^d (identical
+        to the word class: the group depends on the form, not the layout)."""
         (b1, a1), (b2, a2) = g, h
-        b = [(u + v) % self.p for u, v in zip(b1, b2)]
+        b = [(u + v) % self.q for u, v in zip(b1, b2)]
         for (j, i), label in form.items():
             c = a1[j - 1] * a2[i - 1]
             for l in range(self.k):
-                b[l] = (b[l] + label[l] * c) % self.p
-        return tuple(b), tuple((u + v) % self.p for u, v in zip(a1, a2))
+                b[l] = (b[l] + label[l] * c) % self.q
+        return tuple(b), tuple((u + v) % self.q for u, v in zip(a1, a2))
 
     def identity(self, n: int):
         return (0,) * self.k, (0,) * n
+
+    def simulate(self, advice: Tree, gx, gy, gz) -> bool:
+        """Run the multiplication automaton directly over the convolved trees:
+        True iff the advice accepts gx * gy = gz. Mirrors the M transition
+        (post-order, bottom-up) without building the product tree automaton, so
+        the saturated tree merge can be checked against the reference law for
+        any ring alphabet. gx, gy, gz are (b, a) elements over the advice shape."""
+        k, r, q = self.k, self.r, self.q
+        tx, ty, tz = (self.encode(g, advice) for g in (gx, gy, gz))
+
+        def dot(M, w):
+            return tuple(sum(row[j] * w[j] for j in range(r)) % q for row in M)
+
+        def post(an, xn, yn, zn):
+            """Bottom-up state (s, wx, wy) of a layout subtree, or None (dead)."""
+            a = an.label
+            xi, yi, zi = int(xn.label), int(yn.label), int(zn.label)
+            if (xi + yi - zi) % q:
+                return None
+            lc = (an.left, xn.left, yn.left, zn.left)
+            rc = (an.right, xn.right, yn.right, zn.right)
+            if a in self.leaf_letters:
+                if an.left is not None or an.right is not None:
+                    return None
+                v = self.leaf_letters[a]
+                return ((0,) * k, tuple(v[i] * xi % q for i in range(r)),
+                        tuple(v[i] * yi % q for i in range(r)))
+            if a in self.unary_letters:
+                sub = post(*(lc if an.left is not None else rc))
+                if sub is None:
+                    return None
+                s, wx, wy = sub
+                T, v, R = self.unary_letters[a]
+                s = tuple((s[l] + xi * dot(R, wy)[l]) % q for l in range(k))
+                Twx, Twy = dot(T, wx), dot(T, wy)
+                return (s, tuple((Twx[i] + v[i] * xi) % q for i in range(r)),
+                        tuple((Twy[i] + v[i] * yi) % q for i in range(r)))
+            if a in self.binary_letters:
+                subL, subR = post(*lc), post(*rc)
+                if subL is None or subR is None:
+                    return None
+                sL, wxL, wyL = subL
+                sR, wxR, wyR = subR
+                TL, TR, v, RL, RR, Q = self.binary_letters[a]
+                readL, readR = dot(RL, wyL), dot(RR, wyR)
+                s = tuple((sL[l] + sR[l] + xi * (readL[l] + readR[l])
+                           + sum(Q[l][u][t] * wxR[u] * wyL[t]
+                                 for u in range(r) for t in range(r))) % q
+                          for l in range(k))
+                TwxL, TwxR = dot(TL, wxL), dot(TR, wxR)
+                TwyL, TwyR = dot(TL, wyL), dot(TR, wyR)
+                return (s, tuple((TwxL[i] + TwxR[i] + v[i] * xi) % q for i in range(r)),
+                        tuple((TwyL[i] + TwyR[i] + v[i] * yi) % q for i in range(r)))
+            return None
+
+        # the top k nodes of every tree are the center chain; descend past them
+        # to the layout root, run the subtree recursion, then consume the chain
+        chain = []
+        an, xn, yn, zn = advice, tx, ty, tz
+        for _ in range(k):
+            chain.append((an, xn, yn, zn))
+            an, xn, yn, zn = an.left, xn.left, yn.left, zn.left
+        state = post(an, xn, yn, zn)
+        if state is None:
+            return False
+        s = state[0]
+        # center coordinate j is the (k-1-j)-th chain node from the top
+        for j in range(k):
+            _, xc, yc, zc = chain[k - 1 - j]
+            if (int(zc.label) - int(xc.label) - int(yc.label)) % q != s[j]:
+                return False
+        return True
 
     def _strip_center(self, tree: Tree) -> Tree:
         node = tree
@@ -610,9 +718,9 @@ class CutRankTreeGroups:
         b, a = element
         seq, pos, size = self._layout(shape)
         if len(b) != self.k or len(a) != len(seq):
-            raise ValueError(f"element must be (Z_p^{self.k}, Z_p^{len(seq)})")
-        if not all(0 <= d < self.p for d in tuple(b) + tuple(a)):
-            raise ValueError(f"components must lie in Z_{self.p}")
+            raise ValueError(f"element must be (R^{self.k}, R^{len(seq)}), R = Z/{self.q}")
+        if not all(0 <= x < self.q for x in tuple(b) + tuple(a)):
+            raise ValueError(f"components must lie in Z/{self.q}")
         built = {}
         for node in seq:
             built[id(node)] = Tree(

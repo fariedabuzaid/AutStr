@@ -334,22 +334,24 @@ def factor_two_sided(X: np.ndarray, Vbar: np.ndarray, Wbar: np.ndarray,
                      p: int, d: int) -> np.ndarray:
     """The two-sided factorisation over R = Z/p^d (Corollary "cor:merge").
 
-    Given ``X`` (m x m'), a right-invertible ``Vbar`` (r x m') and a
-    right-invertible ``Wbar`` (r' x m) such that every row of X lies in
-    ``rowsp(Vbar)`` and every column of X lies in ``colsp(Wbar^T)``, returns
-    ``Q`` (r' x r) with ``X == Wbar^T @ Q @ Vbar``. The valuations are absorbed
-    into Q, not the (free, saturated) interfaces. Raises if the containment
-    hypotheses are violated.
+    Given ``X`` (m x m'), a saturated ``Vbar`` (r x m') and a saturated
+    ``Wbar`` (r' x m) such that every row of X lies in ``rowsp(Vbar)`` and every
+    column of X lies in ``colsp(Wbar^T)``, returns ``Q`` (r' x r) with
+    ``X == Wbar^T @ Q @ Vbar``. The valuations are absorbed into Q, not the
+    (free) interfaces. Raises if the containment hypotheses are violated.
+
+    Solved as two ring linear systems (``Wbar^T Y = X`` then ``Q Vbar = Y``),
+    which -- unlike a right-inverse -- tolerates zero-padded bases whose true
+    rank (the module cut-rank) is below r, and reduces to the field two-step at
+    d = 1. Correctness of the result is confirmed by reconstruction.
     """
     q = p ** d
     X = np.asarray(X, dtype=np.int64) % q
-    Yr = right_inverse(Vbar, p, d)                    # Vbar @ Yr = I_r
-    A = (X @ Yr) % q                                  # X = A @ Vbar
-    Z = right_inverse(Wbar, p, d)                     # Wbar @ Z = I_{r'}
-    Q = (Z.T @ A) % q                                 # A = Wbar^T @ Q
-    recon = (np.asarray(Wbar, dtype=np.int64).T @ Q
-             @ np.asarray(Vbar, dtype=np.int64)) % q
-    if not np.array_equal(recon, X):
+    Vbar = np.asarray(Vbar, dtype=np.int64) % q
+    Wbar = np.asarray(Wbar, dtype=np.int64) % q
+    Y = solve_left(Wbar, X.T, p, d).T                 # Wbar^T Y = X, Y = Q Vbar
+    Q = solve_left(Vbar, Y, p, d)                     # Q Vbar = Y
+    if not np.array_equal((Wbar.T @ Q @ Vbar) % q, X):
         raise ValueError("factorisation hypotheses violated: X is not in "
                          "Wbar^T . R^{r'xr} . Vbar (rows/cols not in the "
                          "interface spans)")
