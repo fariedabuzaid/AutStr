@@ -43,16 +43,30 @@ marked vertex's current label. The advice alphabet is correspondingly small,
 and MSO queries compile far faster -- two-colourability is a 9-state automaton
 at k = 2, against a minute at tree-width 1.
 
+**Rank-width <= r** (`RankWidthClass`): the advice is a rank decomposition
+(a binary tree whose leaves are the vertices) annotated with the GF(2)
+factorization data of its cuts -- the graph analog of the bounded-rank-width
+group classes, compiled with the same `chain_ring` linear algebra at
+p = 2, d = 1. Each node carries a basis-change matrix per child and each
+binary node the bilinear form of its sibling block; adjacency of x and y is
+w_y^T Q w_x at the node where their subtrees meet, so the E automaton only
+carries the marked vertices' r-bit interface vectors. Rank-width lower-bounds
+clique-width (rw <= cw <= 2^{rw+1} - 1) and is bounded on dense graphs where
+tree-width is not (cliques have rank-width 1).
+
 Vertex sets are encoded synchronously over the advice: the element tree is
 the union of the root paths to the set's members, labelled '1' on members
 and '0' on the way (the empty set is the single node '0'). For tree-width
-every node is a vertex; for clique-width only the leaves are.
-`TreeWidthGraph` and `CliqueWidthGraph` encapsulate single graphs and convert
-to networkx.
+every node is a vertex; for clique-width and rank-width only the leaves are.
+`TreeWidthGraph`, `CliqueWidthGraph` and `RankWidthGraph` encapsulate single
+graphs and convert to networkx.
 """
 import itertools as it
 from typing import Dict, List, Optional, Sequence, Set, Tuple, Union
 
+import numpy as np
+
+from autstr import chain_ring as cr
 from autstr.sparse_tree_automata import SparseTreeAutomaton, Tree
 from autstr.tree_presentations import TreeAutomaticPresentation
 from autstr.tree_uniform import UniformlyTreeAutomaticClass, sta_from_delta
@@ -893,6 +907,608 @@ class CliqueWidthClass:
         trees = {name: graph.encode_set(subset)
                  for name, subset in sets.items()}
         return self.cls.check(phi, advice, **trees)
+
+    def get_structure(self, graph) -> TreeAutomaticPresentation:
+        """The MSO0-style tree-automatic presentation of a single graph."""
+        return self.cls.get_structure(self.advice(graph))
+
+
+# ====================================================================
+# Graphs of bounded rank-width
+# ====================================================================
+
+class RankWidthGraph:
+    """A graph with a *rank decomposition*: a binary layout tree whose
+    leaves are the vertices (numbered left to right), plus an edge set.
+
+    The width of the decomposition is the maximum, over all subtrees S, of
+    the GF(2) rank of the bipartite adjacency matrix between the leaves
+    inside S and the leaves outside (the *cut-rank*); the rank-width of the
+    graph is the minimum over decompositions. This is the graph analog of
+    the module cut-rank of the bounded-rank-width group classes, and the
+    class compiler below reuses the same linear algebra
+    (`autstr.chain_ring` at p = 2, d = 1). Unary layout nodes are allowed
+    (they do not change the cuts).
+    """
+
+    def __init__(self, shape: Tree, edges):
+        self.shape = shape
+        self._leaf_nodes = self._leaves(shape)
+        self.n = len(self._leaf_nodes)
+        self.vertices = list(range(self.n))
+        self.edges: Set[frozenset] = set()
+        for e in edges:
+            u, v = tuple(e)
+            if u == v or not (0 <= u < self.n and 0 <= v < self.n):
+                raise ValueError(f"bad edge {(u, v)} over {self.n} vertices")
+            self.edges.add(frozenset((u, v)))
+        A = np.zeros((self.n, self.n), dtype=np.int64)
+        for e in self.edges:
+            u, v = tuple(e)
+            A[u, v] = A[v, u] = 1
+        self.adjacency = A
+        # contiguous leaf span [lo, hi) per node, leaves left to right
+        self.span: Dict[int, Tuple[int, int]] = {}
+        counter = [0]
+
+        def mark(node):
+            lo = counter[0]
+            if node.left is None and node.right is None:
+                counter[0] += 1
+            else:
+                if node.left is not None:
+                    mark(node.left)
+                if node.right is not None:
+                    mark(node.right)
+            self.span[id(node)] = (lo, counter[0])
+
+        mark(shape)
+
+    @staticmethod
+    def _leaves(node: Tree) -> List[Tree]:
+        found, stack = [], [node]
+        while stack:
+            current = stack.pop()
+            if current.left is None and current.right is None:
+                found.append(current)
+                continue
+            if current.right is not None:
+                stack.append(current.right)
+            if current.left is not None:
+                stack.append(current.left)
+        return found
+
+    def cut_matrix(self, node: Tree) -> np.ndarray:
+        """The bipartite adjacency block of the node's cut: rows the outside
+        vertices, columns the inside leaves (left-to-right)."""
+        lo, hi = self.span[id(node)]
+        outside = [u for u in self.vertices if not lo <= u < hi]
+        return self.adjacency[np.ix_(outside, list(range(lo, hi)))]
+
+    @property
+    def width(self) -> int:
+        """The rank-width of this decomposition: the maximum GF(2) cut-rank
+        over all proper subtrees."""
+        best = 0
+        stack = [self.shape]
+        while stack:
+            node = stack.pop()
+            lo, hi = self.span[id(node)]
+            if hi - lo < self.n:
+                best = max(best, cr.module_cut_rank(self.cut_matrix(node),
+                                                    2, 1))
+            for child in (node.left, node.right):
+                if child is not None:
+                    stack.append(child)
+        return best
+
+    # ---------------- sets ----------------
+
+    def encode_set(self, subset) -> Tree:
+        """The set as a tree of marks: '1' at the chosen leaves, '0' on the
+        paths above them, absent elsewhere. The empty set is a single '0'."""
+        wanted = set(subset)
+        if not wanted:
+            return Tree('0')
+        index = {id(leaf): i for i, leaf in enumerate(self._leaf_nodes)}
+
+        def build(node):
+            if node is None:
+                return None, False
+            if node.left is None and node.right is None:
+                marked = index[id(node)] in wanted
+                return (Tree('1') if marked else None), marked
+            left, has_left = build(node.left)
+            right, has_right = build(node.right)
+            if not (has_left or has_right):
+                return None, False
+            return Tree('0', left, right), True
+
+        tree, _ = build(self.shape)
+        return tree
+
+    def encode_set_padded(self, subset, pad: str = PAD) -> Tree:
+        """The set as a mark tree of the decomposition's *exact* shape,
+        `pad` outside the trimmed domain -- what the implicit evaluator
+        needs (it runs all tapes synchronously over the advice shape)."""
+        trimmed = self.encode_set(subset)
+
+        def build(node, m):
+            if node is None:
+                return None
+            return Tree(m.label if m is not None else pad,
+                        build(node.left, m.left if m is not None else None),
+                        build(node.right, m.right if m is not None else None))
+
+        return build(self.shape, trimmed)
+
+    def decode_set(self, tree: Tree) -> Set[int]:
+        """The vertex set of a mark tree (trimmed or full-shape/padded)."""
+        out = set()
+
+        def rec(node, mark, idx):
+            if node.left is None and node.right is None:
+                if mark is not None and mark.label == '1':
+                    out.add(idx)
+                return idx + 1
+            for child, mchild in ((node.left, mark.left if mark else None),
+                                  (node.right, mark.right if mark else None)):
+                if child is not None:
+                    idx = rec(child, mchild, idx)
+            return idx
+
+        rec(self.shape, tree, 0)
+        return out
+
+    def to_networkx(self):
+        import networkx as nx
+        graph = nx.Graph()
+        graph.add_nodes_from(self.vertices)
+        graph.add_edges_from(tuple(edge) for edge in self.edges)
+        return graph
+
+    # ---------------- standard families ----------------
+
+    @staticmethod
+    def caterpillar(n: int) -> Tree:
+        """The linear (caterpillar) decomposition: leaves 0..n-1 hang left
+        to right off a left-deep spine."""
+        if n < 1:
+            raise ValueError("need at least one vertex")
+        node = Tree('s')
+        for _ in range(n - 1):
+            node = Tree('s', node, Tree('s'))
+        return node
+
+    @classmethod
+    def clique(cls, n: int) -> "RankWidthGraph":
+        """K_n: every crossing block is all ones -- rank-width 1 on any
+        decomposition."""
+        return cls(cls.caterpillar(n),
+                   [(i, j) for i in range(n) for j in range(i + 1, n)])
+
+    @classmethod
+    def path(cls, n: int) -> "RankWidthGraph":
+        """P_n in path order: one edge crosses each caterpillar cut --
+        rank-width 1."""
+        return cls(cls.caterpillar(n), [(i, i + 1) for i in range(n - 1)])
+
+    @classmethod
+    def cycle(cls, n: int) -> "RankWidthGraph":
+        """C_n: two edges cross the middle caterpillar cuts -- width 2 on
+        this decomposition (and rank-width 2 for n >= 5)."""
+        if n < 3:
+            raise ValueError("a cycle needs at least three vertices")
+        return cls(cls.caterpillar(n),
+                   [(i, i + 1) for i in range(n - 1)] + [(n - 1, 0)])
+
+    @classmethod
+    def complete_bipartite(cls, left: int, right: int) -> "RankWidthGraph":
+        """K_{left,right}, one part then the other: identical rows on every
+        cut -- rank-width 1."""
+        return cls(cls.caterpillar(left + right),
+                   [(i, left + j) for i in range(left) for j in range(right)])
+
+
+class RankWidthClass:
+    """The uniformly tree-automatic class of graphs of rank-width <= r,
+    presented over set-valued elements (MSO0 style: Sing, Subset, E).
+
+    The advice is a rank decomposition annotated with the GF(2)
+    factorization data of its cuts, exactly as the bounded-rank-width group
+    classes annotate theirs: each node carries a basis-change matrix per
+    child (w <- T w) and each binary node the bilinear form Q of its sibling
+    block, so that two vertices x in the left and y in the right subtree are
+    adjacent iff w_y^T Q w_x over F_2, where w is the vertex's interface
+    vector (its column in the saturated basis of the cut, composed through
+    the T maps). The letters are
+
+        leaf:   'a' + w (r bits)          -- the vertex's interface vector
+        unary:  'b' + T (r*r bits)
+        binary: 'd' + TL + TR + Q (3 r*r bits)
+
+    and every well-shaped advice presents some graph of rank-width <= r.
+    Vertex sets are encoded as union-of-root-path marks (see
+    `RankWidthGraph.encode_set`); the E automaton carries each marked
+    vertex's interface vector -- O(2^{2r}) states however large the graph.
+
+    `advice(graph)` compiles a `RankWidthGraph` whose decomposition has
+    width <= r into the annotated advice (`chain_ring.saturate` /
+    `solve_left` / `factor_two_sided` at p = 2, d = 1); `check_implicit` and
+    `evaluate_implicit` run over the functional atoms without building any
+    automaton. The flat letter alphabet caps r at 2 (2^{3r^2} binary
+    letters); factored letters as in the group classes are future work.
+    """
+
+    def __init__(self, r: int, max_states: Optional[int] = None):
+        if r < 1:
+            raise ValueError("rank-width bound must be >= 1")
+        n_letters = 2 ** r + 2 ** (r * r) + 2 ** (3 * r * r)
+        if n_letters > 20000:
+            raise ValueError(
+                f"the advice alphabet would have {n_letters} letters; "
+                f"r <= 2 is supported (factored letters are future work)")
+        self.r = r
+        self.max_states = max_states
+        vecs = list(it.product((0, 1), repeat=r))
+        mats = list(it.product((0, 1), repeat=r * r))
+
+        def mat(bits):
+            return tuple(tuple(bits[i * r + j] for j in range(r))
+                         for i in range(r))
+
+        bstr = lambda bits: ''.join(str(b) for b in bits)
+        self.leaf_letters = {'a' + bstr(w): w for w in vecs}
+        self.unary_letters = {'b' + bstr(m): mat(m) for m in mats}
+        self.binary_letters = {
+            'd' + bstr(tl) + bstr(tr) + bstr(q): (mat(tl), mat(tr), mat(q))
+            for tl in mats for tr in mats for q in mats}
+        self.advice_letters = (set(self.leaf_letters)
+                               | set(self.unary_letters)
+                               | set(self.binary_letters))
+        self.sigma = {PAD, '0', '1'} | self.advice_letters
+        self.marks = {PAD, '0', '1'}
+        self._cls = None
+
+    @property
+    def cls(self) -> UniformlyTreeAutomaticClass:
+        """The presentation, built lazily (the r = 2 E automaton enumerates
+        a few million transitions)."""
+        if self._cls is None:
+            self._cls = UniformlyTreeAutomaticClass({
+                'U': self._universe_automaton(),
+                'Sing': self._sing_automaton(),
+                'Subset': self._subset_automaton(),
+                'E': self._edge_automaton(),
+            }, padding_symbol=PAD, max_states=self.max_states)
+            self._cls.element_alphabet = [PAD, '0', '1']
+        return self._cls
+
+    # ---------------- letters ----------------
+
+    def _kind(self, a):
+        """('a', w) | ('b', T) | ('d', TL, TR, Q), or None."""
+        if a in self.leaf_letters:
+            return ('a', self.leaf_letters[a])
+        if a in self.unary_letters:
+            return ('b', self.unary_letters[a])
+        if a in self.binary_letters:
+            return ('d',) + self.binary_letters[a]
+        return None
+
+    @staticmethod
+    def _shape_ok(kind, left, right) -> bool:
+        if kind[0] == 'a':
+            return left is None and right is None
+        if kind[0] == 'd':
+            return left is not None and right is not None
+        return (left is None) != (right is None)
+
+    def _dot(self, T, w):
+        return tuple(sum(T[i][j] * w[j] for j in range(self.r)) % 2
+                     for i in range(self.r))
+
+    def _form(self, Q, wr, wl):
+        return sum(wr[i] * Q[i][j] * wl[j]
+                   for i in range(self.r) for j in range(self.r)) % 2
+
+    # ---------------- the transition functions (shared with the atoms) ----
+
+    def _u_delta(self, lq, rq, a, x):
+        """U(advice, x): well-shaped advice, x a set encoding over the
+        leaves. Phases A (no set domain below), S (a marked domain), Z (the
+        empty set, only at the root)."""
+        kind = self._kind(a)
+        if kind is None or not self._shape_ok(kind, lq, rq):
+            return 'dead'
+        phases = [q for q in (lq, rq) if q is not None]
+        if 'Z' in phases:
+            return 'dead'
+        if x == PAD:
+            return 'A' if 'S' not in phases else 'dead'
+        if x == '1':
+            return 'S' if kind[0] == 'a' else 'dead'
+        if x == '0':
+            return 'S' if 'S' in phases else 'Z'
+        return 'dead'
+
+    def _sing_delta(self, lq, rq, a, x):
+        if self._kind(a) is None:
+            return 'dead'
+        found = sum(1 for q in (lq, rq) if q == 'M')
+        if x == PAD:
+            return 'A' if found == 0 else 'dead'
+        if x == '1':
+            return 'M' if found == 0 and a in self.leaf_letters else 'dead'
+        if x == '0':
+            return 'M' if found == 1 else 'dead'
+        return 'dead'
+
+    _SUBSET_OK = {(PAD, PAD), (PAD, '0'), (PAD, '1'),
+                  ('0', '0'), ('0', '1'), ('1', '1')}
+
+    def _subset_delta(self, lq, rq, a, x, y):
+        if self._kind(a) is None or (x, y) not in self._SUBSET_OK:
+            return 'dead'
+        return 'ok'
+
+    def _e_delta(self, lq, rq, a, x, y):
+        """E(advice, X, Y): X = {u}, Y = {v}, u != v adjacent. The state
+        carries the interface vector of each marked vertex below; the
+        binary node where they meet evaluates the bilinear form."""
+        kind = self._kind(a)
+        if kind is None or not self._shape_ok(kind, lq, rq):
+            return 'dead'
+
+        if kind[0] == 'a':
+            if (x, y) == (PAD, PAD):
+                return 'A'
+            if (x, y) == ('1', PAD):
+                return ('X', kind[1])
+            if (x, y) == (PAD, '1'):
+                return ('Y', kind[1])
+            return 'dead'                    # '0' on a leaf, or u = v
+
+        def parts(q):
+            """(x below, w_x, y below, w_y, decided bit or None)"""
+            if q in (None, 'A'):
+                return False, None, False, None, None
+            if q in ('D', 'N'):
+                return True, None, True, None, 1 if q == 'D' else 0
+            if q[0] == 'X':
+                return True, q[1], False, None, None
+            return False, None, True, q[1], None
+
+        if kind[0] == 'b':
+            q = lq if rq is None else rq
+            hx, wx, hy, wy, bit = parts(q)
+            T = kind[1]
+            wx = self._dot(T, wx) if wx is not None else None
+            wy = self._dot(T, wy) if wy is not None else None
+        else:
+            TL, TR, Q = kind[1], kind[2], kind[3]
+            lhx, lwx, lhy, lwy, lbit = parts(lq)
+            rhx, rwx, rhy, rwy, rbit = parts(rq)
+            if (lhx and rhx) or (lhy and rhy):
+                return 'dead'                # a set marked twice
+            hx, hy = lhx or rhx, lhy or rhy
+            bit = lbit if lbit is not None else rbit
+            wx = (self._dot(TL, lwx) if lwx is not None else
+                  self._dot(TR, rwx) if rwx is not None else None)
+            wy = (self._dot(TL, lwy) if lwy is not None else
+                  self._dot(TR, rwy) if rwy is not None else None)
+            if bit is None and hx and hy:
+                # the marks meet here: right-side vector against Q against
+                # the left-side vector, in the children's own bases
+                wr = rwx if rwx is not None else rwy
+                wl = lwx if lwx is not None else lwy
+                first = self._form(Q, wr, wl)
+                bit = first
+                wx = wy = None
+
+        if x != ('0' if hx else PAD) or y != ('0' if hy else PAD):
+            return 'dead'
+        if bit is not None:
+            return 'D' if bit else 'N'
+        if hx and hy:
+            return 'dead'                    # unreachable guard
+        if hx:
+            return ('X', wx)
+        if hy:
+            return ('Y', wy)
+        return 'A'
+
+    # ---------------- the automata ----------------
+
+    def _universe_automaton(self) -> SparseTreeAutomaton:
+        def delta(lq, rq, sym):
+            return self._u_delta(lq, rq, sym[0], sym[1])
+        return sta_from_delta(self.sigma, ['A', 'S', 'Z', 'dead'], 2, delta,
+                              {'S', 'Z'},
+                              tapes=[self.advice_letters, self.marks])
+
+    def _sing_automaton(self) -> SparseTreeAutomaton:
+        def delta(lq, rq, sym):
+            return self._sing_delta(lq, rq, sym[0], sym[1])
+        return sta_from_delta(self.sigma, ['A', 'M', 'dead'], 2, delta, {'M'},
+                              tapes=[self.advice_letters, self.marks])
+
+    def _subset_automaton(self) -> SparseTreeAutomaton:
+        def delta(lq, rq, sym):
+            return self._subset_delta(lq, rq, sym[0], sym[1], sym[2])
+        return sta_from_delta(self.sigma, ['ok', 'dead'], 3, delta, {'ok'},
+                              tapes=[self.advice_letters, self.marks,
+                                     self.marks])
+
+    def _edge_automaton(self) -> SparseTreeAutomaton:
+        vecs = list(it.product((0, 1), repeat=self.r))
+        states = (['A', 'D', 'N', 'dead'] +
+                  [('X', w) for w in vecs] + [('Y', w) for w in vecs])
+
+        def delta(lq, rq, sym):
+            return self._e_delta(lq, rq, sym[0], sym[1], sym[2])
+        return sta_from_delta(self.sigma, states, 3, delta, {'D'},
+                              tapes=[self.advice_letters, self.marks,
+                                     self.marks])
+
+    # ---------------- the advice compiler ----------------
+
+    def advice(self, graph: Union[RankWidthGraph, Tree]) -> Tree:
+        """Compile a rank decomposition into the annotated advice; raises if
+        some cut exceeds rank r. A pre-compiled advice tree passes through."""
+        if not isinstance(graph, RankWidthGraph):
+            return graph
+        r = self.r
+        bstr = lambda M: ''.join(str(int(v) % 2)
+                                 for v in np.asarray(M).flatten())
+        V: Dict[int, np.ndarray] = {}
+        built: Dict[int, Tree] = {}
+
+        def rec(node):
+            lo, hi = graph.span[id(node)]
+            Vt = np.zeros((r, hi - lo), dtype=np.int64)
+            if hi - lo < graph.n:
+                basis, _ = cr.saturate(graph.cut_matrix(node), 2, 1)
+                if basis.shape[0] > r:
+                    raise ValueError(
+                        f"a cut has rank {basis.shape[0]} > r = {r}; this "
+                        f"decomposition has width {graph.width}")
+                Vt[:basis.shape[0]] = basis
+            L, R = node.left, node.right
+            if L is None and R is None:
+                letter = 'a' + bstr(Vt[:, 0])
+            elif L is None or R is None:
+                child = L if L is not None else R
+                rec(child)
+                clo, chi = graph.span[id(child)]
+                T = cr.solve_left(V[id(child)],
+                                  Vt[:, clo - lo:chi - lo], 2, 1)
+                letter = 'b' + bstr(T)
+            else:
+                rec(L)
+                rec(R)
+                llo, lhi = graph.span[id(L)]
+                rlo, rhi = graph.span[id(R)]
+                VL, VR = V[id(L)], V[id(R)]
+                TL = cr.solve_left(VL, Vt[:, llo - lo:lhi - lo], 2, 1)
+                TR = cr.solve_left(VR, Vt[:, rlo - lo:rhi - lo], 2, 1)
+                # sibling block, rows the right leaves, columns the left --
+                # the two-sided factorisation X = VR^T Q VL over F_2
+                X = graph.adjacency[np.ix_(list(range(rlo, rhi)),
+                                           list(range(llo, lhi)))]
+                Q = cr.factor_two_sided(X, VL, VR, 2, 1)
+                letter = 'd' + bstr(TL) + bstr(TR) + bstr(Q)
+            V[id(node)] = Vt
+            built[id(node)] = Tree(
+                letter,
+                built.get(id(L)) if L is not None else None,
+                built.get(id(R)) if R is not None else None)
+
+        rec(graph.shape)
+        return built[id(graph.shape)]
+
+    # ---------------- class-level operations ----------------
+
+    def evaluate(self, phi):
+        """Evaluate an MSO query over the class; variables range over vertex
+        sets. See UniformlyTreeAutomaticClass.evaluate."""
+        return self.cls.evaluate(phi)
+
+    def check(self, phi, graph: Union[RankWidthGraph, Tree], **sets) -> bool:
+        """Model check an MSO query against a single graph."""
+        advice = self.advice(graph)
+        if not sets:
+            return self.cls.check(phi, advice)
+        if not isinstance(graph, RankWidthGraph):
+            raise ValueError("set assignments require a graph object")
+        trees = {name: graph.encode_set(subset)
+                 for name, subset in sets.items()}
+        return self.cls.check(phi, advice, **trees)
+
+    def _implicit_atoms(self) -> Dict:
+        """Functional bottom-up atoms (Dom, Adv, Sing, Subset, E) from the
+        shared transition functions -- nothing is built."""
+        from autstr.implicit import ImplicitTA
+        marks = self.marks
+
+        def wrap2(delta, accepting):
+            def build(args):
+                adv, xv = args[0], args[1]
+                return ImplicitTA(
+                    args,
+                    lambda sym, left, right: 'dead'
+                    if 'dead' in (left, right) or sym[xv] not in marks
+                    else delta(left, right, sym[adv], sym[xv]),
+                    accepting)
+            return build
+
+        def wrap3(delta, accepting):
+            def build(args):
+                adv, xv, yv = args
+                return ImplicitTA(
+                    args,
+                    lambda sym, left, right: 'dead'
+                    if 'dead' in (left, right) or sym[xv] not in marks
+                    or sym[yv] not in marks
+                    else delta(left, right, sym[adv], sym[xv], sym[yv]),
+                    accepting)
+            return build
+
+        def Adv(args):
+            adv = args[0]
+            return ImplicitTA(
+                args,
+                lambda sym, left, right: 'dead'
+                if 'dead' in (left, right)
+                else self._u_delta(left, right, sym[adv], PAD),
+                lambda st: st == 'A')
+
+        return {
+            'Dom': wrap2(self._u_delta, lambda st: st in ('S', 'Z')),
+            'Adv': Adv,
+            'Sing': wrap2(self._sing_delta, lambda st: st == 'M'),
+            'Subset': wrap3(self._subset_delta, lambda st: st == 'ok'),
+            'E': wrap3(self._e_delta, lambda st: st == 'D'),
+        }
+
+    @property
+    def implicit_cls(self):
+        """The fully implicit presentation (functional atoms only)."""
+        from autstr.implicit import ImplicitTreeClass
+        return ImplicitTreeClass(self._implicit_atoms(), [PAD, '0', '1'])
+
+    def check_implicit(self, phi, graph: Union[RankWidthGraph, Tree],
+                       **sets) -> bool:
+        """Like `check`, evaluated implicitly (no automaton is built). Set
+        assignments are padded to the advice shape (the implicit evaluator
+        runs all tapes synchronously)."""
+        advice = self.advice(graph)
+        trees = {}
+        if sets:
+            if not isinstance(graph, RankWidthGraph):
+                raise ValueError("set assignments require a graph object")
+            trees = {name: graph.encode_set_padded(subset)
+                     for name, subset in sets.items()}
+        return self.implicit_cls.check(phi, advice, **trees)
+
+    def evaluate_implicit(self, phi, graph: Union[RankWidthGraph, Tree],
+                          **sets):
+        """The satisfying set of phi on the graph, computed implicitly:
+        unassigned free variables stay open. Yields assignments
+        {var: vertex set} when a graph object is given (raw mark trees for a
+        bare advice); `len` is the exact solution count."""
+        advice = self.advice(graph)
+        trees = {}
+        if sets:
+            if not isinstance(graph, RankWidthGraph):
+                raise ValueError("set assignments require a graph object")
+            trees = {name: graph.encode_set_padded(subset)
+                     for name, subset in sets.items()}
+        sols = self.implicit_cls.evaluate(phi, advice, **trees)
+        if isinstance(graph, RankWidthGraph):
+            from autstr.implicit import MappedSolutions
+            return MappedSolutions(sols, graph.decode_set)
+        return sols
 
     def get_structure(self, graph) -> TreeAutomaticPresentation:
         """The MSO0-style tree-automatic presentation of a single graph."""

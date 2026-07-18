@@ -96,11 +96,28 @@ claim-and-verify microcode, scattered width still m over the ring.
   classes now route `check_implicit`/`evaluate_implicit` through their
   `implicit_cls` property.
 
+## Graphs of bounded rank-width — ADDED (2026-07-18)
+
+`RankWidthGraph` / `RankWidthClass` in `autstr/tree_graphs.py`: the graph
+analog of the bounded-rank-width group classes, sharing their `chain_ring`
+linear algebra at p = 2, d = 1. The advice is a rank decomposition annotated
+with basis-change matrices per child and the sibling-block bilinear form Q
+per binary node; adjacency of x and y is w_y^T Q w_x at the meet, so the E
+automaton carries only the marked vertices' r-bit interface vectors. MSO0
+signature (Sing, Subset, E) with union-of-root-path set marks like the other
+graph classes; `check_implicit`/`evaluate_implicit` run over functional
+atoms (set assignments padded to the advice shape — the implicit evaluator
+is synchronous). Flat letters cap r at 2 (2^{3r^2} binary letters; factored
+letters as in the group classes are future work). Validated: family widths
+(cliques/paths/K_{a,b} width 1, cycles 2), E == edge set on families and 15
+random graphs (explicit + implicit), MSO 2-colourability decided class-wide
+at r = 1, neighborhood/domain satisfying sets. tests/test_rank_width.py.
+
 ## Still pending on this branch (not ring-specific)
 
-- README update: document the bounded-rank-width classes, chain-ring depth `d`,
-  factored letters, `check_implicit` and `evaluate_implicit`; add a changelog
-  entry.
+- README update: document the bounded-rank-width classes (groups *and*
+  graphs), chain-ring depth `d`, factored letters, `check_implicit` and
+  `evaluate_implicit`; add a changelog entry.
 - Version stays v3.1.0 for this branch (no further bumps).
 
 ## Non-issues (checked)
