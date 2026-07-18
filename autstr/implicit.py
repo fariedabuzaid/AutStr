@@ -26,11 +26,22 @@ alphabet; the cost is set by quantifier alternation, not alphabet size.
 Two shapes, one combinator pattern:
   * `ImplicitDFA`   -- string automata, run left-to-right.
   * `ImplicitTA`    -- bottom-up tree automata, run post-order.
+
+Beyond the boolean `check_*` entry points, the module offers the
+*satisfying-set primitive*: `StringSolutionSet`/`TreeSolutionSet` compute, for
+a formula with open free variables over a fixed advice, the exact number of
+satisfying assignments (a count DP over the reachable composite states — no
+enumeration) and lazily enumerate them. `ImplicitClass`/`ImplicitTreeClass`
+package atoms + element alphabet as a first-class *fully implicit
+presentation*: a uniformly automatic class given purely functionally, offering
+model checking and satisfying-set evaluation and never compiling anything.
 """
+import itertools as it
 from typing import Callable, Dict, FrozenSet, Iterable, Sequence
 
 from nltk.sem import logic
 
+from autstr.sparse_tree_automata import Tree
 from autstr.utils.logic import get_free_elementary_vars
 from autstr.utils.misc import encode_symbol, get_unique_id
 
@@ -208,6 +219,183 @@ def run_ta(a: ImplicitTA, inputs: Dict[str, object]) -> bool:
 
 
 # ======================================================================
+# Satisfying sets (the evaluate_implicit primitive)
+# ======================================================================
+
+class StringSolutionSet:
+    """The satisfying assignments for the open variables of an implicit
+    string automaton over a fixed input.
+
+    One forward pass stores, per position, the reachable composite states
+    with their outgoing edges (one per guessed symbol tuple); one backward
+    pass counts the accepted suffixes per state. `len` is then the exact
+    number of satisfying assignments without any enumeration, truthiness is
+    non-emptiness, and iteration lazily yields `{var: word}` dicts (each
+    word a list of element symbols, one per position). Deterministic
+    composite states make the count exact: every assignment has exactly one
+    run."""
+
+    def __init__(self, a: ImplicitDFA, inputs: Dict[str, Sequence],
+                 length: int, solve_vars: Sequence[str], alphabet_of):
+        self.variables = sorted(solve_vars)
+        self._length = length
+        self._tuples = list(it.product(
+            *[list(alphabet_of(v)) for v in self.variables]))
+        fixed = [t for t in a.tapes if t not in set(self.variables)]
+        init = a.initial()
+        layer = {init}
+        edges = []              # edges[i]: {state: [(tuple, next_state)]}
+        for i in range(length):
+            base = {t: inputs[t][i] for t in fixed}
+            out = {}
+            nxt = set()
+            for s in layer:
+                row = []
+                for tup in self._tuples:
+                    s2 = a.step(s, {**base,
+                                    **dict(zip(self.variables, tup))})
+                    row.append((tup, s2))
+                    nxt.add(s2)
+                out[s] = row
+            edges.append(out)
+            layer = nxt
+        cnt = {s: 1 for s in layer if a.accepting(s)}
+        counts = [cnt]
+        for i in range(length - 1, -1, -1):
+            prev = {}
+            for s, row in edges[i].items():
+                total = sum(cnt.get(s2, 0) for _, s2 in row)
+                if total:
+                    prev[s] = total
+            counts.append(prev)
+            cnt = prev
+        counts.reverse()
+        self._edges = edges
+        self._counts = counts
+        self._init = init
+
+    def __len__(self):
+        return self._counts[0].get(self._init, 0)
+
+    def __bool__(self):
+        return len(self) > 0
+
+    def __iter__(self):
+        if not len(self):
+            return
+        words = {v: [] for v in self.variables}
+
+        def rec(i, s):
+            if i == self._length:
+                yield {v: list(w) for v, w in words.items()}
+                return
+            nxt = self._counts[i + 1]
+            for tup, s2 in self._edges[i][s]:
+                if nxt.get(s2, 0):
+                    for v, x in zip(self.variables, tup):
+                        words[v].append(x)
+                    yield from rec(i + 1, s2)
+                    for v in self.variables:
+                        words[v].pop()
+
+        yield from rec(0, self._init)
+
+
+class TreeSolutionSet:
+    """The satisfying assignments for the open variables of an implicit
+    bottom-up tree automaton over a fixed input; assignments are labelled
+    trees of the input's exact shape. A bottom-up pass counts, per node and
+    reachable state, the subtree labelings that reach it; `len` sums the
+    accepting root states, iteration re-derives the labelings top-down."""
+
+    def __init__(self, a: ImplicitTA, inputs: Dict[str, object],
+                 solve_vars: Sequence[str], alphabet_of):
+        self.variables = sorted(solve_vars)
+        self._a = a
+        self._tuples = list(it.product(
+            *[list(alphabet_of(v)) for v in self.variables]))
+        self._fixed = [t for t in a.tapes if t not in set(self.variables)]
+        self._tables = {}       # id(shape node) -> {state: count}
+        self._root = {t: inputs[t] for t in self._fixed}
+        root_tab = self._table(self._root)
+        self._total = sum(cn for s, cn in root_tab.items()
+                          if a.accepting(s))
+        self._root_tab = root_tab
+
+    def _maps(self, node_map):
+        anynode = node_map[self._fixed[0]]
+        lmap = ({t: node_map[t].left for t in self._fixed}
+                if anynode.left is not None else None)
+        rmap = ({t: node_map[t].right for t in self._fixed}
+                if anynode.right is not None else None)
+        return anynode, lmap, rmap
+
+    def _table(self, node_map):
+        anynode, lmap, rmap = self._maps(node_map)
+        ltab = self._table(lmap) if lmap else {None: 1}
+        rtab = self._table(rmap) if rmap else {None: 1}
+        base = {t: node_map[t].label for t in self._fixed}
+        out = {}
+        for tup in self._tuples:
+            sym = {**base, **dict(zip(self.variables, tup))}
+            for l, cl in ltab.items():
+                for r, cr in rtab.items():
+                    s = self._a.step(sym, l, r)
+                    out[s] = out.get(s, 0) + cl * cr
+        self._tables[id(anynode)] = out
+        return out
+
+    def __len__(self):
+        return self._total
+
+    def __bool__(self):
+        return self._total > 0
+
+    def _enum(self, node_map, target):
+        anynode, lmap, rmap = self._maps(node_map)
+        ltab = (self._tables[id(lmap[self._fixed[0]])] if lmap
+                else {None: 1})
+        rtab = (self._tables[id(rmap[self._fixed[0]])] if rmap
+                else {None: 1})
+        base = {t: node_map[t].label for t in self._fixed}
+        for tup in self._tuples:
+            sym = {**base, **dict(zip(self.variables, tup))}
+            for l in ltab:
+                for r in rtab:
+                    if self._a.step(sym, l, r) != target:
+                        continue
+                    for lsol in (self._enum(lmap, l) if lmap else ({},)):
+                        for rsol in (self._enum(rmap, r) if rmap else ({},)):
+                            yield {v: Tree(x, lsol.get(v), rsol.get(v))
+                                   for v, x in zip(self.variables, tup)}
+
+    def __iter__(self):
+        for s, cn in self._root_tab.items():
+            if cn and self._a.accepting(s):
+                yield from self._enum(self._root, s)
+
+
+class MappedSolutions:
+    """A solution set with a mapper applied to every assignment value
+    (e.g. decoding element words/trees back to group elements)."""
+
+    def __init__(self, base, mapper):
+        self._base = base
+        self._mapper = mapper
+        self.variables = base.variables
+
+    def __len__(self):
+        return len(self._base)
+
+    def __bool__(self):
+        return bool(self._base)
+
+    def __iter__(self):
+        for sol in self._base:
+            yield {v: self._mapper(w) for v, w in sol.items()}
+
+
+# ======================================================================
 # The AST evaluator (shared by strings and trees)
 # ======================================================================
 
@@ -297,14 +485,19 @@ def _mk_atom(entry, args: Sequence[str], wrap):
 # Class-level entry points (advice-relativized model checking)
 # ======================================================================
 
-def relativized_query(phi, assignments, relativize, variable_names):
-    """Close unassigned free variables, relativize to a fresh advice variable,
-    and add the Adv/Dom guards -- the same query the explicit `evaluate`/`check`
-    build, but returned as an expression for implicit evaluation.
+def relativized_query(phi, assignments, relativize, variable_names,
+                      close_free=True):
+    """Relativize to a fresh advice variable and add the Adv/Dom guards --
+    the same query the explicit `evaluate`/`check` build, but returned as an
+    expression for implicit evaluation. With `close_free` (the model-checking
+    contract) unassigned free variables are existentially closed; without it
+    (the satisfying-set contract) they stay open and are returned as the
+    solve variables.
 
     :param relativize: `UniformlyAutomaticClass._relativize` (static).
     :param variable_names: `UniformlyAutomaticClass._variable_names` (static).
-    :returns: (query expression, advice variable name, assigned variable names).
+    :returns: (query expression, advice variable name, assigned variable
+        names, solve variable names).
     """
     if isinstance(phi, str):
         phi = logic.Expression.fromstring(phi)
@@ -312,16 +505,19 @@ def relativized_query(phi, assignments, relativize, variable_names):
     unknown = set(assignments) - set(free)
     if unknown:
         raise ValueError(f"assignments for non-free variables: {unknown}")
-    for x in free:
-        if x not in assignments:
-            phi = logic.ExistsExpression(logic.Variable(x), phi)
-    assigned = get_free_elementary_vars(phi)
-    all_vars = sorted(variable_names(phi) | set(assigned)) or ['p']
+    if close_free:
+        for x in free:
+            if x not in assignments:
+                phi = logic.ExistsExpression(logic.Variable(x), phi)
+    solve = [] if close_free else sorted(set(free) - set(assignments))
+    open_vars = get_free_elementary_vars(phi)
+    assigned = sorted(set(open_vars) - set(solve))
+    all_vars = sorted(variable_names(phi) | set(open_vars)) or ['p']
     advice_var = get_unique_id(all_vars, 1)
     conjuncts = [relativize(phi, advice_var), f"Adv({advice_var})"]
-    conjuncts += [f"Dom({advice_var},{x})" for x in assigned]
+    conjuncts += [f"Dom({advice_var},{x})" for x in open_vars]
     query = logic.Expression.fromstring(" and ".join(f"({c})" for c in conjuncts))
-    return query, advice_var, assigned
+    return query, advice_var, assigned, solve
 
 
 def check_class_string(phi, advice, assignments, atoms, element_alphabet,
@@ -329,7 +525,7 @@ def check_class_string(phi, advice, assignments, atoms, element_alphabet,
     """Implicit model check over string automata: relativize then run. `atoms`
     maps each wrapped relation (Dom, Adv, and the class relations) to a
     `SparseDFA` or a functional builder `args -> ImplicitDFA`."""
-    query, advice_var, assigned = relativized_query(
+    query, advice_var, assigned, _ = relativized_query(
         phi, assignments, relativize, variable_names)
     advice = list(advice)
     inputs = {advice_var: advice}
@@ -348,9 +544,110 @@ def check_class_tree(phi, advice, assignments, atoms, element_alphabet,
     """Implicit model check over tree automata: relativize then run bottom-up.
     `atoms` maps each wrapped relation to a `SparseTreeAutomaton` or a functional
     builder `args -> ImplicitTA`."""
-    query, advice_var, assigned = relativized_query(
+    query, advice_var, assigned, _ = relativized_query(
         phi, assignments, relativize, variable_names)
     inputs = {advice_var: advice}
     for x in assigned:
         inputs[x] = assignments[x]
     return check_tree(query, atoms, inputs, lambda v: element_alphabet)
+
+
+def evaluate_class_string(phi, advice, assignments, atoms, element_alphabet,
+                          relativize, variable_names) -> StringSolutionSet:
+    """The satisfying set of a formula over the member presented by the
+    advice, computed implicitly: unassigned free variables stay *open* and
+    are solved for over the fixed advice. Returns a `StringSolutionSet` of
+    `{var: word}` assignments (exact `len` without enumeration)."""
+    query, advice_var, assigned, solve = relativized_query(
+        phi, assignments, relativize, variable_names, close_free=False)
+    advice = list(advice)
+    inputs = {advice_var: advice}
+    for x in assigned:
+        word = list(assignments[x])
+        if len(word) != len(advice):
+            raise ValueError(f"assignment {x!r} has length {len(word)}, "
+                             f"advice has length {len(advice)}")
+        inputs[x] = word
+    comb = _Combinators(
+        atom=lambda name, args: _mk_atom(atoms[name], args, dfa_atom),
+        product=dfa_product, complement=dfa_complement, project=dfa_project)
+    a = _build(query, comb, lambda v: element_alphabet)
+    return StringSolutionSet(a, inputs, len(advice), solve,
+                             lambda v: element_alphabet)
+
+
+def evaluate_class_tree(phi, advice, assignments, atoms, element_alphabet,
+                        relativize, variable_names) -> TreeSolutionSet:
+    """Tree analog of `evaluate_class_string`: the satisfying assignments
+    are labelled trees of the advice's shape."""
+    query, advice_var, assigned, solve = relativized_query(
+        phi, assignments, relativize, variable_names, close_free=False)
+    inputs = {advice_var: advice}
+    for x in assigned:
+        inputs[x] = assignments[x]
+    comb = _Combinators(
+        atom=lambda name, args: _mk_atom(atoms[name], args, ta_atom),
+        product=ta_product, complement=ta_complement, project=ta_project)
+    a = _build(query, comb, lambda v: element_alphabet)
+    return TreeSolutionSet(a, inputs, solve, lambda v: element_alphabet)
+
+
+# ======================================================================
+# Fully implicit presentations (the successors-based API)
+# ======================================================================
+
+class ImplicitClass:
+    """A uniformly automatic class given purely *functionally* -- the fully
+    implicit presentation. `atoms` maps every relation name (including the
+    wrapped 'Dom' and 'Adv') to a builder ``args -> ImplicitDFA`` (or an
+    explicit `SparseDFA` to wrap); `element_alphabet` lists the per-position
+    element symbols quantifiers guess from. Nothing is ever compiled: the
+    class offers implicit model checking and satisfying-set evaluation only,
+    so it reaches members whose presentation automata cannot be built."""
+
+    def __init__(self, atoms: Dict, element_alphabet: Sequence):
+        self.atoms = dict(atoms)
+        self.element_alphabet = list(element_alphabet)
+
+    @staticmethod
+    def _statics():
+        from autstr.uniform import UniformlyAutomaticClass as U
+        return U._relativize, U._variable_names
+
+    def check(self, phi, advice, **assignments) -> bool:
+        """Model check against the member presented by the advice word;
+        unassigned free variables are existentially closed."""
+        rel, names = self._statics()
+        return check_class_string(phi, advice, assignments, self.atoms,
+                                  self.element_alphabet, rel, names)
+
+    def evaluate(self, phi, advice, **assignments) -> StringSolutionSet:
+        """The satisfying set for the open free variables over the member
+        presented by the advice word."""
+        rel, names = self._statics()
+        return evaluate_class_string(phi, advice, assignments, self.atoms,
+                                     self.element_alphabet, rel, names)
+
+
+class ImplicitTreeClass:
+    """Tree analog of `ImplicitClass`: atoms are ``args -> ImplicitTA``
+    builders (or explicit `SparseTreeAutomaton`s), members are presented by
+    advice trees."""
+
+    def __init__(self, atoms: Dict, element_alphabet: Sequence):
+        self.atoms = dict(atoms)
+        self.element_alphabet = list(element_alphabet)
+
+    def check(self, phi, advice, **assignments) -> bool:
+        """Model check against the member presented by the advice tree;
+        unassigned free variables are existentially closed."""
+        rel, names = ImplicitClass._statics()
+        return check_class_tree(phi, advice, assignments, self.atoms,
+                                self.element_alphabet, rel, names)
+
+    def evaluate(self, phi, advice, **assignments) -> TreeSolutionSet:
+        """The satisfying set for the open free variables over the member
+        presented by the advice tree."""
+        rel, names = ImplicitClass._statics()
+        return evaluate_class_tree(phi, advice, assignments, self.atoms,
+                                   self.element_alphabet, rel, names)

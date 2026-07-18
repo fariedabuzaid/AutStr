@@ -73,12 +73,34 @@ coefficients mod q. Tested: fixed_k over Z/4 agrees with
 point-target Z/4 embeddings have module cut-width 1 and run through the ring
 claim-and-verify microcode, scattered width still m over the ring.
 
+## Implicit-presentation follow-ups — DONE (2026-07-18)
+
+- **`evaluate_implicit` (satisfying-set primitive).**
+  `StringSolutionSet`/`TreeSolutionSet` in `autstr/implicit.py`: for a formula
+  with *open* free variables over a fixed advice, one forward pass over the
+  reachable composite states plus a backward count DP give the exact number of
+  satisfying assignments without enumeration (`len`), and iteration lazily
+  yields them ({var: word} / {var: tree}). Exposed as `evaluate_implicit` on
+  `UniformlyAutomaticClass` / `UniformlyTreeAutomaticClass` (raw
+  words/trees) and on `CutRankGroups` / `CutRankTreeGroups` /
+  `CocycleRankWidthGroups`, which decode back to (b, a) tuples via new
+  `decode` inverses of their encoders (the tree decoders walk advice and
+  element tree in parallel, skipping factored entry stretches). Validated
+  against brute force (centralizers, inverse pairs, domain counts) on field
+  members and end-to-end on Z/8, factored width-2 Z/4, and ring microcode
+  members whose automata cannot be built.
+- **Fully implicit presentation type.** `ImplicitClass` /
+  `ImplicitTreeClass`: a uniformly automatic class given purely functionally
+  (atoms as `args -> ImplicitDFA/TA` builders + element alphabet), offering
+  `check` and `evaluate` only — nothing is ever compiled. The heavy group
+  classes now route `check_implicit`/`evaluate_implicit` through their
+  `implicit_cls` property.
+
 ## Still pending on this branch (not ring-specific)
 
 - README update: document the bounded-rank-width classes, chain-ring depth `d`,
-  factored letters, and `check_implicit`; add a changelog entry.
-- Implicit evaluation follow-ups: `evaluate_implicit` (satisfying-set
-  primitive), and a fully-implicit `successors`-based automaton API.
+  factored letters, `check_implicit` and `evaluate_implicit`; add a changelog
+  entry.
 - Version stays v3.1.0 for this branch (no further bumps).
 
 ## Non-issues (checked)

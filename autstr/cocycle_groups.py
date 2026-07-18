@@ -1275,19 +1275,53 @@ class CocycleRankWidthGroups:
 
         return {'Dom': Dom, 'Adv': Adv, 'M': M, 'Eq': Eq}
 
+    def decode(self, tree: Tree, advice: Tree):
+        """Inverse of `encode` over the member's advice: the digit at each
+        site letter, z-sites to b and x-sites to a (ascending post-order)."""
+        bs, xs = [], []
+
+        def rec(an, en):
+            if an is None:
+                return
+            rec(an.left, en.left)
+            rec(an.right, en.right)
+            letter = an.label
+            if letter in ('L', 'U') or letter[0] == 'M':
+                xs.append(int(en.label))
+            elif letter in ('K', 'V') or letter[0] == 'W':
+                bs.append(int(en.label))
+
+        rec(advice, tree)
+        return tuple(bs), tuple(xs)
+
+    @property
+    def implicit_cls(self):
+        """The fully implicit presentation of this class (functional atoms
+        only, nothing compiled): an `autstr.implicit.ImplicitTreeClass` over
+        raw element trees."""
+        from autstr.implicit import ImplicitTreeClass
+        return ImplicitTreeClass(self._implicit_atoms(),
+                                 list(self.element_letters))
+
     def check_implicit(self, phi, sites: CocycleSites, advice: Tree, **elements) -> bool:
         """Like `check`, evaluated implicitly (no query or base tree
         automaton) -- the only viable model checker for the full-ISA and ring
         members whose `cls` cannot be built. See `autstr.implicit`."""
-        from autstr import implicit
-        from autstr.uniform import UniformlyAutomaticClass
         trees = {name: self.encode(el, sites, advice)
                  for name, el in elements.items()}
-        return implicit.check_class_tree(
-            phi, advice, trees, self._implicit_atoms(),
-            list(self.element_letters),
-            UniformlyAutomaticClass._relativize,
-            UniformlyAutomaticClass._variable_names)
+        return self.implicit_cls.check(phi, advice, **trees)
+
+    def evaluate_implicit(self, phi, sites: CocycleSites, advice: Tree,
+                          **elements):
+        """The satisfying set of phi on the member presented by the advice,
+        computed implicitly: unassigned free variables stay open and are
+        solved for. Yields assignments {var: (b, a)}; `len` is the exact
+        solution count without enumeration."""
+        from autstr.implicit import MappedSolutions
+        trees = {name: self.encode(el, sites, advice)
+                 for name, el in elements.items()}
+        sols = self.implicit_cls.evaluate(phi, advice, **trees)
+        return MappedSolutions(sols, lambda t: self.decode(t, advice))
 
     def get_structure(self, advice: Tree) -> TreeAutomaticPresentation:
         return self.cls.get_structure(advice)

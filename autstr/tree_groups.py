@@ -953,17 +953,58 @@ class CutRankTreeGroups:
 
         return {'Dom': Dom, 'Adv': Adv, 'M': M, 'Eq': Eq}
 
+    def decode(self, tree: Tree, advice: Tree):
+        """Inverse of `encode` over the member's advice: an element tree back
+        to its (b, a) tuple (a indexed by post-order layout positions)."""
+        b = []
+        anode, enode = advice, tree
+        for _ in range(self.k):
+            if anode is None or anode.label != CMARK:
+                raise ValueError("advice must start with the k center marks")
+            b.append(int(enode.label))
+            anode, enode = anode.left, enode.left
+        a = []
+
+        def rec(an, en):
+            if self.factored:
+                while an.label in self.entry_letters:
+                    an, en = ((an.left, en.left) if an.left is not None
+                              else (an.right, en.right))
+            if an.left is not None:
+                rec(an.left, en.left)
+            if an.right is not None:
+                rec(an.right, en.right)
+            a.append(int(en.label))
+
+        rec(anode, enode)
+        return tuple(b), tuple(a)
+
+    @property
+    def implicit_cls(self):
+        """The fully implicit presentation of this class (functional atoms
+        only, nothing compiled): an `autstr.implicit.ImplicitTreeClass` over
+        raw element trees. `check_implicit`/`evaluate_implicit` add the
+        (b, a)-tuple encoding on top of it."""
+        from autstr.implicit import ImplicitTreeClass
+        return ImplicitTreeClass(self._implicit_atoms(), list(self.digits))
+
     def check_implicit(self, phi, advice: Tree, **elements) -> bool:
         """Like `check`, but evaluated implicitly (no query or base tree
         automaton) -- the only viable model checker for the large-alphabet ring
         members whose `cls` cannot be built. See `autstr.implicit`."""
-        from autstr import implicit
-        from autstr.uniform import UniformlyAutomaticClass
         trees = {name: self.encode(el, advice) for name, el in elements.items()}
-        return implicit.check_class_tree(
-            phi, advice, trees, self._implicit_atoms(), list(self.digits),
-            UniformlyAutomaticClass._relativize,
-            UniformlyAutomaticClass._variable_names)
+        return self.implicit_cls.check(phi, advice, **trees)
+
+    def evaluate_implicit(self, phi, advice: Tree, **elements):
+        """The satisfying set of phi on the member presented by the advice,
+        computed implicitly: unassigned free variables stay open and are
+        solved for. Yields assignments {var: (b, a)}; `len` is the exact
+        solution count without enumeration. Works for members whose automata
+        cannot be built."""
+        from autstr.implicit import MappedSolutions
+        trees = {name: self.encode(el, advice) for name, el in elements.items()}
+        sols = self.implicit_cls.evaluate(phi, advice, **trees)
+        return MappedSolutions(sols, lambda t: self.decode(t, advice))
 
     def get_structure(self, advice: Tree) -> TreeAutomaticPresentation:
         return self.cls.get_structure(advice)

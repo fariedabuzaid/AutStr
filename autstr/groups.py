@@ -1171,6 +1171,14 @@ class CutRankGroups:
         stretch = 1 + self.n_entries if self.factored else 1
         return (len(advice) - self.k) // stretch
 
+    def decode(self, word: Sequence[str]):
+        """Inverse of `encode`: an element word back to its (b, a) tuple."""
+        stretch = 1 + self.n_entries if self.factored else 1
+        b = tuple(int(x) for x in word[:self.k])
+        rest = list(word[self.k:])
+        a = tuple(int(rest[t * stretch]) for t in range(len(rest) // stretch))
+        return b, a
+
     def evaluate(self, phi) -> Tuple[SparseDFA, List[str]]:
         return self.cls.evaluate(phi)
 
@@ -1224,17 +1232,34 @@ class CutRankGroups:
 
         return {'Dom': Dom, 'Adv': Adv, 'M': M, 'Eq': Eq}
 
+    @property
+    def implicit_cls(self):
+        """The fully implicit presentation of this class (functional atoms
+        only, nothing compiled): an `autstr.implicit.ImplicitClass` over raw
+        element words. `check_implicit`/`evaluate_implicit` add the
+        (b, a)-tuple encoding on top of it."""
+        from autstr.implicit import ImplicitClass
+        return ImplicitClass(self._implicit_atoms(), list(self.digits))
+
     def check_implicit(self, phi, advice: Sequence[str], **elements) -> bool:
         """Like `check`, but evaluated implicitly (no query or base automaton) --
         the only viable model checker for the large-alphabet ring members whose
         `cls` cannot be built. See `autstr.implicit`."""
-        from autstr import implicit
         n = self._n_of_advice(advice)
         words = {name: self.encode(el, n) for name, el in elements.items()}
-        return implicit.check_class_string(
-            phi, advice, words, self._implicit_atoms(), list(self.digits),
-            UniformlyAutomaticClass._relativize,
-            UniformlyAutomaticClass._variable_names)
+        return self.implicit_cls.check(phi, advice, **words)
+
+    def evaluate_implicit(self, phi, advice: Sequence[str], **elements):
+        """The satisfying set of phi on the member presented by the advice,
+        computed implicitly: unassigned free variables stay open and are
+        solved for. Yields assignments {var: (b, a)}; `len` is the exact
+        solution count without enumeration. Works for members whose automata
+        cannot be built."""
+        from autstr.implicit import MappedSolutions
+        n = self._n_of_advice(advice)
+        words = {name: self.encode(el, n) for name, el in elements.items()}
+        sols = self.implicit_cls.evaluate(phi, advice, **words)
+        return MappedSolutions(sols, self.decode)
 
     def get_structure(self, advice: Sequence[str]) -> AutomaticPresentation:
         return self.cls.get_structure(advice)

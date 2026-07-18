@@ -258,6 +258,19 @@ class UniformlyAutomaticClass:
             self._implicit_element_alphabet(),
             self._relativize, self._variable_names)
 
+    def evaluate_implicit(self, phi, advice, **assignments):
+        """The satisfying set of phi on the member S_advice, computed
+        implicitly (no query automaton): unassigned free variables stay open
+        and are solved for over the fixed advice. Returns a
+        `StringSolutionSet` of `{var: word}` assignments — its `len` is the
+        exact solution count (no enumeration), iterating lazily yields the
+        assignments. See `autstr.implicit`."""
+        from autstr import implicit
+        return implicit.evaluate_class_string(
+            phi, advice, assignments, dict(self.presentation.automata),
+            self._implicit_element_alphabet(),
+            self._relativize, self._variable_names)
+
     def define(self, name: str, phi: Union[str, logic.Expression]) -> SparseDFA:
         """Define a new class relation by a first-order formula over the
         existing signature (the uniform analog of a Büchi-style bootstrap).
