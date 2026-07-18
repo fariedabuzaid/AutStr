@@ -4,7 +4,7 @@ The explicit path (`presentations.AutomaticPresentation._build_automaton`) turns
 a formula into a product automaton -- intersection for AND, union for OR,
 complement for NOT, projection for EXISTS -- and materialises it. That product
 blows up, and for the heavy group classes even the *base* multiplication
-automaton is infeasible to build (an O(|sigma|^4) product over the astronomical
+automaton is infeasible to build (an O(sigma^4) product over the astronomical
 advice alphabet).
 
 This module evaluates a formula *implicitly* instead: it keeps composite states
@@ -631,7 +631,7 @@ class ImplicitClass:
 
 class ImplicitTreeClass:
     """Tree analog of `ImplicitClass`: atoms are ``args -> ImplicitTA``
-    builders (or explicit `SparseTreeAutomaton`s), members are presented by
+    builders (or explicit `SparseTreeAutomaton` objects), members are
     advice trees."""
 
     def __init__(self, atoms: Dict, element_alphabet: Sequence):

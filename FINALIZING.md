@@ -113,11 +113,22 @@ letters as in the group classes are future work). Validated: family widths
 random graphs (explicit + implicit), MSO 2-colourability decided class-wide
 at r = 1, neighborhood/domain satisfying sets. tests/test_rank_width.py.
 
-## Still pending on this branch (not ring-specific)
+## Documentation pass — DONE (2026-07-18)
 
-- README update: document the bounded-rank-width classes (groups *and*
-  graphs), chain-ring depth `d`, factored letters, `check_implicit` and
-  `evaluate_implicit`; add a changelog entry.
+- **README**: new sections "Bounded rank-width: groups and graphs from one
+  linear algebra" and "Implicit evaluation: members whose automata cannot be
+  built" (both with verified snippets), classes-table rows for the cut-rank
+  group classes / `autstr.cocycle_groups` / rank-width graphs, and the v3.1
+  changelog entry.
+- **Notebooks are now stored output-free** and executed as part of the docs
+  build: `myst-nb` added to the Sphinx pipeline (`docs/source/conf.py` copies
+  `notebooks/*.ipynb` into the source tree at build time — `büchi` renamed to
+  the ASCII docname `buechi` — and executes them with
+  `nb_execution_mode = 'force'`, errors failing the build); a Notebooks
+  toctree in `index.rst`; `myst-nb` + `ipykernel` in the `docs` extra;
+  the run_docs workflow installs the graphviz `dot` binary. Three notebooks
+  gained title cells (arithmetic, büchi, mso0). `show_diagram` now defaults
+  to `view=False` (headless builds must not spawn a viewer).
 - Version stays v3.1.0 for this branch (no further bumps).
 
 ## Non-issues (checked)

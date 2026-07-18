@@ -135,6 +135,8 @@ dmypy.json
 notebooks/automaton
 notebooks/automaton.png
 
-# Sphinx build output and generated API stubs
+# Sphinx build output, generated API stubs, build-time notebook copies
 docs/build/
 docs/source/api/
+docs/source/notebooks/
+docs/source/jupyter_execute/

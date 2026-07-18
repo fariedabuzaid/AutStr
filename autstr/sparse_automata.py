@@ -758,7 +758,7 @@ class SparseDFA:
         
         return "\n".join(lines)
     
-    def show_diagram(self, filename: str = "automaton", format: str = "png", view: bool = True) -> graphviz.Digraph:
+    def show_diagram(self, filename: str = "automaton", format: str = "png", view: bool = False) -> graphviz.Digraph:
         """
         Visualize the automaton using Graphviz, showing both default and exception transitions.
         This version ensures all transitions are properly displayed.
@@ -1257,7 +1257,7 @@ class SparseNFA:
         
         return "\n".join(lines)
 
-    def show_diagram(self, filename: str = "nfa", format: str = "png", view: bool = True) -> graphviz.Digraph:
+    def show_diagram(self, filename: str = "nfa", format: str = "png", view: bool = False) -> graphviz.Digraph:
         """Visualizes the NFA using Graphviz"""
         try:
             import graphviz

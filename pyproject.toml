@@ -44,8 +44,10 @@ graphs = ["networkx>=3.0"]
 benchmarks = ["matplotlib>=3.5"]
 # everything the test suite needs (networkx for the graph classes)
 test = ["pytest>=7.4", "networkx>=3.0"]
-# building the API documentation from the docstrings
-docs = ["sphinx>=7.2", "furo>=2024.1", "sphinx-autodoc-typehints>=1.25", "networkx>=3.0"]
+# building the documentation: API reference from the docstrings plus the
+# showcase notebooks, executed during the build (myst-nb needs a kernel)
+docs = ["sphinx>=7.2", "furo>=2024.1", "sphinx-autodoc-typehints>=1.25",
+        "networkx>=3.0", "myst-nb>=1.1", "ipykernel>=6.29"]
 
 [dependency-groups]
 dev = [

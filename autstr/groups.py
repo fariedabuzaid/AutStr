@@ -865,8 +865,8 @@ class CutRankGroups:
     @property
     def cls(self) -> UniformlyAutomaticClass:
         """The uniformly automatic presentation, built lazily: the multiplication
-        automaton is a 4-tape product over the |sigma|-letter alphabet, so its
-        construction is O(|sigma|^4) and only feasible for a small ring alphabet
+        automaton is a 4-tape product over the full advice alphabet, so its
+        construction is O(sigma^4) and only feasible for a small ring alphabet
         (essentially Z/4, width 1). The reference law, `advice` compiler, width
         measure and `simulate` do not need it and stay cheap for any q."""
         if self._cls is None:

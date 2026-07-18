@@ -404,7 +404,7 @@ class CocycleRankWidthGroups:
     alphabet of O(q^5) letters independent of the tensor. Element digits
     repeat along a site's stretch (the universe automaton enforces
     constancy), so the multiplication automaton's state is exactly the
-    seven-register machine of the protocol:
+    seven-register machine of the protocol::
 
         wy, wx : upward digit functionals      (F_y, F_x)
         phy,phx: mixed exports for inside targets (F_py, F_px)
