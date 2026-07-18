@@ -790,33 +790,77 @@ class CutRankGroups:
     Cen(x) := all y,z,w (M(x,y,z) and M(y,x,w) -> z = w).
     """
 
-    def __init__(self, p: int, k: int = 1, r: int = 1, d: int = 1):
+    #: marker letter opening each position's entry stretch in factored mode
+    MARKER = 'n'
+
+    def __init__(self, p: int, k: int = 1, r: int = 1, d: int = 1,
+                 factored: bool = None):
+        """`factored=None` (the default) enumerates one advice letter per
+        (T, v, R) triple when that alphabet fits under 20000 letters (the
+        original encoding, byte-identical) and otherwise switches to
+        *factored* letters: each position becomes a marker 'n' followed by
+        one letter per ring entry (T row-major, then v, then R row-major),
+        with the element digit repeated along the stretch. The factored
+        alphabet has q+1 advice letters however large r, k and d are --
+        this is what makes width r >= 2 over the ring representable."""
         if p < 2 or p > 9 or any(p % f == 0 for f in range(2, int(p ** 0.5) + 1)):
             raise ValueError(f"p must be a prime in 2..9 (single digits), got {p}")
         if k < 1 or r < 1:
             raise ValueError("need k >= 1 central and r >= 1 state dimensions")
         if d < 1:
             raise ValueError(f"center ring depth d must be >= 1, got {d}")
-        n_letters = p ** (d * (r * r + r + k * r))
-        if n_letters > 20000:
+        n_flat = p ** (d * (r * r + r + k * r))
+        if factored is None:
+            factored = n_flat > 20000
+        if not factored and n_flat > 20000:
             raise ValueError(
-                f"advice alphabet would have {n_letters} letters; "
-                f"choose smaller p, k, r or d")
+                f"the flat advice alphabet would have {n_flat} letters; "
+                f"choose smaller p, k, r or d, or use factored=True")
         self.p, self.k, self.r, self.d = p, k, r, d
         self.q = p ** d                       # center/quotient ring R = Z/p^d
+        self.factored = factored
+        self.n_entries = r * r + r + k * r    # ring entries per position
         self.digits = [str(x) for x in range(self.q)]
         self._digitset = set(self.digits)
         self.letters: Dict[str, tuple] = {}
-        for entries in it.product(range(self.q), repeat=r * r + r + k * r):
-            T = tuple(tuple(entries[i * r + j] for j in range(r)) for i in range(r))
-            v = tuple(entries[r * r: r * r + r])
-            R = tuple(tuple(entries[r * r + r + l * r + s] for s in range(r))
-                      for l in range(k))
-            self.letters[self._letter_name(entries)] = (T, v, R)
-        self.sigma = {PAD, CMARK} | set(self.digits) | set(self.letters)
-        self._advice_tape = {PAD, CMARK} | set(self.letters)
+        self.entry_letters: Dict[str, int] = {}
+        if factored:
+            self.entry_letters = {f'e{self._digits_of(c)}': c
+                                  for c in range(self.q)}
+            advice = {self.MARKER} | set(self.entry_letters)
+        else:
+            for entries in it.product(range(self.q), repeat=self.n_entries):
+                T = tuple(tuple(entries[i * r + j] for j in range(r))
+                          for i in range(r))
+                v = tuple(entries[r * r: r * r + r])
+                R = tuple(tuple(entries[r * r + r + l * r + s]
+                                for s in range(r)) for l in range(k))
+                self.letters[self._letter_name(entries)] = (T, v, R)
+            advice = set(self.letters)
+        self.sigma = {PAD, CMARK} | set(self.digits) | advice
+        self._advice_tape = {PAD, CMARK} | advice
         self._element_tape = {PAD} | set(self.digits)
         self._cls = None
+
+    def _digits_of(self, c: int) -> str:
+        """A ring entry as its d base-p digits, least significant first."""
+        return ''.join(str(dig)
+                       for dig in cr.to_digits(int(c) % self.q, self.p, self.d))
+
+    #: cap on the transition enumerations of the lazy `cls` build; beyond it
+    #: the build would run for minutes to hours, so `cls` raises instead
+    _CLS_ENUMERATION_CAP = 20_000_000
+
+    def _cls_cost(self) -> int:
+        """Transition enumerations the lazy `cls` build performs (dominated by
+        the 4-tape multiplication automaton: states x advice x digits^3)."""
+        q, k, r = self.q, self.k, self.r
+        n_states = 1 + sum(q ** j for j in range(k))
+        if self.factored:
+            n_states += q ** (k + 2 * r) * (self.n_entries + 1)
+        else:
+            n_states += q ** (k + r)
+        return n_states * (len(self._advice_tape)) * (q + 1) ** 3
 
     @property
     def cls(self) -> UniformlyAutomaticClass:
@@ -826,6 +870,14 @@ class CutRankGroups:
         (essentially Z/4, width 1). The reference law, `advice` compiler, width
         measure and `simulate` do not need it and stay cheap for any q."""
         if self._cls is None:
+            cost = self._cls_cost()
+            if cost > self._CLS_ENUMERATION_CAP:
+                raise ValueError(
+                    f"advice alphabet too large to build the explicit "
+                    f"presentation automata: {len(self.letters)} letters, "
+                    f"~{cost:.0e} transition enumerations "
+                    f"(cap {self._CLS_ENUMERATION_CAP:.0e}); "
+                    f"use check_implicit or simulate instead")
             self._cls = UniformlyAutomaticClass({
                 'U': self._universe_automaton(),
                 'M': self._multiplication_automaton(),
@@ -844,79 +896,86 @@ class CutRankGroups:
 
     # ---------------- the automata ----------------
 
+    def _shape_states(self):
+        """Shape states shared by U and Eq: the k center markers, then either
+        one letter per position (flat) or marker + entry stretches with the
+        element digit repeated (factored; the digit memory lives only in U)."""
+        states = ['dead', 'ok'] + [('c', j) for j in range(self.k)]
+        if self.factored:
+            states += [('s', ph, dig) for ph in range(self.n_entries)
+                       for dig in self.digits]
+        return states
+
+    def _shape_step(self, q, a, x):
+        """One shape step (state, advice letter, element digit) shared by U
+        and Eq; the caller has already checked the digit condition."""
+        if a == CMARK and q not in ('ok', 'dead') and q[0] == 'c':
+            return 'ok' if q[1] + 1 == self.k else ('c', q[1] + 1)
+        if not self.factored:
+            return 'ok' if a in self.letters and q == 'ok' else 'dead'
+        if a == self.MARKER and q == 'ok':
+            return ('s', 0, x) if self.n_entries else 'ok'
+        if a in self.entry_letters and q != 'ok' and q[0] == 's' \
+                and q[2] == x:
+            return 'ok' if q[1] + 1 == self.n_entries else ('s', q[1] + 1, x)
+        return 'dead'
+
     def _universe_automaton(self) -> SparseDFA:
         """U(p, x): k digits under the center markers, then one digit per
-        advice letter."""
-        states = ['dead', 'ok'] + [('c', j) for j in range(self.k)]
-
+        advice letter (repeated along the stretch in factored mode)."""
         def delta(q, sym):
             a, x = sym
             if q != 'dead' and x in self.digits:
-                if a == CMARK and q != 'ok' and q[1] < self.k:
-                    return 'ok' if q[1] + 1 == self.k else ('c', q[1] + 1)
-                if a in self.letters and q == 'ok':
-                    return 'ok'
+                return self._shape_step(q, a, x)
             return 'dead'
 
-        return dfa_from_delta(self.sigma, states, 2, delta, ('c', 0), {'ok'},
+        return dfa_from_delta(self.sigma, self._shape_states(), 2, delta,
+                              ('c', 0), {'ok'},
                               tapes=[self._advice_tape, self._element_tape],
                               dead='dead')
 
     def _multiplication_automaton(self) -> SparseDFA:
-        """M(p, x, y, z): z = x·y. The center digits seed the deficit
-        d = b_z - b_x - b_y; each x-position checks the digit sum, subtracts
-        its commutator contribution x_t * (R w) from the deficit and updates
-        the carried functionals w <- T w + v * y_t; accept iff d = 0."""
-        p, k, r, q = self.p, self.k, self.r, self.q
+        """M(p, x, y, z): z = x·y via the shared `_m_step` transition. The
+        center digits seed the deficit d = b_z - b_x - b_y; each x-position
+        checks the digit sum, subtracts its commutator contribution
+        x_t * (R w) from the deficit and updates the carried functionals
+        w <- T w + v * y_t (streamed through an accumulator in factored
+        mode); accept iff d = 0."""
+        k, r, q = self.k, self.r, self.q
         states = ['dead']
         for j in range(k):
             for d in it.product(range(q), repeat=j):
                 states.append(('c', j, d + (0,) * (k - j)))
-        for d in it.product(range(q), repeat=k):
-            for w in it.product(range(q), repeat=r):
-                states.append(('x', d, w))
+        if self.factored:
+            for d in it.product(range(q), repeat=k):
+                for w in it.product(range(q), repeat=r):
+                    for acc in it.product(range(q), repeat=r):
+                        for ph in range(self.n_entries + 1):
+                            states.append(('x', d, w, acc, ph))
+        else:
+            for d in it.product(range(q), repeat=k):
+                for w in it.product(range(q), repeat=r):
+                    states.append(('x', d, w))
 
         def delta(state, sym):
-            a, x, y, z = sym
-            if state == 'dead' or not all(s in self.digits for s in (x, y, z)):
-                return 'dead'
-            xi, yi, zi = int(x), int(y), int(z)
-            if a == CMARK and state[0] == 'c':
-                j, d = state[1], state[2]
-                d = d[:j] + ((zi - xi - yi) % q,) + d[j + 1:]
-                return ('x', d, (0,) * r) if j + 1 == k else ('c', j + 1, d)
-            if a in self.letters and state[0] == 'x':
-                if (xi + yi - zi) % q:
-                    return 'dead'
-                T, v, R = self.letters[a]
-                d, w = state[1], state[2]
-                d = tuple((d[l] - xi * sum(R[l][s] * w[s] for s in range(r))) % q
-                          for l in range(k))
-                w = tuple((sum(T[s][u] * w[u] for u in range(r)) + v[s] * yi) % q
-                          for s in range(r))
-                return ('x', d, w)
-            return 'dead'
+            return self._m_step(state, *sym)
 
-        finals = {('x', (0,) * k, w) for w in it.product(range(q), repeat=r)}
+        finals = [s for s in states if self._m_accepting(s)]
         return dfa_from_delta(self.sigma, states, 4, delta, ('c', 0, (0,) * k),
-                              finals,
+                              set(finals),
                               tapes=[self._advice_tape] + [self._element_tape] * 3,
                               dead='dead')
 
     def _eq_automaton(self) -> SparseDFA:
         """Eq(p, x, y): identical well-shaped elements."""
-        states = ['dead', 'ok'] + [('c', j) for j in range(self.k)]
-
         def delta(q, sym):
             a, x, y = sym
             if q != 'dead' and x == y and x in self.digits:
-                if a == CMARK and q != 'ok' and q[1] < self.k:
-                    return 'ok' if q[1] + 1 == self.k else ('c', q[1] + 1)
-                if a in self.letters and q == 'ok':
-                    return 'ok'
+                return self._shape_step(q, a, x)
             return 'dead'
 
-        return dfa_from_delta(self.sigma, states, 3, delta, ('c', 0), {'ok'},
+        return dfa_from_delta(self.sigma, self._shape_states(), 3, delta,
+                              ('c', 0), {'ok'},
                               tapes=[self._advice_tape] + [self._element_tape] * 2,
                               dead='dead')
 
@@ -981,7 +1040,11 @@ class CutRankGroups:
             entries = [T[i, j] for i in range(r) for j in range(r)]
             entries += [V[s, t - 1] for s in range(r)]
             entries += [R[l, s] for l in range(k) for s in range(r)]
-            word.append(self._letter_name(entries))
+            if self.factored:
+                word.append(self.MARKER)
+                word += [f'e{self._digits_of(int(c))}' for c in entries]
+            else:
+                word.append(self._letter_name(entries))
             V_prev = V
         return word
 
@@ -1016,8 +1079,7 @@ class CutRankGroups:
         building the 4-tape product DFA, so the streamed compile can be checked
         against the reference law for any ring alphabet (the full automaton is
         only buildable for small q). gx, gy, gz are (b, a) elements."""
-        p, k, r, q = self.p, self.k, self.r, self.q
-        n = len(advice) - self.k
+        n = self._n_of_advice(advice)
         ex, ey, ez = (self.encode(g, n) for g in (gx, gy, gz))
         state = self._m_initial()
         for i in range(len(advice)):
@@ -1030,13 +1092,18 @@ class CutRankGroups:
         return ('c', 0, (0,) * self.k)
 
     def _m_accepting(self, state) -> bool:
-        return state != 'dead' and state[0] == 'x' and state[1] == (0,) * self.k
+        if state == 'dead' or state[0] != 'x' or state[1] != (0,) * self.k:
+            return False
+        return not self.factored or state[4] == self.n_entries
 
     def _m_step(self, state, a, x, y, z):
         """One step of the multiplication automaton over R = Z/p^d, shared by
-        `simulate` and the implicit M atom. `a` is the advice symbol, `x, y, z`
-        the element symbols at this position."""
-        p, k, r, q = self.p, self.k, self.r, self.q
+        `simulate`, the automaton builder and the implicit M atom. `a` is the
+        advice symbol, `x, y, z` the element symbols at this position. In
+        factored mode the state additionally carries the accumulator of the
+        streamed w <- T w + v*y update and the phase inside the entry
+        stretch; the marker commits the accumulator."""
+        k, r, q = self.k, self.r, self.q
         if state == 'dead':
             return 'dead'
         if not (x in self._digitset and y in self._digitset and z in self._digitset):
@@ -1045,30 +1112,64 @@ class CutRankGroups:
         if a == CMARK and state[0] == 'c':
             j, d = state[1], state[2]
             d = d[:j] + ((zi - xi - yi) % q,) + d[j + 1:]
-            return ('x', d, (0,) * r) if j + 1 == k else ('c', j + 1, d)
-        if a in self.letters and state[0] == 'x':
-            if (xi + yi - zi) % q:
+            if j + 1 < k:
+                return ('c', j + 1, d)
+            return (('x', d, (0,) * r, (0,) * r, self.n_entries)
+                    if self.factored else ('x', d, (0,) * r))
+        if state[0] != 'x':
+            return 'dead'
+        if not self.factored:
+            if a in self.letters:
+                if (xi + yi - zi) % q:
+                    return 'dead'
+                T, v, R = self.letters[a]
+                d, w = state[1], state[2]
+                d = tuple((d[l] - xi * sum(R[l][s] * w[s] for s in range(r)))
+                          % q for l in range(k))
+                w = tuple((sum(T[s][u] * w[u] for u in range(r)) + v[s] * yi)
+                          % q for s in range(r))
+                return ('x', d, w)
+            return 'dead'
+        if (xi + yi - zi) % q:
+            return 'dead'
+        d, w, acc, ph = state[1], state[2], state[3], state[4]
+        if a == self.MARKER:
+            # commit the streamed update; legal only on a complete stretch
+            if ph != self.n_entries:
                 return 'dead'
-            T, v, R = self.letters[a]
-            d, w = state[1], state[2]
-            d = tuple((d[l] - xi * sum(R[l][s] * w[s] for s in range(r))) % q
-                      for l in range(k))
-            w = tuple((sum(T[s][u] * w[u] for u in range(r)) + v[s] * yi) % q
-                      for s in range(r))
-            return ('x', d, w)
-        return 'dead'
+            return ('x', d, acc, (0,) * r, 0)
+        val = self.entry_letters.get(a)
+        if val is None or ph >= self.n_entries:
+            return 'dead'
+        if ph < r * r:                       # T entry: acc += T[i][j] * w[j]
+            i, j = divmod(ph, r)
+            acc = acc[:i] + ((acc[i] + val * w[j]) % q,) + acc[i + 1:]
+        elif ph < r * r + r:                 # v entry: acc += v[i] * y
+            i = ph - r * r
+            acc = acc[:i] + ((acc[i] + val * yi) % q,) + acc[i + 1:]
+        else:                                # R entry: d -= x * R[l][s] * w[s]
+            l, s = divmod(ph - r * r - r, r)
+            d = d[:l] + ((d[l] - xi * val * w[s]) % q,) + d[l + 1:]
+        return ('x', d, w, acc, ph + 1)
 
     def identity(self, n: int):
         return (0,) * self.k, (0,) * n
 
     def encode(self, element, n: int) -> List[str]:
-        """Encode (b, a) with b in R^k, a in R^n, R = Z/p^d."""
+        """Encode (b, a) with b in R^k, a in R^n, R = Z/p^d. In factored
+        mode each position's digit is repeated along its entry stretch."""
         b, a = element
         if len(b) != self.k or len(a) != n:
             raise ValueError(f"element must be (R^{self.k}, R^{n}), R = Z/{self.q}")
         if not all(0 <= x < self.q for x in tuple(b) + tuple(a)):
             raise ValueError(f"components must lie in Z/{self.q}")
-        return [str(x) for x in b] + [str(x) for x in a]
+        stretch = 1 + self.n_entries if self.factored else 1
+        return [str(x) for x in b] + [str(x) for x in a for _ in range(stretch)]
+
+    def _n_of_advice(self, advice: Sequence[str]) -> int:
+        """The member size n presented by an advice word."""
+        stretch = 1 + self.n_entries if self.factored else 1
+        return (len(advice) - self.k) // stretch
 
     def evaluate(self, phi) -> Tuple[SparseDFA, List[str]]:
         return self.cls.evaluate(phi)
@@ -1076,7 +1177,7 @@ class CutRankGroups:
     def check(self, phi, advice: Sequence[str], **elements) -> bool:
         """Model check against the member presented by the advice; free
         variables can be assigned elements as (b, a) tuples."""
-        n = len(advice) - self.k
+        n = self._n_of_advice(advice)
         words = {name: self.encode(el, n) for name, el in elements.items()}
         return self.cls.check(phi, advice, **words)
 
@@ -1086,36 +1187,33 @@ class CutRankGroups:
         large-q members whose `cls` cannot be built. Each entry is a builder
         ``args -> ImplicitDFA`` over the formula's argument tapes."""
         from autstr.implicit import ImplicitDFA
-        k = self.k
         digitset = self._digitset
-        letters = self.letters
 
-        def shape(args, extra_ok):
-            # advice-shape run shared by Dom/Adv/Eq: k center markers then letters
+        def shape(args, extra_ok, tracked=None):
+            # advice-shape run shared by Dom/Adv/Eq: k center markers then
+            # letters (with the element digit repeated along each stretch in
+            # factored mode -- `tracked` names the tape whose digit repeats)
             adv = args[0]
 
             def step(state, s):
                 if state == 'dead' or not extra_ok(s):
                     return 'dead'
-                a = s[adv]
-                if a == CMARK and state != 'ok' and state[1] < k:
-                    return 'ok' if state[1] + 1 == k else ('c', state[1] + 1)
-                if a in letters and state == 'ok':
-                    return 'ok'
-                return 'dead'
+                return self._shape_step(
+                    state, s[adv], s[tracked] if tracked is not None else None)
             return ImplicitDFA(args, lambda: ('c', 0), step,
                                lambda st: st == 'ok')
 
         def Dom(args):
             xv = args[1]
-            return shape(args, lambda s: s[xv] in digitset)
+            return shape(args, lambda s: s[xv] in digitset, tracked=args[1])
 
         def Adv(args):
             return shape(args, lambda s: True)
 
         def Eq(args):
             xv, yv = args[1], args[2]
-            return shape(args, lambda s: s[xv] in digitset and s[xv] == s[yv])
+            return shape(args, lambda s: s[xv] in digitset and s[xv] == s[yv],
+                         tracked=args[1])
 
         def M(args):
             adv, xv, yv, zv = args
@@ -1131,7 +1229,7 @@ class CutRankGroups:
         the only viable model checker for the large-alphabet ring members whose
         `cls` cannot be built. See `autstr.implicit`."""
         from autstr import implicit
-        n = len(advice) - self.k
+        n = self._n_of_advice(advice)
         words = {name: self.encode(el, n) for name, el in elements.items()}
         return implicit.check_class_string(
             phi, advice, words, self._implicit_atoms(), list(self.digits),

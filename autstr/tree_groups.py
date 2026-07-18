@@ -252,7 +252,20 @@ class CutRankTreeGroups:
     Signature: M(x,y,z), Eq(x,y); the center is first-order definable.
     """
 
-    def __init__(self, p: int, k: int = 1, r: int = 1, d: int = 1):
+    #: factored-mode node markers: leaf, unary, binary layout node
+    MARKERS = ('a', 'b', 'd')
+
+    def __init__(self, p: int, k: int = 1, r: int = 1, d: int = 1,
+                 factored: bool = None):
+        """`factored=None` (the default) enumerates one advice letter per
+        factorisation tuple when that alphabet fits under 20000 letters (the
+        original encoding, byte-identical) and otherwise switches to
+        *factored* letters: each layout node becomes a bare marker ('a'
+        leaf / 'b' unary / 'd' binary) followed by a unary chain of one
+        letter per ring entry, with the element digit repeated along the
+        stretch. The factored alphabet has q+4 letters however large r, k
+        and d are -- this is what makes width r >= 2 over the ring
+        representable."""
         if p < 2 or p > 9 or any(p % f == 0 for f in range(2, int(p ** 0.5) + 1)):
             raise ValueError(f"p must be a prime in 2..9 (single digits), got {p}")
         if k < 1 or r < 1:
@@ -260,14 +273,21 @@ class CutRankTreeGroups:
         if d < 1:
             raise ValueError(f"center ring depth d must be >= 1, got {d}")
         q = p ** d
-        n_letters = (q ** r + q ** (r * r + r + k * r)
-                     + q ** (2 * r * r + r + 2 * k * r + k * r * r))
-        if n_letters > 20000:
+        n_flat = (q ** r + q ** (r * r + r + k * r)
+                  + q ** (2 * r * r + r + 2 * k * r + k * r * r))
+        if factored is None:
+            factored = n_flat > 20000
+        if not factored and n_flat > 20000:
             raise ValueError(
-                f"advice alphabet would have {n_letters} letters; choose "
-                f"smaller p, k, r or d (factored letters are future work)")
+                f"the flat advice alphabet would have {n_flat} letters; "
+                f"choose smaller p, k, r or d, or use factored=True")
         self.p, self.k, self.r, self.d = p, k, r, d
         self.q = q                              # center/quotient ring R = Z/p^d
+        self.factored = factored
+        #: ring entries per stretch, by node kind
+        self.n_entries = {'a': r,
+                          'b': r * r + r + k * r,
+                          'd': 2 * r * r + r + 2 * k * r + k * r * r}
         self.digits = [str(x) for x in range(q)]
         self._digitset = set(self.digits)
 
@@ -275,30 +295,39 @@ class CutRankTreeGroups:
             return tuple(tuple(entries[off + i * cols + j] for j in range(cols))
                          for i in range(rows))
 
-        self.leaf_letters = {
-            self._letter_name('a', entries): tuple(entries)
-            for entries in it.product(range(q), repeat=r)}
+        self.leaf_letters = {}
         self.unary_letters = {}
-        for entries in it.product(range(q), repeat=r * r + r + k * r):
-            T = mat(entries, 0, r, r)
-            v = entries[r * r: r * r + r]
-            R = mat(entries, r * r + r, k, r)
-            self.unary_letters[self._letter_name('b', entries)] = (T, v, R)
         self.binary_letters = {}
-        for entries in it.product(range(q), repeat=2 * r * r + r + 2 * k * r + k * r * r):
-            off = 0
-            TL = mat(entries, off, r, r); off += r * r
-            TR = mat(entries, off, r, r); off += r * r
-            v = entries[off: off + r]; off += r
-            RL = mat(entries, off, k, r); off += k * r
-            RR = mat(entries, off, k, r); off += k * r
-            Q = tuple(mat(entries, off + l * r * r, r, r) for l in range(k))
-            self.binary_letters[self._letter_name('d', entries)] = (TL, TR, v, RL, RR, Q)
-
-        self.sigma = ({PAD, CMARK} | self._digitset | set(self.leaf_letters)
+        self.entry_letters: Dict[str, int] = {}
+        if factored:
+            self.entry_letters = {self._letter_name('e', (c,)): c
+                                  for c in range(q)}
+            advice = {CMARK} | set(self.MARKERS) | set(self.entry_letters)
+        else:
+            self.leaf_letters = {
+                self._letter_name('a', entries): tuple(entries)
+                for entries in it.product(range(q), repeat=r)}
+            for entries in it.product(range(q), repeat=r * r + r + k * r):
+                T = mat(entries, 0, r, r)
+                v = entries[r * r: r * r + r]
+                R = mat(entries, r * r + r, k, r)
+                self.unary_letters[self._letter_name('b', entries)] = (T, v, R)
+            for entries in it.product(range(q),
+                                      repeat=2 * r * r + r + 2 * k * r + k * r * r):
+                off = 0
+                TL = mat(entries, off, r, r); off += r * r
+                TR = mat(entries, off, r, r); off += r * r
+                v = entries[off: off + r]; off += r
+                RL = mat(entries, off, k, r); off += k * r
+                RR = mat(entries, off, k, r); off += k * r
+                Q = tuple(mat(entries, off + l * r * r, r, r) for l in range(k))
+                self.binary_letters[self._letter_name('d', entries)] = \
+                    (TL, TR, v, RL, RR, Q)
+            advice = ({CMARK} | set(self.leaf_letters)
                       | set(self.unary_letters) | set(self.binary_letters))
-        self.advice_letters = ({CMARK} | set(self.leaf_letters)
-                               | set(self.unary_letters) | set(self.binary_letters))
+
+        self.sigma = {PAD} | self._digitset | advice
+        self.advice_letters = advice
         self.element_letters = self._digitset
         self._cls = None
 
@@ -310,6 +339,22 @@ class CutRankTreeGroups:
             str(dig) for e in entries
             for dig in cr.to_digits(int(e) % self.q, self.p, self.d))
 
+    #: cap on the transition enumerations of the lazy `cls` build; beyond it
+    #: the build would run for minutes to hours, so `cls` raises instead
+    _CLS_ENUMERATION_CAP = 50_000_000
+
+    def _cls_cost(self) -> int:
+        """Transition enumerations the lazy `cls` build performs (dominated by
+        the multiplication automaton: state pairs x advice x digits^3)."""
+        q, k, r = self.q, self.k, self.r
+        n_states = 1 + q ** (k + 2 * r) + sum(q ** (k - j) for j in range(1, k + 1))
+        if self.factored:
+            E = self.n_entries
+            n_states += (q ** (2 * r) * E['a'] + q ** (k + 4 * r) * E['b']
+                         + q ** (k + 6 * r) * E['d'])
+        n_letters = len(self.advice_letters)
+        return (n_states + 1) ** 2 * n_letters * q ** 3
+
     @property
     def cls(self) -> UniformlyTreeAutomaticClass:
         """The uniformly tree-automatic presentation, built lazily: the tree
@@ -318,6 +363,15 @@ class CutRankTreeGroups:
         reference law, `advice` compiler, width measure and `simulate` never
         need it and stay cheap for any q."""
         if self._cls is None:
+            cost = self._cls_cost()
+            if cost > self._CLS_ENUMERATION_CAP:
+                raise ValueError(
+                    f"advice alphabet too large to build the explicit "
+                    f"presentation automata: "
+                    f"{len(self.leaf_letters) + len(self.unary_letters) + len(self.binary_letters)}"
+                    f" letters, ~{cost:.0e} transition enumerations "
+                    f"(cap {self._CLS_ENUMERATION_CAP:.0e}); "
+                    f"use check_implicit or simulate instead")
             self._cls = UniformlyTreeAutomaticClass({
                 'U': self._universe_automaton(),
                 'M': self._multiplication_automaton(),
@@ -328,35 +382,62 @@ class CutRankTreeGroups:
 
     # ---------------- the automata ----------------
 
-    def _shape_delta(self, q_of):
-        """Shared shape logic for U and Eq: q_of(sym) is the digit condition."""
+    def _shape_core(self, a, x, lq, rq):
+        """One shape step shared by U, Eq and their implicit atoms: `a` is
+        the advice letter, `x` the tracked element digit (None when digit
+        constancy is not being tracked); the caller has already checked the
+        digit condition and dead children."""
         k = self.k
-
-        def delta(lq, rq, sym):
-            a = sym[0]
-            if 'dead' in (lq, rq) or not q_of(sym):
-                return 'dead'
+        child = lq if rq is None else (rq if lq is None else None)
+        if a == CMARK:
+            if child == 'lay':
+                return ('c', 1)
+            if isinstance(child, tuple) and child[0] == 'c' and child[1] < k:
+                return ('c', child[1] + 1)
+            return 'dead'
+        if not self.factored:
             if a in self.leaf_letters:
                 return 'lay' if lq is None and rq is None else 'dead'
             if a in self.unary_letters:
-                child = lq if rq is None else (rq if lq is None else None)
                 return 'lay' if child == 'lay' else 'dead'
             if a in self.binary_letters:
                 return 'lay' if lq == 'lay' and rq == 'lay' else 'dead'
-            if a == CMARK:
-                child = lq if rq is None else (rq if lq is None else None)
-                if child == 'lay':
-                    return ('c', 1)
-                if isinstance(child, tuple) and child[0] == 'c' and child[1] < k:
-                    return ('c', child[1] + 1)
             return 'dead'
+        if a == 'a':
+            return ('s', 'a', 0, x) if lq is None and rq is None else 'dead'
+        if a == 'b':
+            return ('s', 'b', 0, x) if child == 'lay' else 'dead'
+        if a == 'd':
+            return ('s', 'd', 0, x) if lq == 'lay' and rq == 'lay' else 'dead'
+        if a in self.entry_letters:
+            if isinstance(child, tuple) and child[0] == 's' and child[3] == x:
+                kind, ph = child[1], child[2]
+                return ('lay' if ph + 1 == self.n_entries[kind]
+                        else ('s', kind, ph + 1, x))
+        return 'dead'
+
+    def _shape_delta(self, q_of, track_digit=False):
+        """Shared shape logic for U and Eq: q_of(sym) is the digit condition;
+        with `track_digit` the state remembers the digit repeating along a
+        factored stretch (only U needs this)."""
+        k = self.k
+
+        def delta(lq, rq, sym):
+            if 'dead' in (lq, rq) or not q_of(sym):
+                return 'dead'
+            return self._shape_core(sym[0], sym[1] if track_digit else None,
+                                    lq, rq)
 
         states = ['lay', 'dead'] + [('c', j) for j in range(1, k + 1)]
+        if self.factored:
+            digs = self.digits if track_digit else [None]
+            states += [('s', kind, ph, x) for kind in self.MARKERS
+                       for ph in range(self.n_entries[kind]) for x in digs]
         return delta, states, {('c', k)}
 
     def _universe_automaton(self) -> SparseTreeAutomaton:
         delta, states, finals = self._shape_delta(
-            lambda sym: sym[1] in self._digitset)
+            lambda sym: sym[1] in self._digitset, track_digit=True)
         return sta_from_delta(self.sigma, states, 2, delta, finals,
                               tapes=[self.advice_letters, self.element_letters])
 
@@ -368,81 +449,47 @@ class CutRankTreeGroups:
                                     [self.element_letters] * 2)
 
     def _multiplication_automaton(self) -> SparseTreeAutomaton:
-        """M(advice, x, y, z): z = x·y via the factored streaming cocycle."""
-        p, k, r, q = self.p, self.k, self.r, self.q
-
-        def dot(M, w):
-            return tuple(sum(row[j] * w[j] for j in range(r)) % q for row in M)
-
-        def delta(lq, rq, sym):
-            a, x, y, z = sym
-            if 'dead' in (lq, rq):
-                return 'dead'
-            if not all(s in self._digitset for s in (x, y, z)):
-                return 'dead'
-            xi, yi, zi = int(x), int(y), int(z)
-            if a == CMARK:
-                child = lq if rq is None else (rq if lq is None else None)
-                if child is None or not isinstance(child, tuple):
-                    return 'dead'
-                if child[0] == 't':
-                    j, s = 0, child[1]
-                elif child[0] == 'c':
-                    j, s = child[1], child[2]
-                else:
-                    return 'dead'
-                if j >= k or (zi - xi - yi) % q != s[j]:
-                    return 'dead'
-                return ('c', j + 1, s[:j] + (0,) + s[j + 1:])
-            if (xi + yi - zi) % q:
-                return 'dead'
-            if a in self.leaf_letters:
-                if lq is not None or rq is not None:
-                    return 'dead'
-                v = self.leaf_letters[a]
-                return ('t', (0,) * k,
-                        tuple(v[i] * xi % q for i in range(r)),
-                        tuple(v[i] * yi % q for i in range(r)))
-            if a in self.unary_letters:
-                child = lq if rq is None else (rq if lq is None else None)
-                if child is None or child[0] != 't':
-                    return 'dead'
-                T, v, R = self.unary_letters[a]
-                s, wx, wy = child[1], child[2], child[3]
-                read = dot(R, wy)
-                s = tuple((s[l] + xi * read[l]) % q for l in range(k))
-                Twx, Twy = dot(T, wx), dot(T, wy)
-                return ('t', s,
-                        tuple((Twx[i] + v[i] * xi) % q for i in range(r)),
-                        tuple((Twy[i] + v[i] * yi) % q for i in range(r)))
-            if a in self.binary_letters:
-                if lq is None or rq is None or lq[0] != 't' or rq[0] != 't':
-                    return 'dead'
-                TL, TR, v, RL, RR, Q = self.binary_letters[a]
-                sL, wxL, wyL = lq[1], lq[2], lq[3]
-                sR, wxR, wyR = rq[1], rq[2], rq[3]
-                readL, readR = dot(RL, wyL), dot(RR, wyR)
-                s = tuple((sL[l] + sR[l] + xi * (readL[l] + readR[l])
-                           + sum(Q[l][u][t] * wxR[u] * wyL[t]
-                                 for u in range(r) for t in range(r))) % q
-                          for l in range(k))
-                TwxL, TwxR = dot(TL, wxL), dot(TR, wxR)
-                TwyL, TwyR = dot(TL, wyL), dot(TR, wyR)
-                return ('t', s,
-                        tuple((TwxL[i] + TwxR[i] + v[i] * xi) % q for i in range(r)),
-                        tuple((TwyL[i] + TwyR[i] + v[i] * yi) % q for i in range(r)))
-            return 'dead'
-
+        """M(advice, x, y, z): z = x·y via the shared `_m_step` transition
+        (the factored streaming cocycle, streamed entry by entry with
+        accumulators in factored letter mode)."""
+        k, r, q = self.k, self.r, self.q
         states = ['dead']
         vecs_r = list(it.product(range(q), repeat=r))
+        zk, zr = (0,) * k, (0,) * r
         for s in it.product(range(q), repeat=k):
             for wx in vecs_r:
                 for wy in vecs_r:
                     states.append(('t', s, wx, wy))
+        if self.factored:
+            for ph in range(self.n_entries['a']):
+                for ax in vecs_r:
+                    for ay in vecs_r:
+                        states.append(('f', 'a', ph, zk, zr, zr, zr, zr,
+                                       ax, ay))
+            for ph in range(self.n_entries['b']):
+                for s in it.product(range(q), repeat=k):
+                    for wx in vecs_r:
+                        for wy in vecs_r:
+                            for ax in vecs_r:
+                                for ay in vecs_r:
+                                    states.append(('f', 'b', ph, s, wx, wy,
+                                                   zr, zr, ax, ay))
+            for ph in range(self.n_entries['d']):
+                for s in it.product(range(q), repeat=k):
+                    for ws in it.product(vecs_r, repeat=4):
+                        for ax in vecs_r:
+                            for ay in vecs_r:
+                                states.append(('f', 'd', ph, s) + ws
+                                              + (ax, ay))
         for j in range(1, k + 1):
             for rest in it.product(range(q), repeat=k - j):
                 states.append(('c', j, (0,) * j + rest))
         finals = {('c', k, (0,) * k)}
+
+        def delta(lq, rq, sym):
+            a, x, y, z = sym
+            return self._m_step(a, x, y, z, lq, rq)
+
         return sta_from_delta(self.sigma, states, 4, delta, finals,
                               tapes=[self.advice_letters] +
                                     [self.element_letters] * 3)
@@ -544,14 +591,15 @@ class CutRankTreeGroups:
 
     def advice(self, shape: Tree, form: Dict[Tuple[int, int], Sequence[int]]) -> Tree:
         """Compile a layout and a form into the advice tree; raises if some
-        subtree's crossing block exceeds rank r."""
+        subtree's crossing block exceeds rank r. In factored mode each node
+        becomes its bare marker with the ring entries chained above it."""
         p, k, r, d, q = self.p, self.k, self.r, self.d, self.q
         seq, pos, size = self._layout(shape)
         n = len(seq)
         self._check_form(n, form)
-        digs = lambda A: ''.join(
-            str(dig) for e in np.asarray(A).flatten()
-            for dig in cr.to_digits(int(e) % q, p, d))
+        flat = lambda A: [int(e) % q for e in np.asarray(A).flatten()]
+        digs = lambda ent: ''.join(
+            str(dig) for e in ent for dig in cr.to_digits(e, p, d))
         V: Dict[int, np.ndarray] = {}
         built: Dict[int, Tree] = {}
         for node in seq:
@@ -569,13 +617,13 @@ class CutRankTreeGroups:
                 Vt[:basis.shape[0]] = basis
             L, R = node.left, node.right
             if L is None and R is None:
-                letter = 'a' + digs(Vt[:, 0])
+                kind, entries = 'a', flat(Vt[:, 0])
             elif L is None or R is None:
                 child = L if L is not None else R
                 cp, csz = pos[id(child)], size[id(child)]
                 T = cr.solve_left(V[cp], Vt[:, :csz], p, d)
                 Rm = cr.solve_left(V[cp], self._pair_rows(form, t, lo, t - 1), p, d)
-                letter = 'b' + digs(T) + digs(Vt[:, -1]) + digs(Rm)
+                kind, entries = 'b', flat(T) + flat(Vt[:, -1]) + flat(Rm)
             else:
                 lp, rp = pos[id(L)], pos[id(R)]
                 lsz, rsz = size[id(L)], size[id(R)]
@@ -584,8 +632,9 @@ class CutRankTreeGroups:
                 TR = cr.solve_left(VR, Vt[:, lsz:sz - 1], p, d)
                 RL = cr.solve_left(VL, self._pair_rows(form, t, lo, lp), p, d)
                 RR = cr.solve_left(VR, self._pair_rows(form, t, lp + 1, t - 1), p, d)
-                letter = ('d' + digs(TL) + digs(TR) + digs(Vt[:, -1])
-                          + digs(RL) + digs(RR))
+                kind = 'd'
+                entries = (flat(TL) + flat(TR) + flat(Vt[:, -1])
+                           + flat(RL) + flat(RR))
                 for l in range(k):
                     # sibling block X[j, i] = B[j, i][l], i in L, j in R,
                     # factored as V_R^T Q_l V_L over R = Z/p^d. This is the one
@@ -598,11 +647,15 @@ class CutRankTreeGroups:
                             if label:
                                 X[jj - lp - 1, ii - lo] = label[l] % q
                     Ql = cr.factor_two_sided(X, VL, VR, p, d)
-                    letter += digs(Ql)
+                    entries += flat(Ql)
             V[t] = Vt
-            built[id(node)] = Tree(letter,
-                                   built.get(id(L)) if L is not None else None,
-                                   built.get(id(R)) if R is not None else None)
+            sub = Tree(kind if self.factored else kind + digs(entries),
+                       built.get(id(L)) if L is not None else None,
+                       built.get(id(R)) if R is not None else None)
+            if self.factored:
+                for e in entries:
+                    sub = Tree(self._letter_name('e', (e,)), sub, None)
+            built[id(node)] = sub
         root = built[id(seq[-1])]
         for _ in range(k):
             root = Tree(CMARK, root, None)
@@ -689,6 +742,8 @@ class CutRankTreeGroups:
             return ('c', j + 1, s[:j] + (0,) + s[j + 1:])
         if (xi + yi - zi) % q:
             return 'dead'
+        if self.factored:
+            return self._m_step_factored(a, xi, yi, left, right)
         if a in self.leaf_letters:
             if left is not None or right is not None:
                 return 'dead'
@@ -726,6 +781,75 @@ class CutRankTreeGroups:
                     tuple((TwyL[i] + TwyR[i] + v[i] * yi) % q for i in range(r)))
         return 'dead'
 
+    def _m_step_factored(self, a, xi, yi, left, right):
+        """Marker/entry steps of the factored multiplication automaton. A
+        marker folds the committed child states into a streaming frame
+        ('f', kind, phase, s, w1x, w1y, w2x, w2y, accx, accy); each entry
+        letter applies one ring entry (in the flat letters' entry order) and
+        the last one commits the accumulators into ('t', s, wx, wy)."""
+        k, r, q = self.k, self.r, self.q
+        zk, zr = (0,) * k, (0,) * r
+        child = left if right is None else (right if left is None else None)
+        if a == 'a':
+            if left is not None or right is not None:
+                return 'dead'
+            return ('f', 'a', 0, zk, zr, zr, zr, zr, zr, zr)
+        if a == 'b':
+            if child is None or child[0] != 't':
+                return 'dead'
+            return ('f', 'b', 0, child[1], child[2], child[3], zr, zr, zr, zr)
+        if a == 'd':
+            if left is None or right is None \
+                    or left[0] != 't' or right[0] != 't':
+                return 'dead'
+            s = tuple((left[1][l] + right[1][l]) % q for l in range(k))
+            return ('f', 'd', 0, s, left[2], left[3], right[2], right[3],
+                    zr, zr)
+        val = self.entry_letters.get(a)
+        if val is None or child is None or child[0] != 'f':
+            return 'dead'
+        kind, ph, s, w1x, w1y, w2x, w2y, ax, ay = child[1:]
+
+        def bump(vec, i, delta):
+            return vec[:i] + ((vec[i] + delta) % q,) + vec[i + 1:]
+
+        if kind == 'a':                      # v entries only
+            ax, ay = bump(ax, ph, val * xi), bump(ay, ph, val * yi)
+        elif kind == 'b':                    # T, v, R
+            if ph < r * r:
+                i, j = divmod(ph, r)
+                ax, ay = bump(ax, i, val * w1x[j]), bump(ay, i, val * w1y[j])
+            elif ph < r * r + r:
+                i = ph - r * r
+                ax, ay = bump(ax, i, val * xi), bump(ay, i, val * yi)
+            else:
+                l, u = divmod(ph - r * r - r, r)
+                s = bump(s, l, xi * val * w1y[u])
+        else:                                # TL, TR, v, RL, RR, Q
+            r2 = r * r
+            if ph < r2:
+                i, j = divmod(ph, r)
+                ax, ay = bump(ax, i, val * w1x[j]), bump(ay, i, val * w1y[j])
+            elif ph < 2 * r2:
+                i, j = divmod(ph - r2, r)
+                ax, ay = bump(ax, i, val * w2x[j]), bump(ay, i, val * w2y[j])
+            elif ph < 2 * r2 + r:
+                i = ph - 2 * r2
+                ax, ay = bump(ax, i, val * xi), bump(ay, i, val * yi)
+            elif ph < 2 * r2 + r + k * r:
+                l, u = divmod(ph - 2 * r2 - r, r)
+                s = bump(s, l, xi * val * w1y[u])
+            elif ph < 2 * r2 + r + 2 * k * r:
+                l, u = divmod(ph - 2 * r2 - r - k * r, r)
+                s = bump(s, l, xi * val * w2y[u])
+            else:
+                l, rem = divmod(ph - 2 * r2 - r - 2 * k * r, r2)
+                u, t = divmod(rem, r)
+                s = bump(s, l, val * w2x[u] * w1y[t])
+        if ph + 1 == self.n_entries[kind]:
+            return ('t', s, ax, ay)
+        return ('f', kind, ph + 1, s, w1x, w1y, w2x, w2y, ax, ay)
+
     def _strip_center(self, tree: Tree) -> Tree:
         node = tree
         for _ in range(self.k):
@@ -736,9 +860,14 @@ class CutRankTreeGroups:
 
     def encode(self, element, shape: Tree) -> Tree:
         """Encode (b, a) over a layout shape (an advice tree is accepted
-        too — its center chain is stripped). a is indexed by post-order."""
+        too — its center chain is stripped). a is indexed by post-order. In
+        factored mode each node's digit is repeated along its entry stretch
+        (so the element tree has the advice's exact shape)."""
         if shape.label == CMARK:
             shape = self._strip_center(shape)
+        if self.factored and (shape.label in self.entry_letters
+                              or shape.label in self.MARKERS):
+            shape = self._layout_of_advice(shape)
         b, a = element
         seq, pos, size = self._layout(shape)
         if len(b) != self.k or len(a) != len(seq):
@@ -747,14 +876,33 @@ class CutRankTreeGroups:
             raise ValueError(f"components must lie in Z/{self.q}")
         built = {}
         for node in seq:
-            built[id(node)] = Tree(
-                str(a[pos[id(node)] - 1]),
+            digit = str(a[pos[id(node)] - 1])
+            sub = Tree(
+                digit,
                 built.get(id(node.left)) if node.left is not None else None,
                 built.get(id(node.right)) if node.right is not None else None)
+            if self.factored:
+                kind = ('a' if node.left is None and node.right is None else
+                        'd' if node.left is not None and node.right is not None
+                        else 'b')
+                for _ in range(self.n_entries[kind]):
+                    sub = Tree(digit, sub, None)
+            built[id(node)] = sub
         root = built[id(seq[-1])]
         for j in range(self.k):
             root = Tree(str(b[j]), root, None)
         return root
+
+    def _layout_of_advice(self, advice: Tree) -> Tree:
+        """Recover the bare layout shape from a factored advice tree (strip
+        the entry chains above each marker)."""
+        def rec(node):
+            while node is not None and node.label in self.entry_letters:
+                node = node.left if node.left is not None else node.right
+            if node is None:
+                return None
+            return Tree(SHAPE, rec(node.left), rec(node.right))
+        return rec(advice)
 
     def evaluate(self, phi):
         return self.cls.evaluate(phi)
@@ -773,33 +921,20 @@ class CutRankTreeGroups:
         k = self.k
         digitset = self._digitset
 
-        def shape(args, q_of):
+        def shape(args, q_of, tracked=None):
             adv = args[0]
 
             def step(sym, left, right):
                 if left == 'dead' or right == 'dead' or not q_of(sym):
                     return 'dead'
-                a = sym[adv]
-                if left is None and right is None:
-                    return 'lay' if a in self.leaf_letters else 'dead'
-                if (left is None) != (right is None):
-                    child = left if right is None else right
-                    if a in self.unary_letters:
-                        return 'lay' if child == 'lay' else 'dead'
-                    if a == CMARK:
-                        if child == 'lay':
-                            return ('c', 1)
-                        if isinstance(child, tuple) and child[0] == 'c' \
-                                and child[1] < k:
-                            return ('c', child[1] + 1)
-                    return 'dead'
-                if a in self.binary_letters:
-                    return 'lay' if left == 'lay' and right == 'lay' else 'dead'
-                return 'dead'
+                return self._shape_core(
+                    sym[adv], sym[tracked] if tracked is not None else None,
+                    left, right)
             return ImplicitTA(args, step, lambda st: st == ('c', k))
 
         def Dom(args):
-            return shape(args, lambda sym: sym[args[1]] in digitset)
+            return shape(args, lambda sym: sym[args[1]] in digitset,
+                         tracked=args[1])
 
         def Adv(args):
             return shape(args, lambda sym: True)

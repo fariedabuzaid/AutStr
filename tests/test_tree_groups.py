@@ -312,17 +312,18 @@ class TestCutRankTreeGroups:
 
     def test_width_guard(self, crt2):
         """The interleaved matching splits across the balanced layout's
-        first subtree: tree-cut-rank 2, rejected at r = 1; and r = 2 tree
-        letters exceed the flat-alphabet budget (factored letters are
-        future work)."""
+        first subtree: tree-cut-rank 2, rejected at r = 1; r = 2 exceeds
+        the flat-alphabet budget and switches to factored letters (forcing
+        flat still raises)."""
         n = 4
         form = {(3, 1): (1,), (4, 2): (1,)}
         shape = crt2.balanced(n)
         assert crt2.tree_cut_rank(shape, form) == 2
         with pytest.raises(ValueError):
             crt2.advice(shape, form)
+        assert CutRankTreeGroups(2, r=2).factored      # auto-factored now
         with pytest.raises(ValueError):
-            CutRankTreeGroups(2, r=2)
+            CutRankTreeGroups(2, r=2, factored=False)
 
     def test_tree_cut_rank(self, crt2):
         assert crt2.tree_cut_rank(crt2.balanced(7), crt2.clique_form(7)) == 1
@@ -463,6 +464,104 @@ class TestCutRankTreeGroupsChainRing:
         c.encode(((3,), (2, 1)), c.spine(2))
         with pytest.raises(ValueError):
             c.encode(((4,), (0, 0)), c.spine(2))
+
+    def test_cls_guard_raises_instead_of_hanging(self):
+        """The Z/4 tree member's product automaton is infeasible: check/
+        evaluate/get_structure raise a clear error pointing at
+        check_implicit/simulate instead of hanging in the lazy build."""
+        from autstr.tree_groups import CutRankTreeGroups
+        c = CutRankTreeGroups(2, d=2)
+        advice = c.advice(c.spine(2), {})
+        with pytest.raises(ValueError, match="check_implicit"):
+            c.evaluate('M(x,y,z)')
+        with pytest.raises(ValueError, match="check_implicit"):
+            c.get_structure(advice)
+        with pytest.raises(ValueError, match="check_implicit"):
+            c.check('Eq(x,x)', advice, x=c.identity(2))
+        # the implicit paths still decide the same member
+        assert c.check_implicit('Eq(x,x)', advice, x=c.identity(2))
+        z = c.multiply(2, {}, c.identity(2), c.identity(2))
+        assert c.simulate(advice, c.identity(2), c.identity(2), z)
+        # the field alphabet still builds
+        assert CutRankTreeGroups(2).cls is not None
+
+    def test_factored_letters_lift_the_width_cap(self):
+        """Factored tree letters (bare 'a'/'b'/'d' markers + one letter per
+        ring entry): width r = 2 over Z/4 -- far beyond the flat cap --
+        compiles on spine and balanced layouts and matches the reference
+        law, including a balanced(6) form whose sibling block itself has
+        module rank 2 (the two-sided factorisation with r = 2 interfaces)."""
+        from autstr.tree_groups import CutRankTreeGroups
+        crt = CutRankTreeGroups(2, r=2, d=2)
+        assert crt.factored and len(crt.advice_letters) == crt.q + 4
+        rng = random.Random(23)
+
+        def sweep(shape, form, rounds=150):
+            seq, _, _ = crt._layout(shape)
+            n = len(seq)
+            advice = crt.advice(shape, form)
+            for _ in range(rounds):
+                g = ((rng.randrange(4),),
+                     tuple(rng.randrange(4) for _ in range(n)))
+                h = ((rng.randrange(4),),
+                     tuple(rng.randrange(4) for _ in range(n)))
+                z = crt.multiply(n, form, g, h)
+                assert crt.simulate(advice, g, h, z), (form, g, h)
+                wrong = (((z[0][0] + 1) % 4,), z[1])
+                assert not crt.simulate(advice, g, h, wrong), (form, g, h)
+
+        form = {(3, 1): (1,), (4, 2): (1,), (2, 1): (2,)}
+        assert crt.tree_cut_rank(crt.balanced(4), form) == 2
+        sweep(crt.balanced(4), form)
+        sweep(crt.spine(4), form)
+        # balanced(6): left subtree {1,2,3}, right {4,5} -- the sibling
+        # block of the root carries two independent pairs (rank 2)
+        form6 = {(4, 1): (1,), (5, 2): (2,), (5, 3): (1,)}
+        shape6 = crt.balanced(6)
+        assert crt.tree_cut_rank(shape6, form6) == 2
+        sweep(shape6, form6, rounds=120)
+
+    def test_factored_agrees_with_flat(self):
+        """Where both encodings exist, factored simulate decides exactly as
+        flat simulate (field and Z/4, r = 1)."""
+        from autstr.tree_groups import CutRankTreeGroups
+        rng = random.Random(29)
+        for p, d in ((2, 1), (2, 2)):
+            flat = CutRankTreeGroups(p, d=d)
+            fac = CutRankTreeGroups(p, d=d, factored=True)
+            assert not flat.factored and fac.factored
+            n = 4
+            q = flat.q
+            for shape in (flat.spine(n), flat.balanced(n)):
+                for form in (flat.clique_form(n), flat.matching_form(n)):
+                    a_flat = flat.advice(shape, form)
+                    a_fac = fac.advice(shape, form)
+                    for _ in range(80):
+                        g = ((rng.randrange(q),),
+                             tuple(rng.randrange(q) for _ in range(n)))
+                        h = ((rng.randrange(q),),
+                             tuple(rng.randrange(q) for _ in range(n)))
+                        z = rng.choice([
+                            flat.multiply(n, form, g, h),
+                            ((rng.randrange(q),),
+                             tuple((x + y) % q for x, y in zip(g[1], h[1])))])
+                        assert flat.simulate(a_flat, g, h, z) \
+                            == fac.simulate(a_fac, g, h, z), (form, g, h, z)
+
+    def test_factored_check_implicit(self):
+        """FO on a factored ring width-2 tree member via the implicit path."""
+        from autstr.tree_groups import CutRankTreeGroups
+        crt = CutRankTreeGroups(2, r=2, d=2)
+        form = {(3, 1): (1,), (4, 2): (1,), (2, 1): (2,)}
+        advice = crt.advice(crt.balanced(4), form)
+        one = crt.identity(4)
+        g = ((3,), (1, 0, 2, 3))
+        z = crt.multiply(4, form, g, g)
+        assert crt.check_implicit('M(x,x,z)', advice, x=g, z=z)
+        wrong = (((z[0][0] + 1) % 4,), z[1])
+        assert not crt.check_implicit('M(x,x,z)', advice, x=g, z=wrong)
+        assert crt.check_implicit('Eq(x,x)', advice, x=g)
+        assert crt.check_implicit('exists y.(M(x,y,u))', advice, x=g, u=one)
 
     @heavy
     def test_tree_merge_exhaustive_z4(self):

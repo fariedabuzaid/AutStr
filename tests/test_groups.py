@@ -391,8 +391,9 @@ class TestCutRankGroups:
     def test_validation(self, crg2):
         with pytest.raises(ValueError):
             CutRankGroups(4)
+        assert CutRankGroups(3, k=2, r=2).factored  # 59049 flat letters
         with pytest.raises(ValueError):
-            CutRankGroups(3, k=2, r=2)  # 59049 advice letters
+            CutRankGroups(3, k=2, r=2, factored=False)
         with pytest.raises(ValueError):
             crg2.encode(((0,), (2, 0)), 2)  # digit out of range
         with pytest.raises(ValueError):
@@ -504,22 +505,114 @@ class TestCutRankGroupsChainRing:
                 assert not crg.simulate(advice, g, h, wrong)
 
     def test_width_guard_rejects_over_r_at_z4(self):
-        """A module-cut-rank-2 form is rejected by the r = 1 compiler over Z/4.
-        (Width-2 ring automata exceed the advice-alphabet cap -- q^(r^2+r+kr)
-        = 4^8 for r = 2 -- so the buildable ring corner is small.)"""
+        """A module-cut-rank-2 form is rejected by the r = 1 compiler over
+        Z/4; r = 2 over the ring exceeds the flat-alphabet cap and switches
+        to factored letters (forcing flat still raises)."""
         form = {(3, 1): (1,), (4, 2): (1,), (2, 1): (1,)}
         narrow = CutRankGroups(2, d=2)
         assert narrow.linear_cut_rank(4, form) == 2
         with pytest.raises(ValueError):
             narrow.advice(4, form)
+        assert CutRankGroups(2, r=2, d=2).factored     # auto-factored now
         with pytest.raises(ValueError):
-            CutRankGroups(2, r=2, d=2)        # alphabet over the 20000 cap
+            CutRankGroups(2, r=2, d=2, factored=False)
 
     def test_encode_range_is_the_ring(self):
         crg = CutRankGroups(2, d=2)
         crg.encode(((3,), (2, 1)), 2)         # 0..3 allowed over Z/4
         with pytest.raises(ValueError):
             crg.encode(((4,), (0, 0)), 2)     # 4 is out of range
+
+    def test_cls_guard_raises_instead_of_hanging(self):
+        """Members whose product automaton is infeasible (e.g. Z/8) get a
+        clear error from check/evaluate/get_structure pointing at
+        check_implicit/simulate, instead of hanging in the lazy build."""
+        crg = CutRankGroups(2, d=3)            # Z/8: constructible, cls is not
+        advice = crg.advice(2, {})
+        with pytest.raises(ValueError, match="check_implicit"):
+            crg.evaluate('M(x,y,z)')
+        with pytest.raises(ValueError, match="check_implicit"):
+            crg.get_structure(advice)
+        with pytest.raises(ValueError, match="check_implicit"):
+            crg.check('Eq(x,x)', advice, x=crg.identity(2))
+        # the implicit paths still decide the same member
+        assert crg.check_implicit('Eq(x,x)', advice, x=crg.identity(2))
+        z = crg.multiply(2, {}, crg.identity(2), crg.identity(2))
+        assert crg.simulate(advice, crg.identity(2), crg.identity(2), z)
+        # small alphabets still build
+        assert CutRankGroups(2, d=2).cls is not None
+
+    def test_factored_letters_lift_the_width_cap(self):
+        """Factored advice letters (marker + one letter per ring entry):
+        r = 2 over Z/4 and r = 3 over F_2 -- both far beyond the flat
+        20000-letter cap -- compile, and the streamed automaton matches the
+        reference law. The factored alphabet has q+1 advice letters."""
+        rng = random.Random(31)
+
+        def sim_sweep(crg, n, form, rounds=200):
+            advice = crg.advice(n, form)
+            q = crg.q
+            for _ in range(rounds):
+                g = (tuple(rng.randrange(q) for _ in range(crg.k)),
+                     tuple(rng.randrange(q) for _ in range(n)))
+                h = (tuple(rng.randrange(q) for _ in range(crg.k)),
+                     tuple(rng.randrange(q) for _ in range(n)))
+                z = crg.multiply(n, form, g, h)
+                assert crg.simulate(advice, g, h, z), (g, h)
+                wrong = (((z[0][0] + 1) % q,) + z[0][1:], z[1])
+                assert not crg.simulate(advice, g, h, wrong), (g, h)
+
+        ring2 = CutRankGroups(2, r=2, d=2)             # Z/4, width 2
+        assert ring2.factored and len(ring2.entry_letters) == 4
+        form = {(3, 1): (1,), (4, 2): (1,), (2, 1): (2,)}
+        assert ring2.linear_cut_rank(4, form) == 2
+        sim_sweep(ring2, 4, form)
+        field3 = CutRankGroups(2, r=3)                 # F_2, width 3
+        form3 = {(4, 1): (1,), (5, 2): (1,), (6, 3): (1,)}
+        assert field3.linear_cut_rank(6, form3) == 3
+        sim_sweep(field3, 6, form3, rounds=120)
+
+    def test_factored_agrees_with_flat(self):
+        """Where both encodings exist (small alphabet), the factored member
+        decides multiplication identically to the flat one, via simulate and
+        via the explicitly built factored automata."""
+        flat = CutRankGroups(2, d=2)
+        fac = CutRankGroups(2, d=2, factored=True)
+        n = 3
+        rng = random.Random(17)
+        M = fac.cls.class_automata['M']                # factored cls builds
+        for form in self.forms(fac, n).values():
+            a_flat, a_fac = flat.advice(n, form), fac.advice(n, form)
+            for _ in range(120):
+                g = (tuple(rng.randrange(4) for _ in range(1)),
+                     tuple(rng.randrange(4) for _ in range(n)))
+                h = (tuple(rng.randrange(4) for _ in range(1)),
+                     tuple(rng.randrange(4) for _ in range(n)))
+                z = rng.choice([flat.multiply(n, form, g, h),
+                                (tuple(rng.randrange(4) for _ in range(1)),
+                                 tuple((x + y) % 4 for x, y in
+                                       zip(g[1], h[1])))])
+                got_flat = flat.simulate(a_flat, g, h, z)
+                got_fac = fac.simulate(a_fac, g, h, z)
+                assert got_flat == got_fac, (form, g, h, z)
+                gx, hy, zz = (fac.encode(e, n) for e in (g, h, z))
+                word = [(a_fac[i], gx[i], hy[i], zz[i])
+                        for i in range(len(a_fac))]
+                assert M.accepts(word) == got_fac, (form, g, h, z)
+
+    def test_factored_check_implicit(self):
+        """FO on a factored ring width-2 member through the implicit path."""
+        crg = CutRankGroups(2, r=2, d=2)
+        form = {(3, 1): (1,), (4, 2): (1,), (2, 1): (2,)}
+        advice = crg.advice(4, form)
+        one = crg.identity(4)
+        g = ((3,), (1, 0, 2, 3))
+        z = crg.multiply(4, form, g, g)
+        assert crg.check_implicit('M(x,x,z)', advice, x=g, z=z)
+        wrong = (((z[0][0] + 1) % 4,), z[1])
+        assert not crg.check_implicit('M(x,x,z)', advice, x=g, z=wrong)
+        assert crg.check_implicit('Eq(x,x)', advice, x=g)
+        assert crg.check_implicit('exists y.(M(x,y,u))', advice, x=g, u=one)
 
     @heavy
     def test_simulate_exhaustive_ring_sweep(self):

@@ -211,11 +211,13 @@ class CocycleSites:
 # ---------------- embeddings of the two known corner classes ----------------
 
 def fixed_k_sites(p: int, layout_shape: Tree, form: Dict[Tuple[int, int], Sequence[int]],
-                  k: int) -> Tuple[CocycleSites, Dict]:
+                  k: int, d: int = 1) -> Tuple[CocycleSites, Dict]:
     """Embed a `CutRankTreeGroups` instance: an all-x copy of the layout
     with a chain of k z-sites above the root. Positions of the x-layout are
     preserved; the z-chain occupies positions n+1 (innermost = center
-    coordinate 0) through n+k."""
+    coordinate 0) through n+k. With ``d > 1`` the sites and the form labels
+    live over the chain ring R = Z/p^d."""
+    q = p ** d
     def convert(node):
         if node is None:
             return None
@@ -224,20 +226,22 @@ def fixed_k_sites(p: int, layout_shape: Tree, form: Dict[Tuple[int, int], Sequen
     n = len(_layout(layout_shape)[0])
     for _ in range(k):
         site_root = Tree(ZSITE, site_root, None)
-    sites = CocycleSites(p, site_root)
+    sites = CocycleSites(p, site_root, d=d)
     T = {}
     for (j, i), label in form.items():
         for l in range(k):
-            if label[l] % p:
-                T[(j, i, n + 1 + l)] = label[l] % p
+            if label[l] % q:
+                T[(j, i, n + 1 + l)] = label[l] % q
     return sites, T
 
 
-def laminar_sites(p: int, shape: Tree) -> Tuple[CocycleSites, Dict, Dict]:
+def laminar_sites(p: int, shape: Tree, d: int = 1) -> Tuple[CocycleSites, Dict, Dict]:
     """Embed a `TreeExtraspecialGroups` instance: every inner node w of the
     shape becomes a chain x-site (for x_w) over x-site (for y_w), every leaf
     becomes a z-site, and [x_w, y_w] hits every leaf below w. Returns the
-    sites, the tensor, and the address map {shape address: site positions}."""
+    sites, the tensor, and the address map {shape address: site positions}.
+    With ``d > 1`` the sites live over the chain ring R = Z/p^d (the tensor
+    keeps unit coefficients; the center gains exponent p^d)."""
     def convert(node, addr):
         if node is None:
             return None, {}
@@ -250,7 +254,7 @@ def laminar_sites(p: int, shape: Tree) -> Tuple[CocycleSites, Dict, Dict]:
         upper = Tree(XSITE, lower, None)
         return upper, {**amap, addr: ('i', lower, upper)}
     site_root, amap = convert(shape, '')
-    sites = CocycleSites(p, site_root)
+    sites = CocycleSites(p, site_root, d=d)
     addr_pos = {}
     for addr, entry in amap.items():
         if entry[0] == 'z':
@@ -277,11 +281,12 @@ def laminar_sites(p: int, shape: Tree) -> Tuple[CocycleSites, Dict, Dict]:
     return sites, T, {'inner': addr_pos, 'leaf': leaf_pos}
 
 
-def point_target_sites(p: int, shape: Tree) -> Tuple[CocycleSites, Dict]:
+def point_target_sites(p: int, shape: Tree, d: int = 1) -> Tuple[CocycleSites, Dict]:
     """A width-1 family covered by neither corner class: as `laminar_sites`,
     but every commutator [x_w, y_w] hits only the *leftmost* leaf below w
-    (point targets: the center grows with the tree, the law is not laminar)."""
-    sites, T_laminar, maps = laminar_sites(p, shape)
+    (point targets: the center grows with the tree, the law is not laminar).
+    With ``d > 1`` the sites live over the chain ring R = Z/p^d."""
+    sites, T_laminar, maps = laminar_sites(p, shape, d=d)
     T = {}
     for (xw, yw, v) in T_laminar:
         best = min(u for (a, b, u) in T_laminar if (a, b) == (xw, yw))
@@ -289,16 +294,17 @@ def point_target_sites(p: int, shape: Tree) -> Tuple[CocycleSites, Dict]:
     return sites, T
 
 
-def scattered_sites(p: int, m: int) -> Tuple[CocycleSites, Dict]:
+def scattered_sites(p: int, m: int, d: int = 1) -> Tuple[CocycleSites, Dict]:
     """The lower-bound family: m private z-sites on a chain at the bottom,
     m commuting x-pairs above, pair t targeting exactly z_t. The cut at the
-    z-chain has an identity claim flattening: width m."""
+    z-chain has an identity claim flattening: width m (the module cut-rank
+    over R = Z/p^d equally, for ``d > 1``)."""
     node = None
     for _ in range(m):
         node = Tree(ZSITE, node, None)
     for _ in range(2 * m):
         node = Tree(XSITE, node, None)
-    sites = CocycleSites(p, node)
+    sites = CocycleSites(p, node, d=d)
     T = {}
     for t in range(1, m + 1):
         i = m + 2 * t - 1
@@ -311,66 +317,94 @@ def scattered_sites(p: int, m: int) -> Tuple[CocycleSites, Dict]:
 # The claim-and-verify automaton (width 1) with microcode advice
 # ====================================================================
 
-def _vratio(target: Dict, base: Dict, p: int, ctx: str) -> int:
-    """The scalar c with target == c * base (as sparse vectors); raises
-    AssertionError if the vectors are not proportional -- every call is a
-    machine-checked instance of a restriction lemma."""
-    base = {k: v % p for k, v in base.items() if v % p}
-    target = {k: v % p for k, v in target.items() if v % p}
+def _vratio(target: Dict, base: Dict, p: int, ctx: str, d: int = 1) -> int:
+    """The scalar c over R = Z/p^d with target == c * base (as sparse
+    vectors); raises AssertionError if target is outside the R-span of base --
+    every call is a machine-checked instance of a restriction lemma. At d = 1
+    (the field) c is the unique proportionality factor; over the ring c may
+    carry valuation and is the minimal `chain_ring.solve_left` solution."""
+    q = p ** d
+    base = {k: v % q for k, v in base.items() if v % q}
+    target = {k: v % q for k, v in target.items() if v % q}
     if not base:
         if target:
             raise AssertionError(f"lemma failure ({ctx}): target outside span")
         return 0
-    key = next(iter(base))
-    c = target.get(key, 0) * pow(base[key], p - 2, p) % p
-    if {k: c * v % p for k, v in base.items() if c * v % p} != target:
+    keys = sorted(set(base) | set(target))
+    V = np.array([[base.get(k, 0) for k in keys]], dtype=np.int64)
+    B = np.array([[target.get(k, 0) for k in keys]], dtype=np.int64)
+    try:
+        return int(cr.solve_left(V, B, p, d)[0, 0]) % q
+    except ValueError:
         raise AssertionError(f"lemma failure ({ctx}): not proportional")
-    return c
 
 
-def _vratio2(entries: Dict, u: Dict, w: Dict, p: int, ctx: str) -> int:
-    """The scalar c with entries[(a, b)] == c * u[a] * w[b]."""
-    outer = {(a, b): u[a] * w[b] % p for a in u for b in w if u[a] * w[b] % p}
-    return _vratio(entries, outer, p, ctx)
+def _vratio2(entries: Dict, u: Dict, w: Dict, p: int, ctx: str,
+             d: int = 1) -> int:
+    """The scalar c with entries[(a, b)] == c * u[a] * w[b] over R = Z/p^d."""
+    q = p ** d
+    outer = {(a, b): u[a] * w[b] % q for a in u for b in w if u[a] * w[b] % q}
+    return _vratio(entries, outer, p, ctx, d)
 
 
-def _vratio3(entries: Dict, u: Dict, w: Dict, x: Dict, p: int, ctx: str) -> int:
-    """The scalar c with entries[(a, b, e)] == c * u[a] * w[b] * x[e]."""
-    outer = {(a, b, e): u[a] * w[b] * x[e] % p
-             for a in u for b in w for e in x if u[a] * w[b] * x[e] % p}
-    return _vratio(entries, outer, p, ctx)
+def _vratio3(entries: Dict, u: Dict, w: Dict, x: Dict, p: int, ctx: str,
+             d: int = 1) -> int:
+    """The scalar c with entries[(a, b, e)] == c * u[a] * w[b] * x[e]
+    over R = Z/p^d."""
+    q = p ** d
+    outer = {(a, b, e): u[a] * w[b] * x[e] % q
+             for a in u for b in w for e in x if u[a] * w[b] * x[e] % q}
+    return _vratio(entries, outer, p, ctx, d)
 
 
-def _vsolve2(target: Dict, b1: Dict, b2: Dict, p: int, ctx: str):
-    """(c1, c2) with target == c1*b1 + c2*b2; AssertionError if unsolvable."""
-    target = {k: v % p for k, v in target.items() if v % p}
+def _vsolve2(target: Dict, b1: Dict, b2: Dict, p: int, ctx: str, d: int = 1):
+    """(c1, c2) over R = Z/p^d with target == c1*b1 + c2*b2; AssertionError
+    if unsolvable."""
+    q = p ** d
+    target = {k: v % q for k, v in target.items() if v % q}
     if not target:
         return 0, 0
     keys = sorted(set(target) | set(b1) | set(b2))
-    A = np.array([[b1.get(k, 0) % p, b2.get(k, 0) % p] for k in keys],
-                 dtype=np.int64)
-    B = np.array([[target.get(k, 0) % p] for k in keys], dtype=np.int64)
-    from autstr.groups import _solve_xa_eq_b
+    V = np.array([[b1.get(k, 0) % q for k in keys],
+                  [b2.get(k, 0) % q for k in keys]], dtype=np.int64)
+    B = np.array([[target.get(k, 0) for k in keys]], dtype=np.int64)
     try:
-        X = _solve_xa_eq_b(A.T, B.T, p)      # (1 x 2) with X . A^T = B^T
+        X = cr.solve_left(V, B, p, d)
     except ValueError:
         raise AssertionError(f"lemma failure ({ctx}): 2-term system unsolvable")
-    return int(X[0, 0]) % p, int(X[0, 1]) % p
+    return int(X[0, 0]) % q, int(X[0, 1]) % q
+
+
+def _unit_val(c: int, p: int, d: int):
+    """Decompose c in R = Z/p^d as (u, s) with c == u * p^s and u a unit
+    (u = 1, s = d for c = 0)."""
+    q = p ** d
+    c = int(c) % q
+    if c == 0:
+        return 1, d
+    s = cr.valuation(c, p, d)
+    return (c // p ** s) % q, s
 
 
 class CocycleRankWidthGroups:
     """The uniformly tree-automatic class of distributed-center class-2
     groups of tensor cut-rank 1 (see paper/theorem3-notes.md): the common
     generalisation, at width r = 1, of `CutRankTreeGroups` (fixed center on
-    a chain) and `TreeExtraspecialGroups` (laminar leaf targets).
+    a chain) and `TreeExtraspecialGroups` (laminar leaf targets). With
+    ``d > 1`` everything runs over the chain ring R = Z/p^d ("Idea 2"): the
+    bases are the saturated free interfaces (`chain_ring.saturate`), the
+    registers and constants range over R, and the claim register carries the
+    *determined truncation* p^s * P of the claim coordinate, re-anchored by
+    the ring-only `zr` op when a later z-position determines more of it.
+    The default d = 1 is byte-identical to the original field construction.
 
     The advice is *microcode*: each site of a `CocycleSites` layout expands
     into its site letter followed by a chain of micro-op letters, each
-    carrying at most two Z_p constants, over an alphabet of O(p^5) letters
-    independent of the tensor. Element digits repeat along a site's stretch
-    (the universe automaton enforces constancy), so the multiplication
-    automaton's state is exactly the seven-register machine of the
-    protocol:
+    carrying at most three R-constants (d base-p digits each), over an
+    alphabet of O(q^5) letters independent of the tensor. Element digits
+    repeat along a site's stretch (the universe automaton enforces
+    constancy), so the multiplication automaton's state is exactly the
+    seven-register machine of the protocol:
 
         wy, wx : upward digit functionals      (F_y, F_x)
         phy,phx: mixed exports for inside targets (F_py, F_px)
@@ -388,55 +422,101 @@ class CocycleRankWidthGroups:
     matrix constants and is deliberately not implemented yet."""
 
     OPS1 = {'sy', 'sx', 'sq', 'sh', 'sm', 'sg', 'iy', 'ix', 'iq', 'ih',
-            'qy', 'hx', 'rm', 'rg', 'gm', 'z0', 'bg', 'bc'}
+            'qy', 'hx', 'rm', 'rg', 'gm', 'z0', 'zr', 'bg', 'bc'}
 
-    def __init__(self, p: int, merge_letters=None):
+    def __init__(self, p: int, merge_letters=None, d: int = 1):
         """With `merge_letters=None` the full ISA is available: the
         simulator and the compiler work, but the presentation automata are
         too large for the enumeration-based builder. Passing an explicit
         set of merge letters (e.g. collected from compiled advices via
         `used_merge_letters`) instantiates the automata over that
-        sub-alphabet."""
-        if p < 2 or p > 9 or any(p % d == 0 for d in range(2, int(p ** 0.5) + 1)):
+        sub-alphabet. With `d > 1` the center ring is R = Z/p^d ("Idea 2"):
+        registers and micro-op constants range over R, each constant spelled
+        as d base-p digits in the letter names (so d = 1 is byte-identical
+        to the original field encoding)."""
+        if p < 2 or p > 9 or any(p % f == 0 for f in range(2, int(p ** 0.5) + 1)):
             raise ValueError(f"p must be a prime in 2..9, got {p}")
+        if d < 1:
+            raise ValueError(f"center ring depth d must be >= 1, got {d}")
         self.p = p
+        self.d = d
+        self.q = p ** d                    # the ring R = Z/p^d
         self._merge_letters = None if merge_letters is None \
             else frozenset(merge_letters)
-        self.digits = [str(d) for d in range(p)]
-        self._digit_val = {d: int(d) for d in self.digits}
+        self.digits = [str(x) for x in range(self.q)]
+        self._digit_val = {x: int(x) for x in self.digits}
         self._parsed = {}
         self.element_letters = set(self.digits)
         self._cls = None
+
+    def _enc(self, c: int) -> str:
+        """A ring constant as d base-p digits (least significant first);
+        the d = 1 encoding is the original single-digit form."""
+        return ''.join(str(dig)
+                       for dig in cr.to_digits(int(c) % self.q, self.p, self.d))
 
     @property
     def advice_letters(self):
         """The full microcode ISA. The merge letters carry 13 constants
         (folds to the joint bases, the three sibling products, the two
-        cross m->claim translations), so the flat alphabet has 2 p^13 + O(p^2)
+        cross m->claim translations), so the flat alphabet has 2 q^13 + O(q^3)
         letters: fine for the transition function and the simulator, too
         large for the enumeration-based automaton builder -- building the
         presentation automata is gated until factored transition letters
         land in the engine (see theorem3-notes.md)."""
-        p = self.p
+        q, enc = self.q, self._enc
         letters = ['L', 'K', 'U', 'V', 'n', 'g0', 'bl']
         for op in ('sy', 'sx', 'sq', 'sh', 'sm', 'sg'):
-            letters += [f'{op}{c}' for c in range(p)]
+            letters += [f'{op}{enc(c)}' for c in range(q)]
         for op in ('iy', 'ix', 'iq', 'ih', 'qy', 'hx', 'rm', 'rg', 'gm',
                    'b1'):
-            letters += [f'{op}{c}' for c in range(1, p)]
+            letters += [f'{op}{enc(c)}' for c in range(1, q)]
         for op in ('za', 'zc', 'bk'):
-            letters += [f'{op}{c}{d}' for c in range(p) for d in range(p)]
-        letters += [f'z0{c}' for c in range(p)]
+            letters += [f'{op}{enc(c)}{enc(e)}' for c in range(q)
+                        for e in range(q)]
+        letters += [f'z0{enc(c)}' for c in range(q)]
+        if self.d > 1:                     # the ring re-anchor op
+            letters += [f'zr{enc(c)}{enc(a)}{enc(b)}' for c in range(q)
+                        for a in range(q) for b in range(q)]
         if self._merge_letters is not None:
             return set(letters) | set(self._merge_letters)
+        if 2 * q ** 13 > 20_000_000:
+            raise ValueError(
+                f"the full merge ISA has 2 * {q}^13 letters -- too many to "
+                f"enumerate; instantiate with merge_letters="
+                f"used_merge_letters(advice), or use check_implicit / "
+                f"simulate, which never enumerate the alphabet")
         for kind in ('M', 'W'):
-            letters += [kind + ''.join(map(str, cs))
-                        for cs in it.product(range(p), repeat=13)]
+            letters += [kind + ''.join(enc(c) for c in cs)
+                        for cs in it.product(range(q), repeat=13)]
         return set(letters)
+
+    def _isa_count(self) -> int:
+        """|advice_letters| computed arithmetically (the full merge ISA may
+        be too large to enumerate)."""
+        q = self.q
+        n = 7 + 6 * q + 10 * (q - 1) + 3 * q * q + q
+        if self.d > 1:
+            n += q ** 3
+        n += (len(self._merge_letters) if self._merge_letters is not None
+              else 2 * q ** 13)
+        return n
 
     @property
     def sigma(self):
         return {PAD} | set(self.digits) | self.advice_letters
+
+    #: cap on the transition enumerations of the lazy `cls` build; beyond it
+    #: the build would run for minutes to hours, so `cls` raises instead
+    _CLS_ENUMERATION_CAP = 50_000_000
+
+    def _cls_cost(self) -> int:
+        """Transition enumerations the lazy `cls` build performs (dominated by
+        the seven-register multiplication automaton: state pairs x letters x
+        digits^3)."""
+        n_states = 1 + self.q ** 7
+        return ((n_states + 1) ** 2 * self._isa_count()
+                * len(self.element_letters) ** 3)
 
     @property
     def cls(self) -> UniformlyTreeAutomaticClass:
@@ -444,6 +524,17 @@ class CocycleRankWidthGroups:
         seven-register multiplication automaton enumerates a large
         state-pair x letter product)."""
         if self._cls is None:
+            cost = self._cls_cost()
+            if cost > self._CLS_ENUMERATION_CAP:
+                hint = ("instantiate with merge_letters="
+                        "used_merge_letters(advice) for a sub-alphabet, or "
+                        if self._merge_letters is None else "")
+                raise ValueError(
+                    f"advice alphabet too large to build the explicit "
+                    f"presentation automata: {self._isa_count()} "
+                    f"letters, ~{cost:.0e} transition enumerations "
+                    f"(cap {self._CLS_ENUMERATION_CAP:.0e}); {hint}"
+                    f"use check_implicit or simulate instead")
             self._cls = UniformlyTreeAutomaticClass({
                 'U': self._universe_automaton(),
                 'M': self._multiplication_automaton(),
@@ -497,29 +588,51 @@ class CocycleRankWidthGroups:
     _OP_CODES = {'sy': 9, 'sx': 10, 'sq': 11, 'sh': 12, 'sm': 13,
                  'sg': 14, 'iy': 15, 'ix': 16, 'iq': 17, 'ih': 18,
                  'qy': 19, 'hx': 20, 'rm': 21, 'rg': 22, 'gm': 23,
-                 'b1': 24, 'za': 25, 'zc': 26, 'z0': 27, 'bk': 28}
+                 'b1': 24, 'za': 25, 'zc': 26, 'z0': 27, 'bk': 28,
+                 'zr': 29}
+    _OP_NCONSTS = {'sy': 1, 'sx': 1, 'sq': 1, 'sh': 1, 'sm': 1, 'sg': 1,
+                   'iy': 1, 'ix': 1, 'iq': 1, 'ih': 1, 'qy': 1, 'hx': 1,
+                   'rm': 1, 'rg': 1, 'gm': 1, 'b1': 1, 'za': 2, 'zc': 2,
+                   'z0': 1, 'bk': 2, 'zr': 3}
     _SITE_CODES = {'L': 0, 'K': 1, 'U': 2, 'V': 3, 'n': 6, 'g0': 7, 'bl': 8}
 
     def _parse_letter(self, a):
-        """Letter -> (code, consts), memoized; None if malformed."""
+        """Letter -> (code, consts), memoized; None if malformed. Constants
+        are d base-p digits each (least significant first)."""
         hit = self._parsed.get(a)
         if hit is not None:
             return hit
+        d, p = self.d, self.p
+
+        def consts(s, n):
+            if len(s) != n * d or not all(c.isdigit() and int(c) < p
+                                          for c in s):
+                return None
+            return tuple(cr.from_digits([int(c) for c in s[i * d:(i + 1) * d]],
+                                        p)
+                         for i in range(n))
+
         if a in self._SITE_CODES:
             out = (self._SITE_CODES[a], ())
-        elif a[0] in ('M', 'W') and len(a) == 14:
-            out = (4 if a[0] == 'M' else 5, tuple(int(c) for c in a[1:]))
+        elif a[0] in ('M', 'W') and len(a) == 1 + 13 * d:
+            cs = consts(a[1:], 13)
+            if cs is None:
+                return None
+            out = (4 if a[0] == 'M' else 5, cs)
         elif a[:2] in self._OP_CODES:
-            out = (self._OP_CODES[a[:2]], tuple(int(c) for c in a[2:]))
+            cs = consts(a[2:], self._OP_NCONSTS[a[:2]])
+            if cs is None:
+                return None
+            out = (self._OP_CODES[a[:2]], cs)
         else:
             return None
         self._parsed[a] = out
         return out
 
     def _m_delta(self, lq, rq, sym):
-        """The seven-register claim-and-verify transition (shared by the
-        automaton construction and the direct simulator)."""
-        p = self.p
+        """The seven-register claim-and-verify transition over R = Z/p^d
+        (shared by the automaton construction and the direct simulator)."""
+        p = self.q
         a, x, y, z = sym
         if lq == 'dead' or rq == 'dead':
             return 'dead'
@@ -602,6 +715,14 @@ class CocycleRankWidthGroups:
             return q if (d0 - cs[0] * m) % p == 0 else 'dead'
         if code == 28:
             return q if (cs[0] * g + cs[1] * bg) % p == 0 else 'dead'
+        if code == 29:
+            # ring re-anchor: the entering z-position determines more of the
+            # truncated claim than the positions seen so far -- check the old
+            # truncation against the new residual, then re-seed the register
+            val = (d0 - cs[0] * m) % p
+            if (g - cs[1] * val) % p:
+                return 'dead'
+            return (wy, wx, qy, hx, m, (cs[2] * val) % p, bg)
         return 'dead'
 
     def simulate(self, advice: Tree, tx: Tree, ty: Tree, tz: Tree) -> bool:
@@ -624,7 +745,7 @@ class CocycleRankWidthGroups:
         return run(advice, tx, ty, tz) == (0,) * 7
 
     def _multiplication_automaton(self) -> SparseTreeAutomaton:
-        states = ['dead'] + list(it.product(range(self.p), repeat=7))
+        states = ['dead'] + list(it.product(range(self.q), repeat=7))
         return sta_from_delta(self.sigma, states, 4, self._m_delta,
                               {(0,) * 7},
                               tapes=[self.advice_letters] +
@@ -633,27 +754,36 @@ class CocycleRankWidthGroups:
     # ---------------- the advice compiler ----------------
 
     def _r1_bases(self, sites: CocycleSites, T: Dict, lo: int, hi: int):
-        """Width-1 basis vectors of the six flattenings of the interval, as
-        sparse dicts. Vy/Vx/Vpy/Vpx live over x-positions, Bm and w over
-        z-positions."""
-        p = self.p
+        """Width-1 SATURATED basis vectors of the six flattenings of the
+        interval over R = Z/p^d, as sparse dicts. Vy/Vx/Vpy/Vpx live over
+        x-positions, Bm and w over z-positions. The saturated free basis
+        (`chain_ring.saturate`) is what makes the restriction and
+        factorisation lemmas hold over the ring; at d = 1 it is the ordinary
+        normalized field basis."""
+        p, d, q = self.p, self.d, self.q
         ent = sites._flattening_entries(T, lo, hi)
 
         def basis(e, key_of, ctx):
             groups = {}
             for pair_key, coeff in e.items():
                 own, other = key_of(pair_key)
-                groups.setdefault(other, {})[own] = coeff % p
-            vec = {}
-            for cand in groups.values():
-                if any(v % p for v in cand.values()):
-                    if not vec:
-                        vec = {k: v % p for k, v in cand.items() if v % p}
-                    else:
-                        _vratio(cand, vec, p, ctx)
-            if vec:                                   # canonical: leading 1
-                lead = pow(vec[min(vec)], p - 2, p)
-                vec = {k: v * lead % p for k, v in vec.items()}
+                groups.setdefault(other, {})[own] = coeff % q
+            cands = [c for c in groups.values() if any(v % q
+                                                       for v in c.values())]
+            if not cands:
+                return {}
+            keys = sorted({k for c in cands for k in c})
+            M = np.array([[c.get(k, 0) for k in keys] for c in cands],
+                         dtype=np.int64)
+            sat, _ = cr.saturate(M, p, d)
+            if sat.shape[0] > 1:
+                raise AssertionError(f"lemma failure ({ctx}): module rank > 1")
+            vec = {k: int(sat[0, i]) % q for i, k in enumerate(keys)
+                   if sat[0, i] % q}
+            # canonical: the unit part of the leading entry scaled to 1
+            u, _ = _unit_val(vec[min(vec)], p, d)
+            inv = cr.unit_inverse(u, p, d)
+            vec = {k: v * inv % q for k, v in vec.items()}
             return vec
 
         return {
@@ -675,13 +805,16 @@ class CocycleRankWidthGroups:
         out = {}
         for (j, i, v), coeff in T.items():
             if j == t and lo <= i <= hi and targets(v):
-                out[(i, v)] = coeff % self.p
+                out[(i, v)] = coeff % self.q
         return out
 
     def _bank_ops(self, old, new, lo, hi, own, digit_pos, p, banks=None):
         """Rebase + injection ops from child bases `old` to node bases
         `new` over the child interval [lo, hi]; `own` is the node's own
-        position (or None) for the digit injections."""
+        position (or None) for the digit injections. The functional
+        registers flow forward, so ring constants (possibly with valuation)
+        need no inversion."""
+        d, enc = self.d, self._enc
         ops = []
         # mixed banks first: their qy/hx ops consume the *old* wy/wx
         table = (('Vpy', 'sq', 'iq', 'qy', 'Vy'),
@@ -694,57 +827,66 @@ class CocycleRankWidthGroups:
             target = self._restrict(new[bank], lo, hi)
             if mix is None:
                 theta = _vratio(target, self._restrict(old[bank], lo, hi),
-                                p, f'{bank} restriction')
+                                p, f'{bank} restriction', d)
                 cmix = 0
             else:
                 theta, cmix = _vsolve2(target,
                                        self._restrict(old[bank], lo, hi),
                                        self._restrict(old[mixsrc], lo, hi),
-                                       p, f'{bank} mixed restriction')
+                                       p, f'{bank} mixed restriction', d)
             if theta != 1:
-                ops.append(f'{scale}{theta}')
+                ops.append(f'{scale}{enc(theta)}')
             if cmix:
-                ops.append(f'{mix}{cmix}')
+                ops.append(f'{mix}{enc(cmix)}')
             if own is not None:
                 cinj = new[bank].get(own, 0)
                 if cinj:
-                    ops.append(f'{inject}{cinj}')
+                    ops.append(f'{inject}{enc(cinj)}')
         return ops
 
-    def _claim_rebase_ops(self, w_old, w_new, p, ctx):
-        """Ops taking claim coordinates from basis w_old to w_new over the
-        same z-set (w_new = phi * w_old)."""
+    def _claim_rebase_ops(self, w_old, w_new, s_old, p, ctx):
+        """Ops taking the claim register from basis w_old (truncation
+        valuation s_old) to basis w_new over the same z-set; returns
+        (ops, s_new). Two saturated bases of the same rank-1 module differ
+        by a unit, so the rebase is always invertible."""
+        d, q, enc = self.d, self.q, self._enc
         if not w_old:
             if w_new:
                 raise AssertionError(f'lemma failure ({ctx}): claim born late')
-            return []
+            return [], 0
         if not w_new:
-            return ['g0']
-        phi = _vratio(w_new, w_old, p, ctx)
-        if phi == 0:
+            return ['g0'], 0
+        phi = _vratio(w_new, w_old, p, ctx, d)
+        if phi % p == 0:
             raise AssertionError(f'lemma failure ({ctx}): rebase kills basis')
-        inv = pow(phi, p - 2, p)
-        return [f'sg{inv}'] if inv != 1 else []
+        inv = cr.unit_inverse(phi, p, d)
+        return ([f'sg{enc(inv)}'] if inv != 1 else []), s_old
 
     def advice(self, sites: CocycleSites, T: Dict) -> Tree:
         """Compile a width-1 tensor over the site layout into microcode
-        advice. Raises ValueError if some cut exceeds width 1; every scalar
-        derivation asserts its restriction lemma."""
-        p = self.p
-        if sites.p != p:
-            raise ValueError("sites and class must share p")
-        if sites.d != 1:
-            raise NotImplementedError(
-                "CocycleRankWidthGroups is over the field F_p; the distributed-"
-                "center automaton is not yet generalized to the chain ring "
-                f"(sites has d={sites.d}). CocycleSites supports d>1 for the "
-                "reference law and module cut-rank only.")
+        advice over R = Z/p^d. Raises ValueError if some cut exceeds width 1
+        (module cut-rank over the ring); every scalar derivation asserts its
+        restriction lemma.
+
+        Over the ring the claim register can only carry the *determined
+        truncation* p^s * P of the claim coordinate P, where s is the least
+        valuation of the (saturated) claim basis over the z-positions read
+        so far; the compiler tracks s statically per node, normalizes unit
+        parts through `sg`, cross-multiplies consistency checks by the
+        matching p-powers, and re-anchors with the ring-only `zr` op when a
+        new z-position determines more than the ones before it. At d = 1
+        every valuation is 0 and the compiled stream is the original field
+        microcode, byte for byte."""
+        p, d, q, enc = self.p, self.d, self.q, self._enc
+        if sites.p != p or sites.d != d:
+            raise ValueError("sites and class must share p and d")
         sites.check_tensor(T)
         width = sites.cut_width(T)
         if width > 1:
             raise ValueError(f"tensor has cut-width {width} > 1")
 
         bases: Dict[int, Dict] = {}
+        claim_s: Dict[int, int] = {}
         adv: Dict[int, Tree] = {}
 
         def chain(tree, ops):
@@ -763,21 +905,25 @@ class CocycleRankWidthGroups:
             if L is None and R is None:
                 letter = 'L' if kind == XSITE else 'K'
                 ops = []
+                s_t = 0
                 if kind == XSITE:
                     for bank, inject in (('Vy', 'iy'), ('Vx', 'ix'),
                                          ('Vpy', 'iq'), ('Vpx', 'ih')):
                         c = B_S[bank].get(t, 0)
                         if c:
-                            ops.append(f'{inject}{c}')
+                            ops.append(f'{inject}{enc(c)}')
                 else:
                     w = B_S['w']
                     if w:
-                        cc = pow(w[t], p - 2, p)
-                        ops.append(f'za{cc}0')
+                        # singleton saturated basis: w[t] is a unit
+                        u, s_t = _unit_val(w[t], p, d)
+                        cc = cr.unit_inverse(u, p, d)
+                        ops.append(f'za{enc(cc)}{enc(0)}')
                     else:
-                        ops.append('z00')
+                        ops.append(f'z0{enc(0)}')
                 adv[t] = chain(Tree(letter), ops)
                 bases[t] = B_S
+                claim_s[t] = s_t
                 continue
 
             if L is None or R is None:
@@ -786,9 +932,11 @@ class CocycleRankWidthGroups:
                 B_C = bases[cpos]
                 below = chain(adv[cpos], [])
                 letter = 'U' if kind == XSITE else 'V'
-                ops = self._site_ops(sites, T, t, lo, t - 1, B_C, B_S, kind)
+                ops, s_t = self._site_ops(sites, T, t, lo, t - 1, B_C, B_S,
+                                          kind, claim_s[cpos])
                 adv[t] = chain(Tree(letter, below, None), ops)
                 bases[t] = B_S
+                claim_s[t] = s_t
                 continue
 
             # binary: L keeps wy/qy raw for the merge products, R keeps
@@ -796,6 +944,7 @@ class CocycleRankWidthGroups:
             # joint bases of J = [lo, t-1] and consumes the products.
             lp, rp = sites.pos[id(L)], sites.pos[id(R)]
             B_L, B_R = bases[lp], bases[rp]
+            s_L, s_R = claim_s[lp], claim_s[rp]
             B_J = self._r1_bases(sites, T, lo, t - 1)
             pre_L = self._bank_ops(B_L, B_J, lo, lp, None, None, p,
                                    banks=('Vpx', 'Vx'))
@@ -804,22 +953,24 @@ class CocycleRankWidthGroups:
 
             # folds of the raw sides (solved against the child bases)
             fy = _vratio(self._restrict(B_J['Vy'], lo, lp), B_L['Vy'], p,
-                         'Vy fold L')
+                         'Vy fold L', d)
             fq, fyq = _vsolve2(self._restrict(B_J['Vpy'], lo, lp),
-                               B_L['Vpy'], B_L['Vy'], p, 'Vpy fold L')
+                               B_L['Vpy'], B_L['Vy'], p, 'Vpy fold L', d)
             fx = _vratio(self._restrict(B_J['Vx'], lp + 1, t - 1), B_R['Vx'],
-                         p, 'Vx fold R')
+                         p, 'Vx fold R', d)
             fh, fxh = _vsolve2(self._restrict(B_J['Vpx'], lp + 1, t - 1),
-                               B_R['Vpx'], B_R['Vx'], p, 'Vpx fold R')
+                               B_R['Vpx'], B_R['Vx'], p, 'Vpx fold R', d)
             fml = _vratio({k: v for k, v in B_L['Bm'].items()
                            if not lp + 1 <= k <= t - 1}, B_J['Bm'], p,
-                          'Bm fold L')
+                          'Bm fold L', d)
             fmr = _vratio({k: v for k, v in B_R['Bm'].items()
-                           if not lo <= k <= lp}, B_J['Bm'], p, 'Bm fold R')
+                           if not lo <= k <= lp}, B_J['Bm'], p, 'Bm fold R', d)
 
-            # sibling products and cross m->claim translations
+            # sibling products and cross m->claim translations; the claim
+            # discharges land in the children's truncated coordinates, so
+            # their constants carry the matching p-powers
             wL, wR, wJ = B_L['w'], B_R['w'], B_J['w']
-            new_pairs = {(j, i, v): c % p for (j, i, v), c in T.items()
+            new_pairs = {(j, i, v): c % q for (j, i, v), c in T.items()
                          if lo <= i <= lp and lp + 1 <= j <= t - 1}
             blockL = {k: c for k, c in new_pairs.items() if lo <= k[2] <= lp}
             blockR = {k: c for k, c in new_pairs.items()
@@ -827,52 +978,76 @@ class CocycleRankWidthGroups:
             blockO = {k: c for k, c in new_pairs.items()
                       if not lo <= k[2] <= t - 1}
             c_gl = _vratio3(blockL, B_R['Vx'], B_L['Vpy'], wL, p,
-                            'sibling block -> L claims')
+                            'sibling block -> L claims', d)
             c_gr = _vratio3({(k[1], k[0], k[2]): c for k, c in blockR.items()},
                             B_L['Vy'], B_R['Vpx'], wR, p,
-                            'sibling block -> R claims')
+                            'sibling block -> R claims', d)
             cpm = _vratio3(blockO, B_R['Vx'], B_L['Vy'], B_J['Bm'], p,
-                           'sibling block -> exports')
+                           'sibling block -> exports', d)
             psiL = _vratio(self._restrict(B_L['Bm'], lp + 1, t - 1), wR, p,
-                           'm_L -> R claims')
+                           'm_L -> R claims', d)
             psiR = _vratio(self._restrict(B_R['Bm'], lo, lp), wL, p,
-                           'm_R -> L claims')
+                           'm_R -> L claims', d)
             consts = (fy, fq, fyq, fx, fh, fxh, fml, fmr, cpm,
-                      (-c_gl) % p, (-c_gr) % p, (-psiL) % p, (-psiR) % p)
-            letter = ('M' if kind == XSITE else 'W') + ''.join(map(str, consts))
+                      (-c_gl * p ** s_L) % q, (-c_gr * p ** s_R) % q,
+                      (-psiL * p ** s_R) % q, (-psiR * p ** s_L) % q)
+            letter = (('M' if kind == XSITE else 'W')
+                      + ''.join(enc(c) for c in consts))
             if self._merge_letters is not None \
                     and letter not in self._merge_letters:
                 raise ValueError(
                     f"merge letter {letter!r} is not in the instantiated "
                     f"sub-alphabet; collect it with used_merge_letters first")
 
-            # claim join on the stretch above the merge
+            # claim join on the stretch above the merge: pick the child
+            # whose truncation determines more of the joint coordinate
             ops = []
-            phiL = _vratio(self._restrict(wJ, lo, lp), wL, p, 'claim join L')
+            phiL = _vratio(self._restrict(wJ, lo, lp), wL, p, 'claim join L',
+                           d)
             phiR = _vratio(self._restrict(wJ, lp + 1, t - 1), wR, p,
-                           'claim join R')
+                           'claim join R', d)
+            uL, eL = _unit_val(phiL, p, d)
+            uR, eR = _unit_val(phiR, p, d)
+            sLp = min(s_L + eL, d) if wL else d
+            sRp = min(s_R + eR, d) if wR else d
+            s_J = 0
             if wL and phiL:
-                inv = pow(phiL, p - 2, p)
-                if inv != 1:
-                    ops.append(f'sg{inv}')
-                if wR:
-                    ops.append(f'bk{phiR}{p - 1}')
+                if not wR or sLp <= sRp:
+                    inv = cr.unit_inverse(uL, p, d)
+                    if inv != 1:
+                        ops.append(f'sg{enc(inv)}')
+                    if wR:
+                        c = (uR * p ** (sRp - sLp)) % q
+                        ops.append(f'bk{enc(c)}{enc(q - 1)}')
+                    s_J = sLp
+                else:                     # re-anchor to the right claim
+                    cc = (uL * p ** (sLp - sRp)
+                          * cr.unit_inverse(uR, p, d)) % q
+                    ops.append(f'bk{enc(1)}{enc(-cc)}')
+                    ops.append(f'sg{enc(0)}')
+                    ops.append(f'b1{enc(cr.unit_inverse(uR, p, d))}')
+                    s_J = sRp
             elif wL and not phiL:
                 ops.append('g0')
                 if wR and phiR:
-                    ops.append(f'b1{pow(phiR, p - 2, p)}')
+                    ops.append(f'b1{enc(cr.unit_inverse(uR, p, d))}')
+                    s_J = sRp
                 elif wR:
-                    ops.append('bk01')
+                    ops.append(f'bk{enc(0)}{enc(1)}')
             else:                                     # no L claims
                 if wR and phiR:
-                    ops.append(f'b1{pow(phiR, p - 2, p)}')
+                    ops.append(f'b1{enc(cr.unit_inverse(uR, p, d))}')
+                    s_J = sRp
                 elif wR:
-                    ops.append('bk01')
+                    ops.append(f'bk{enc(0)}{enc(1)}')
             ops.append('bl')
-            ops += self._site_ops(sites, T, t, lo, t - 1, B_J, B_S, kind)
+            site_ops, s_t = self._site_ops(sites, T, t, lo, t - 1, B_J, B_S,
+                                           kind, s_J)
+            ops += site_ops
             adv[t] = chain(Tree(letter, chain(adv[lp], pre_L),
                            chain(adv[rp], pre_R)), ops)
             bases[t] = B_S
+            claim_s[t] = s_t
 
         return adv[sites.pos[id(sites.seq[-1])]]
 
@@ -903,21 +1078,23 @@ class CocycleRankWidthGroups:
         """Rebase m from bm_old to bm_new, where the columns in
         [drop_lo, drop_hi] left the outside (their mass moves via merge
         constants, not here)."""
+        d, enc = self.d, self._enc
         kept = {k: v for k, v in bm_old.items() if not drop_lo <= k <= drop_hi}
-        theta = _vratio(kept, bm_new, p, ctx) if bm_new else 0
         if bm_new:
-            theta = _vratio(kept, bm_new, p, ctx)
+            theta = _vratio(kept, bm_new, p, ctx, d)
             # kept = theta' * bm_new: we need m_new with m_new*bm_new = m*kept
-            return [f'sm{theta}'] if theta != 1 else []
+            return [f'sm{enc(theta)}'] if theta != 1 else []
         if kept:
             raise AssertionError(f'lemma failure ({ctx}): exports survive '
                                  f'without a basis')
-        return ['sm0'] if bm_old else []
+        return [f'sm{enc(0)}'] if bm_old else []
 
-    def _site_ops(self, sites, T, t, lo, hi, B_C, B_S, kind):
+    def _site_ops(self, sites, T, t, lo, hi, B_C, B_S, kind, s_C):
         """The stretch above a site node t whose (possibly joint) child
-        covers [lo, hi]: m rebase, read-offs, claim work, bank work."""
-        p = self.p
+        covers [lo, hi]: m rebase, read-offs, claim work, bank work. `s_C`
+        is the claim truncation valuation entering the stretch; returns
+        (ops, s_S) with the valuation leaving it."""
+        p, d, q, enc = self.p, self.d, self.q, self._enc
         ops = []
         if kind == XSITE:
             # m rebase first (read-offs emit in the S basis)
@@ -927,49 +1104,69 @@ class CocycleRankWidthGroups:
             out_block = self._pair_block(
                 sites, T, t, lo, hi, lambda v: not lo <= v <= t)
             crm = _vratio2(out_block, B_C['Vy'], B_S['Bm'], p,
-                           'read-off -> exports')
+                           'read-off -> exports', d)
             if crm:
-                ops.append(f'rm{crm}')
-            # read-off targets inside (discharge the claim)
+                ops.append(f'rm{enc(crm)}')
+            # read-off targets inside (discharge the truncated claim)
             in_block = self._pair_block(sites, T, t, lo, hi,
                                         lambda v: lo <= v <= hi)
             crg = _vratio2(in_block, B_C['Vpy'], B_C['w'], p,
-                           'read-off -> claims')
-            if crg:
-                ops.append(f'rg{(-crg) % p}')
-            ops += self._claim_rebase_ops(B_C['w'], B_S['w'], p,
-                                          'claim rebase x-site')
+                           'read-off -> claims', d)
+            c_dis = (-crg * p ** s_C) % q
+            if c_dis:
+                ops.append(f'rg{enc(c_dis)}')
+            claim_ops, s_S = self._claim_rebase_ops(B_C['w'], B_S['w'], s_C,
+                                                    p, 'claim rebase x-site')
+            ops += claim_ops
             ops += self._bank_ops(B_C, B_S, lo, hi, t, t, p)
         else:
             # z-site: the residual enters the claim; cm couples m
-            cm = B_C['Bm'].get(t, 0)
+            cm = B_C['Bm'].get(t, 0) % q
             wC, wS = B_C['w'], B_S['w']
+            omega = wS.get(t, 0) % q
+            u_o, s_o = _unit_val(omega, p, d)
             if wC:
                 phi = _vratio(self._restrict(wS, lo, hi), wC, p,
-                              'claim extend restriction')
-                omega = wS.get(t, 0)
+                              'claim extend restriction', d)
+                u_phi, e_phi = _unit_val(phi, p, d)
                 if phi:
-                    inv = pow(phi, p - 2, p)
-                    c2 = omega * inv % p
-                    ops.append(f'zc{cm}{c2}')
-                    if inv != 1:
-                        ops.append(f'sg{inv}')
+                    s_kept = min(s_C + e_phi, d)
+                    inv = cr.unit_inverse(u_phi, p, d)
+                    if omega and s_o < s_kept:
+                        # ring re-anchor: position t determines more of the
+                        # claim than everything read so far
+                        u_o_inv = cr.unit_inverse(u_o, p, d)
+                        ca = (p ** (s_kept - s_o) * u_o_inv * u_phi) % q
+                        ops.append(f'zr{enc(cm)}{enc(ca)}{enc(u_o_inv)}')
+                        s_S = s_o
+                    else:
+                        c2 = 0 if not omega else \
+                            (u_o * p ** (s_o - s_kept) * inv) % q
+                        ops.append(f'zc{enc(cm)}{enc(c2)}')
+                        if inv != 1:
+                            ops.append(f'sg{enc(inv)}')
+                        s_S = s_kept
                 else:
                     ops.append('g0')
                     if omega:
-                        ops.append(f'za{pow(omega, p - 2, p)}{cm}')
+                        ops.append(f'za{enc(cr.unit_inverse(u_o, p, d))}'
+                                   f'{enc(cm)}')
+                        s_S = s_o
                     else:
-                        ops.append(f'z0{cm}')
+                        ops.append(f'z0{enc(cm)}')
+                        s_S = 0
             else:
-                omega = wS.get(t, 0)
                 if omega:
-                    ops.append(f'za{pow(omega, p - 2, p)}{cm}')
+                    ops.append(f'za{enc(cr.unit_inverse(u_o, p, d))}'
+                               f'{enc(cm)}')
+                    s_S = s_o
                 else:
-                    ops.append(f'z0{cm}')
+                    ops.append(f'z0{enc(cm)}')
+                    s_S = 0
             ops += self._m_rebase_ops(B_C['Bm'], B_S['Bm'], t, t, p,
                                       'Bm z-site')
             ops += self._bank_ops(B_C, B_S, lo, hi, None, None, p)
-        return ops
+        return ops, s_S
 
     # ---------------- encodings and class operations ----------------
 
@@ -979,8 +1176,8 @@ class CocycleRankWidthGroups:
         b, a = element
         if len(b) != len(sites.Z) or len(a) != len(sites.X):
             raise ValueError("element does not fit the site layout")
-        if not all(0 <= d < self.p for d in tuple(b) + tuple(a)):
-            raise ValueError(f"components must lie in Z_{self.p}")
+        if not all(0 <= x < self.q for x in tuple(b) + tuple(a)):
+            raise ValueError(f"components must lie in Z/{self.q}")
         zi = {v: idx for idx, v in enumerate(sites.Z)}
         xi = {w: idx for idx, w in enumerate(sites.X)}
         counter = [0]
@@ -1016,11 +1213,81 @@ class CocycleRankWidthGroups:
                  for name, el in elements.items()}
         return self.cls.check(phi, advice, **trees)
 
+    def _implicit_atoms(self) -> Dict:
+        """Functional bottom-up base automata (Dom, Adv, M, Eq) built straight
+        from the microcode deltas -- no explicit product automaton, so this
+        works for the full-ISA and ring members whose `cls` cannot be built."""
+        from autstr.implicit import ImplicitTA
+        element_letters = self.element_letters
+
+        def legal(a):
+            return (self._parse_letter(a) is not None
+                    if isinstance(a, str) and a else False)
+
+        def shape(args, q_of):
+            adv = args[0]
+
+            def step(sym, left, right):
+                if left == 'dead' or right == 'dead' or not q_of(sym):
+                    return 'dead'
+                a = sym[adv]
+                if not legal(a) or not self._shape_step(
+                        a, None if left is None else 'q',
+                        None if right is None else 'q'):
+                    return 'dead'
+                if a in ('L', 'K', 'U', 'V') or a[0] in ('M', 'W'):
+                    return ('d', sym[args[1]]) if len(args) > 1 else 'ok'
+                if len(args) == 1:
+                    return 'ok'
+                child = left if right is None else right
+                return child if child == ('d', sym[args[1]]) else 'dead'
+            return ImplicitTA(args, step,
+                              lambda st: st != 'dead' and st is not None)
+
+        def Dom(args):
+            return shape(args, lambda sym: sym[args[1]] in element_letters)
+
+        def Adv(args):
+            return shape(args, lambda sym: True)
+
+        def Eq(args):
+            xv, yv = args[1], args[2]
+
+            def step(sym, left, right):
+                if left == 'dead' or right == 'dead' \
+                        or sym[xv] not in element_letters or sym[xv] != sym[yv]:
+                    return 'dead'
+                a = sym[args[0]]
+                if not legal(a) or not self._shape_step(
+                        a, None if left is None else 'q',
+                        None if right is None else 'q'):
+                    return 'dead'
+                return 'ok'
+            return ImplicitTA(args, step, lambda st: st == 'ok')
+
+        def M(args):
+            adv, xv, yv, zv = args
+            return ImplicitTA(
+                args,
+                lambda sym, left, right: self._m_delta(
+                    left, right, (sym[adv], sym[xv], sym[yv], sym[zv])),
+                lambda st: st == (0,) * 7)
+
+        return {'Dom': Dom, 'Adv': Adv, 'M': M, 'Eq': Eq}
+
     def check_implicit(self, phi, sites: CocycleSites, advice: Tree, **elements) -> bool:
-        """Like `check`, evaluated implicitly (no query tree automaton)."""
+        """Like `check`, evaluated implicitly (no query or base tree
+        automaton) -- the only viable model checker for the full-ISA and ring
+        members whose `cls` cannot be built. See `autstr.implicit`."""
+        from autstr import implicit
+        from autstr.uniform import UniformlyAutomaticClass
         trees = {name: self.encode(el, sites, advice)
                  for name, el in elements.items()}
-        return self.cls.check_implicit(phi, advice, **trees)
+        return implicit.check_class_tree(
+            phi, advice, trees, self._implicit_atoms(),
+            list(self.element_letters),
+            UniformlyAutomaticClass._relativize,
+            UniformlyAutomaticClass._variable_names)
 
     def get_structure(self, advice: Tree) -> TreeAutomaticPresentation:
         return self.cls.get_structure(advice)

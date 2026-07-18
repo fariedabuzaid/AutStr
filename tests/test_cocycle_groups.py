@@ -402,6 +402,247 @@ class TestClaimAndVerifyProtocol:
         assert found >= 8, f"only {found} width-1 instances found"
 
 
+class TestRingEmbeddings:
+    """The embedding constructors with a ring depth d: the same layouts,
+    coefficients and widths, over R = Z/p^d."""
+
+    def test_fixed_k_matches_cutrank_tree_groups_z4(self):
+        crt = CutRankTreeGroups(2, d=2)
+        n = 4
+        rng = random.Random(3)
+        for form in (crt.clique_form(n),
+                     {(j, i): (2,) for j in range(2, n + 1)
+                      for i in range(1, j)}):        # valuation-1 labels
+            sites, T = fixed_k_sites(2, crt.balanced(n), form, k=1, d=2)
+            assert sites.q == 4
+            elems = ring_elements(sites)
+            for _ in range(400):
+                g, h = rng.choice(elems), rng.choice(elems)
+                assert sites.multiply(T, g, h) == crt.multiply(n, form, g, h)
+
+    def test_fixed_k_ring_width(self):
+        crt = CutRankTreeGroups(2, d=2)
+        n = 6
+        sites, T = fixed_k_sites(2, crt.balanced(n), crt.clique_form(n), 1,
+                                 d=2)
+        assert sites.cut_width(T) == 1
+        val1 = {(j, i): (2,) for j in range(2, n + 1) for i in range(1, j)}
+        sites2, T2 = fixed_k_sites(2, crt.balanced(n), val1, 1, d=2)
+        assert sites2.cut_width(T2) == 1                 # not 0: valuation
+
+    def test_laminar_and_point_targets_ring_width_one(self):
+        for build in (lambda: laminar_sites(2, BUSHY, d=2)[:2],
+                      lambda: point_target_sites(2, BUSHY, d=2)):
+            sites, T = build()
+            assert sites.q == 4 and sites.d == 2
+            assert sites.cut_width(T) == 1
+
+    def test_scattered_ring_width_grows(self):
+        for m in (2, 3):
+            sites, T = scattered_sites(2, m, d=2)
+            assert sites.q == 4
+            assert sites.cut_width(T) == m
+
+    def test_d1_default_unchanged(self):
+        a = fixed_k_sites(2, CutRankTreeGroups.balanced(3),
+                          {(2, 1): (1,)}, 1)
+        b = fixed_k_sites(2, CutRankTreeGroups.balanced(3),
+                          {(2, 1): (1,)}, 1, d=1)
+        assert a[0].q == b[0].q == 2 and a[1] == b[1]
+
+    def test_ring_embeddings_through_the_microcode(self, crw4):
+        """Integration of the embeddings with the ring claim-and-verify
+        automaton: laminar and point-target Z/4 members compile at width 1
+        and simulate the reference law."""
+        ring = TestClaimAndVerifyChainRing()
+        sites, T, _ = laminar_sites(2, SPINEY, d=2)
+        ring.sim_check(crw4, sites, T, rounds=200)
+        pt_sites, pt_T = point_target_sites(2, BUSHY, d=2)
+        ring.sim_check(crw4, pt_sites, pt_T, rounds=200)
+        crt = CutRankTreeGroups(2, d=2)
+        fk_sites, fk_T = fixed_k_sites(2, crt.balanced(3),
+                                       {(j, 1): (2,) for j in (2, 3)}, 1,
+                                       d=2)
+        ring.sim_check(crw4, fk_sites, fk_T, rounds=200)
+
+
+def _tree_eq(a, b):
+    if a is None and b is None:
+        return True
+    if a is None or b is None or a.label != b.label:
+        return False
+    return _tree_eq(a.left, b.left) and _tree_eq(a.right, b.right)
+
+
+def _letters(tree):
+    out = []
+    stack = [tree]
+    while stack:
+        node = stack.pop()
+        if node is None:
+            continue
+        out.append(node.label)
+        stack.append(node.left)
+        stack.append(node.right)
+    return out
+
+
+@pytest.fixture(scope="module")
+def crw4():
+    """Simulator-only Z/4 instance (d = 2); its automata are never built."""
+    return CocycleRankWidthGroups(2, d=2)
+
+
+class TestClaimAndVerifyChainRing:
+    """The ring generalisation of the claim-and-verify microcode: saturated
+    interfaces, R-valued registers and the truncated claim invariant
+    (compiler-tracked valuations, `zr` re-anchoring). Everything checked
+    against the reference law via `simulate`."""
+
+    Z4_SPINE = Tree('z', Tree('x', Tree('x'), None), None)
+    Z4_MIXED = Tree('z', Tree('x', Tree('x', Tree('z'), None), Tree('x')),
+                    None)
+    # two z-sites below the pair: claim vector with mixed valuations
+    Z4_DEEP = Tree('x', Tree('x', Tree('z', Tree('z'), None), None), None)
+
+    def sim_check(self, crw, sites, T, rounds=400, seed=1):
+        advice = crw.advice(sites, T)
+        rng = random.Random(seed)
+        q = sites.q
+        elems = [(tuple(rng.randrange(q) for _ in sites.Z),
+                  tuple(rng.randrange(q) for _ in sites.X))
+                 for _ in range(60)]
+        for _ in range(rounds):
+            g, h = rng.choice(elems), rng.choice(elems)
+            expected = sites.multiply(T, g, h)
+            tx = crw.encode(g, sites, advice)
+            ty = crw.encode(h, sites, advice)
+            assert crw.simulate(advice, tx, ty,
+                                crw.encode(expected, sites, advice)), (g, h)
+            if sites.Z:
+                wb = list(expected[0])
+                v = rng.randrange(len(wb))
+                wb[v] = (wb[v] + rng.randrange(1, q)) % q
+                wrong = (tuple(wb), expected[1])
+                assert not crw.simulate(advice, tx, ty,
+                                        crw.encode(wrong, sites, advice)), \
+                    (g, h, wrong)
+
+    def test_unit_and_valuation_coefficients_z4(self, crw4):
+        sites = CocycleSites(2, self.Z4_SPINE, d=2)
+        self.sim_check(crw4, sites, {(2, 1, 3): 1})
+        self.sim_check(crw4, sites, {(2, 1, 3): 2})   # valuation 1
+
+    def test_mixed_claims_z4(self, crw4):
+        sites = CocycleSites(2, self.Z4_MIXED, d=2)
+        T = {(4, 2, 1): 2, (4, 3, 1): 1, (3, 2, 5): 1, (4, 2, 5): 2}
+        assert sites.cut_width(T) == 1
+        self.sim_check(crw4, sites, T)
+        self.sim_check(crw4, sites, {})
+
+    def test_reanchor_z4(self, crw4):
+        """A claim vector {v1: 2, v2: 1} over Z/4: position v1 determines
+        only 2P, v2 later pins P down -- the compiler must emit the ring
+        re-anchor op `zr` and the protocol must still match the law."""
+        sites = CocycleSites(2, self.Z4_DEEP, d=2)
+        T = {(4, 3, 1): 2, (4, 3, 2): 1}
+        advice = crw4.advice(sites, T)
+        assert any(l.startswith('zr') for l in _letters(advice))
+        self.sim_check(crw4, sites, T)
+        # anchor-first and both-valuation variants (no re-anchor needed)
+        self.sim_check(crw4, sites, {(4, 3, 1): 1, (4, 3, 2): 2})
+        self.sim_check(crw4, sites, {(4, 3, 1): 2, (4, 3, 2): 2})
+
+    def test_z9(self):
+        crw = CocycleRankWidthGroups(3, d=2)
+        sites = CocycleSites(3, self.Z4_MIXED, d=2)
+        self.sim_check(crw, sites, {(4, 2, 1): 3, (4, 3, 1): 1, (3, 2, 5): 6},
+                       rounds=250)
+        deep = CocycleSites(3, self.Z4_DEEP, d=2)
+        self.sim_check(crw, deep, {(4, 3, 1): 3, (4, 3, 2): 1}, rounds=250)
+
+    def test_random_width1_ring_instances(self, crw4):
+        """Fuzz: random site trees with random Z/4 tensors of module
+        cut-width one; compiler lemma assertions and the simulator must
+        agree with the reference law on all of them."""
+        rng = random.Random(11)
+        found = 0
+        attempts = 0
+        while found < 12 and attempts < 600:
+            attempts += 1
+            shape = random_site_shape(rng, rng.randint(3, 7))
+            sites = CocycleSites(2, shape, d=2)
+            if len(sites.X) < 2 or not sites.Z or sites.n_sites > 7:
+                continue
+            triples = [(j, i, v) for i in sites.X for j in sites.X if i < j
+                       for v in sites.Z]
+            rng.shuffle(triples)
+            T = {t: rng.randrange(1, 4) for t in triples[:rng.randint(1, 3)]}
+            if sites.cut_width(T) > 1:
+                continue
+            found += 1
+            self.sim_check(crw4, sites, T, rounds=150, seed=attempts)
+        assert found >= 8, f"only {found} width-1 ring instances found"
+
+    def test_d1_is_the_field_class(self):
+        """d = 1 (default) compiles byte-identical advice to an explicit
+        d=1 instance, over the field letter format."""
+        sites, T = mixed_instance()
+        default = CocycleRankWidthGroups(2)
+        explicit = CocycleRankWidthGroups(2, d=1)
+        assert default.q == explicit.q == 2
+        assert _tree_eq(default.advice(sites, T), explicit.advice(sites, T))
+        assert not any(l.startswith('zr')
+                       for l in _letters(default.advice(sites, T)))
+
+    def test_guards(self, crw4):
+        # width over 1 rejected over the ring
+        sites, T = scattered_sites(2, 2)
+        ring_sites = CocycleSites(2, sites.shape, d=2)
+        with pytest.raises(ValueError):
+            crw4.advice(ring_sites, T)
+        # p/d mismatch between class and sites
+        field_sites, field_T = mixed_instance()
+        with pytest.raises(ValueError):
+            crw4.advice(field_sites, field_T)
+        # cls build gated with a pointer to the implicit path
+        with pytest.raises(ValueError, match="check_implicit"):
+            crw4.evaluate('M(x,y,z)')
+
+    def test_check_implicit_ring(self, crw4):
+        """Functional atoms: FO on ring members without building any
+        automaton (the microcode `cls` is far beyond the enumeration cap)."""
+        sites = CocycleSites(2, self.Z4_SPINE, d=2)
+        T = {(2, 1, 3): 2}
+        advice = crw4.advice(sites, T)
+        one = sites.identity()
+        g = ((1,), (3, 2))
+        z = sites.multiply(T, g, g)
+        assert crw4.check_implicit('M(x,x,z)', sites, advice, x=g, z=z)
+        wrong = (((z[0][0] + 1) % 4,), z[1])
+        assert not crw4.check_implicit('M(x,x,z)', sites, advice, x=g,
+                                       z=wrong)
+        assert crw4.check_implicit('Eq(x,x)', sites, advice, x=g)
+        assert crw4.check_implicit('exists y.(M(x,y,u))', sites, advice,
+                                   x=g, u=one)
+        noncomm = ('exists x.(exists y.(exists z.'
+                   '(M(x,y,z) and (not M(y,x,z)))))')
+        assert crw4.check_implicit(noncomm, sites, advice)
+        assert not crw4.check_implicit(noncomm, sites, crw4.advice(sites, {}))
+
+    def test_check_implicit_field(self, crw2):
+        """The implicit path decides field members identically to the
+        (validated) simulate/reference law."""
+        sites, T = mixed_instance()
+        advice = crw2.advice(sites, T)
+        g = ((0, 0), (1, 0, 1))
+        z = sites.multiply(T, g, g)
+        assert crw2.check_implicit('M(x,x,z)', sites, advice, x=g, z=z)
+        wb = ((z[0][0] + 1) % 2, z[0][1])
+        assert not crw2.check_implicit('M(x,x,z)', sites, advice, x=g,
+                                       z=(wb, z[1]))
+
+
 @heavy
 class TestClaimAndVerifyAutomaton:
     """End to end through the real presentation automata, instantiated over
