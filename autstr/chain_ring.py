@@ -3,7 +3,7 @@
 This is the algebraic foundation for the *chain-ring extension* of the
 bounded-rank-width group classes: letting the center of a class-2 group have
 exponent p^d turns the commutator cocycle into an R-bilinear form over
-R = Z/p^d (paper/scratch-chainring.tex, "Idea 2"). R is a finite chain ring --
+R = Z/p^d. R is a finite chain ring --
 a local principal ideal ring whose ideals are the chain
 
     R ) pR ) p^2 R ) ... ) p^d R = 0,

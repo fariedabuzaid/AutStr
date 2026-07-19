@@ -755,9 +755,9 @@ class CutRankGroups:
     form admits a linear layout of module cut-rank <= r (bounded *linear
     rank-width* over R). With d = 1 (the default) R is the field F_p and this is
     the original construction; d > 1 is the exponent-p^d ("Idea 2") case, where
-    the form is R-valued and the width is measured on the saturated interface
-    (the streaming lifts unconditionally, carrying the saturated free basis --
-    paper/scratch-chainring.tex sec 4).
+    the form is R-valued and the width is the module cut-rank of the crossing
+    blocks (the streaming lifts unconditionally, carrying row-module
+    generator interfaces).
 
     A member is a form with labels B[j,i] in R^k for i < j, presenting
     x_j x_i = x_i x_j y^B[j,i]. Elements are (b, a) with b in R^k, a in R^n and

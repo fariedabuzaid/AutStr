@@ -1,7 +1,8 @@
 """Distributed-center class-2 groups: cocycle tensors on site trees.
 
 Validation layer for the tensor cut-rank generalisation of the bounded
-rank-width group classes (see paper/theorem3-notes.md). A *site tree* is a
+rank-width group classes (the companion paper's master theorem). A *site
+tree* is a
 binary tree whose nodes are generators: 'x' sites and central 'z' sites.
 The commutator data is a tensor T[j, i, v] over the chain ring R = Z/p^d
 (i < j x-positions in post-order, v a z-position), presenting the central
@@ -76,7 +77,7 @@ class CocycleSites:
     the quotient coordinates (one per x-site), both over R = Z/p^d and in
     ascending post-order. With ``d = 1`` (the default) R is the field F_p and
     this is exactly the original field construction; ``d > 1`` is the
-    exponent-p^d case of "Idea 2" (paper/scratch-chainring.tex), where the
+    exponent-p^d case (center of exponent p^d), where the
     commutator cocycle is R-bilinear and the tensor coefficients live in R. The
     quotient shares the exponent p^d: a class-2 group whose commutator subgroup
     has exponent p^d cannot have an exponent-p quotient.
