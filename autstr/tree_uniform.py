@@ -187,8 +187,13 @@ class UniformlyTreeAutomaticClass(UniformlyAutomaticClass):
     def check_implicit(self, phi, advice: Tree, **assignments) -> bool:
         """Model check a formula against the member S_advice without compiling a
         query tree automaton: the formula is evaluated bottom-up on the fly over
-        the base tree automata. Same contract as `check`; scales to classes whose
-        query automaton is infeasible. See `autstr.implicit`."""
+        the base tree automata. Scales to classes whose query automaton is
+        infeasible. See `autstr.implicit`.
+
+        Unlike `check`, the on-the-fly evaluator is synchronous: it walks the
+        advice tree and every assigned element tree in lockstep and does not
+        convolve or pad mismatched shapes, so the assigned trees must already be
+        padded to the advice's shape."""
         from autstr import implicit
         return implicit.check_class_tree(
             phi, advice, assignments, dict(self.presentation.automata),

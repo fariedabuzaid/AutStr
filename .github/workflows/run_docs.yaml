@@ -6,13 +6,11 @@ on:
     branches:
       - 'main'
 
-# The build job needs only read access; the deploy job needs pages/id-token to
-# publish through GitHub's native Pages deployment (Settings -> Pages -> Source:
-# GitHub Actions).
+# Least privilege by default: everything gets read-only access. The deploy job
+# grants itself the pages/id-token scopes it needs to publish through GitHub's
+# native Pages deployment (Settings -> Pages -> Source: GitHub Actions).
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 jobs:
   build:
@@ -54,6 +52,10 @@ jobs:
   deploy:
     needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Only this job publishes, so only this job needs the Pages/OIDC scopes.
+    permissions:
+      pages: write
+      id-token: write
     runs-on: ubuntu-latest
     # One deployment at a time; a newer run supersedes an in-flight one.
     concurrency:

@@ -42,6 +42,10 @@ extensions = [
 
 _here = Path(__file__).parent
 _nb_dst = _here / 'notebooks'
+# Rebuild the copy directory from scratch so a renamed/removed notebook can't
+# leave a stale execution behind in an incremental build.
+if _nb_dst.exists():
+    shutil.rmtree(_nb_dst)
 _nb_dst.mkdir(exist_ok=True)
 for _nb in sorted((_here.parent.parent / 'notebooks').glob('*.ipynb')):
     shutil.copyfile(_nb, _nb_dst / _nb.name.replace('ü', 'ue'))

@@ -54,6 +54,10 @@ def dfa_from_delta(sigma, states, arity, delta, initial, finals,
         raise ValueError(f"expected {arity} tape alphabets, got {len(tapes)}")
     states = list(states)
     state_to_index = {s: i for i, s in enumerate(states)}
+    if dead not in state_to_index:
+        raise ValueError(f"dead state {dead!r} is not in states")
+    if initial not in state_to_index:
+        raise ValueError(f"initial state {initial!r} is not in states")
     base_alphabet = set(sigma)
     exceptions = {q: [] for q in states}
     for sym in it.product(*[sorted(t) for t in tapes]):
@@ -61,6 +65,9 @@ def dfa_from_delta(sigma, states, arity, delta, initial, finals,
         for q in states:
             target = delta(q, sym)
             if target != dead:
+                if target not in state_to_index:
+                    raise ValueError(
+                        f"delta({q!r}, {sym!r}) = {target!r} is not in states")
                 if enc is None:
                     enc = encode_symbol(sym, base_alphabet)
                 exceptions[q].append((enc, state_to_index[target]))
