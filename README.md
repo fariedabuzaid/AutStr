@@ -556,14 +556,17 @@ mathematical direction and review kept firmly human.
   - **implicit evaluation.** `check_implicit` / `evaluate_implicit` on every
     class: first-order model checking and satisfying-set computation that
     never build a query — or even a base — automaton, reaching members (ℤ/8
-    and ℤ/9 words, ℤ/4 trees, the full microcode ISA) whose automata are
-    infeasible; `ImplicitClass` / `ImplicitTreeClass` are presentations given
-    purely by transition functions.
+    and ℤ/9 words, ℤ/4 trees, the distributed-center protocol) whose
+    automata are infeasible; `ImplicitClass` / `ImplicitTreeClass` are
+    presentations given purely by transition functions.
   - **graphs of bounded rank-width.** `RankWidthClass` — rank decompositions
     as advice, adjacency as a bilinear form on r-bit interface vectors,
     full MSO; the graph face of the same linear algebra.
   - Docs are built by CI with all notebooks **executed during the build**
     (the repository keeps them output-free).
+  - One behavior change to a 3.0 API: `show_diagram` no longer opens an
+    external image viewer by default (headless builds must not spawn one);
+    pass `view=True` for the old behavior.
 
 ---
 
