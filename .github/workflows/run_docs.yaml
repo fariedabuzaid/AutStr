@@ -50,6 +50,9 @@ jobs:
           path: docs/build/html
 
   deploy:
+    permissions:
+      pages: write
+      id-token: write
     needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     # Only this job publishes, so only this job needs the Pages/OIDC scopes.
