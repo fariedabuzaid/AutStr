@@ -50,6 +50,15 @@ _nb_dst.mkdir(exist_ok=True)
 for _nb in sorted((_here.parent.parent / 'notebooks').glob('*.ipynb')):
     shutil.copyfile(_nb, _nb_dst / _nb.name)
 
+# Copy the README media images into the source tree so overview.md can embed
+# them (the PNGs only; the history GIF is git-lfs and unused in the docs).
+_media_dst = _here / '_media'
+if _media_dst.exists():
+    shutil.rmtree(_media_dst)
+_media_dst.mkdir(exist_ok=True)
+for _img in sorted((_here.parent / 'media').glob('*.png')):
+    shutil.copyfile(_img, _media_dst / _img.name)
+
 nb_execution_mode = 'force'
 nb_execution_timeout = 900
 nb_execution_raise_on_error = True
