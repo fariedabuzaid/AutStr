@@ -81,19 +81,6 @@ powers_of_two = x | x       # { 2^n : n >= 0 }
 (3,) in powers_of_two       # False
 ```
 
-Under the hood every relation *is* a finite automaton. Sieving the multiples of
-2 and 3 out of the integers > 1 — a couple of steps of the [infinite Sieve of
-Eratosthenes](notebooks/arithmetic_and_algebra.ipynb) — leaves this 9-state
-recognizer (accepting states are doubled):
-
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/media/sieve_automaton-dark.png">
-    <img src="docs/media/sieve_automaton-light.png" width="720"
-         alt="A 9-state automaton recognizing the integers greater than 1 that are divisible by neither 2 nor 3">
-  </picture>
-</p>
-
 ---
 
 ## ⚙️ Highlight: synthesizing linear-time algorithms
@@ -443,6 +430,30 @@ projection followed by determinization. Consequently the first-order theory of
 any automatic structure is **decidable**, and every definable relation is again
 automatic — which is exactly what makes the "algebra of infinite relations" above
 compute.
+
+**A concrete encoding.** In the arithmetic package an integer is written
+**sign-magnitude, least-significant bit first**: the first symbol is a sign bit
+(`0` for non-negative, `1` for negative), followed by the binary digits of the
+magnitude from the lowest bit upward, with `*` padding the shorter arguments of a
+multi-tape relation so all tapes advance in lockstep. Under this encoding a
+definable set is a genuinely small automaton — here, for instance, is the
+recognizer for the integers greater than 1 that are divisible by neither 2 nor 3,
+one of the infinite sets the [sieve](notebooks/arithmetic_and_algebra.ipynb)
+manipulates directly:
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/media/sieve_automaton-dark.png">
+    <img src="docs/media/sieve_automaton-light.png" width="720"
+         alt="A 9-state automaton recognizing the integers greater than 1 that are divisible by neither 2 nor 3">
+  </picture>
+</p>
+
+The start state consumes the sign bit; the remaining states scan the magnitude
+bits from least to most significant. Because "greater than 1" and "not divisible
+by 2 or 3" are both regular properties of that bit stream, a handful of states
+suffice — doubled circles are accepting, and `*` marks the padding that ends the
+word.
 
 **Advice and uniform classes.** Allowing the automata to read an additional
 fixed *advice* word widens the reach to structures like (ℚ, +) and, using a *set*
