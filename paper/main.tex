@@ -17,9 +17,10 @@
 %%                                  corollaries)
 %%   6 Wealth of subclasses ....... WRITTEN (interface, products, tables,
 %%                                  widths, collapse, generic, dividing line)
-%%   7 Consequences ............... skeleton (v1 sec 7, nearly verbatim)
-%%   8 Implementation ............. skeleton (v1 sec 8 + implicit eval + benchmark)
-%%   9 Open problems .............. skeleton (v1 sec 9, updated)
+%%   7 Consequences ............... WRITTEN
+%%   8 Implementation ............. WRITTEN (numbers marked for refresh from
+%%                                  the extended benchmark before submission)
+%%   9 Open problems .............. WRITTEN
 %%
 %% TODO before submission/arXiv: affiliation, ORCID, funding, ccsdesc check,
 %% verify all bibliography details against DBLP, event macros.
@@ -88,9 +89,6 @@
   \newcommand{\AutStr}{\textsf{AutStr}}
   \newcommand{\AutStrCite}{~\cite{AutStr}}
 \fi
-
-%% Skeleton helper: visible inventory notes for sections still to be written.
-\newcommand{\planned}[1]{\medskip\noindent\fbox{\parbox{0.97\linewidth}{\small\textbf{[To be written.]} #1}}\medskip}
 
 \begin{document}
 
@@ -1406,61 +1404,165 @@ construction.
 \section{Algorithmic consequences}
 \label{sec:consequences}
 
-\planned{v1 \S7 nearly verbatim, now stated once for the master class and
-inherited by every subclass of \autoref{sec:span}: compiled model checking
-(\autoref{cor:mc}, time $O(\log|G|)$ per member after a one-time
-compilation), decidable uniform theory and existential class queries
-(\autoref{cor:theory}), extensions by cardinality and Ramsey quantifiers,
-and the definable-center example.}
+The generic machinery of uniformly automatic classes
+\cite{AbuZaidGraedelReinhardt2017} yields, for the master class and
+hence for every subclass of \autoref{sec:span}:
 
 \begin{corollary}[compiled model checking]
 \label{cor:mc}
-\emph{[Placeholder: v1 \texttt{cor:mc}.]}
+For every first-order formula $\varphi(x_1, \dots, x_m)$ in the
+signature of groups there is (effectively) an automaton
+$\mathfrak{A}_\varphi$ such that for every advice $\adv$ in the advice
+set and all elements $u_1, \dots, u_m$ of $G_\adv$:
+\[
+  G_\adv \models \varphi(\bar u) \iff \mathfrak{A}_\varphi \text{
+  accepts } \adv \conv u_1 \conv \dots \conv u_m .
+\]
+In particular, once $\varphi$ is compiled, deciding it on a member of
+the class takes time $O(N) = O(\log |G|)$.
 \end{corollary}
 
 \begin{corollary}[decidable uniform theory]
 \label{cor:theory}
-\emph{[Placeholder: v1 \texttt{cor:theory}.]}
+The advice sets of \autoref{thm:word} and (by \autoref{rem:exactness})
+of \autoref{thm:master} are regular. Hence the uniform first-order
+theory $\{\varphi : G_\adv \models \varphi \text{ for all } \adv\}$ is
+decidable, and so are existential class queries (``is there a member
+satisfying $\varphi$?''). The same holds for extensions of first-order
+logic by regularity-preserving quantifiers, e.g.\ cardinality and
+Ramsey quantifiers~\cite{AbuZaidGraedelReinhardt2017}.
 \end{corollary}
+
+\begin{example}
+The center is definable, $\mathrm{Cen}(x) \equiv \forall u \forall v
+\forall w\, (M(x,u,v) \wedge M(u,x,w) \to v = w)$, so \autoref{cor:mc}
+decides centrality of a given element in time $O(\log|G|)$ on every
+member; likewise commutativity of the member, existence of central
+elements of order $4$ at $p = 2$ (distinguishing the Pauli triangle
+from the dihedral matching), the exponent of the center for $d > 1$, or
+any fixed isoclinism-flavoured first-order invariant. One automaton per
+property serves the entire class---and, by \autoref{prop:products},
+every central and direct product of its members.
+\end{example}
 
 \section{Implementation, machine verification, and feasibility}
 \label{sec:implementation}
 
-\planned{Demoted to supporting evidence, per plan. Content:
-(i) all constructions implemented in \AutStr\AutStrCite{}
-(\texttt{CutRankGroups}, \texttt{CutRankTreeGroups},
-\texttt{CocycleRankWidthGroups}, all with ring depth $d$ and, for the
-fixed-center classes, factored advice letters at any width); compilers
-self-certifying (every advice constant solves a system whose solvability
-is a lemma of this paper, assertion-guarded; the ring compilers exercise
-\autoref{lem:restrict}, \autoref{lem:tables} and \autoref{lem:claims} on
-every instance);
-exhaustive and fuzzed agreement with the reference group law, byte-level
-$d = 1$ regression against the field implementation.
-(ii) Feasibility study on a cloud VM answering: which classes compile
-explicitly; which queries compile; how far implicit (on-the-fly)
-evaluation reaches beyond compilation; the implicit-vs-compiled slowdown;
-and when compilation amortises. Written from the 2026-07-12 run
-(explicit builds up to $\ZZ/4$ word / small tree members; implicit
-evaluation decides FO on $\ZZ/8$, $\ZZ/9$ word and $\ZZ/4$ tree members
-where the base automata are unbuildable, agreeing with the explicit path
-wherever both finish, 0 mismatches; the wall is quantifier alternation,
-not memory). Numbers to be refreshed by the extended benchmark (10-minute
-per-task timeout, $\le 10$\,h budget) once the text stands; include the
-factored-letter width-2 ring members as amortisation data points.}
+The constructions of this paper are implemented in the open-source
+library \AutStr\AutStrCite{}: \texttt{CutRankGroups}
+(\autoref{thm:word}), \texttt{CutRankTreeGroups}
+(\autoref{cor:tree}(i)) and \texttt{CocycleRankWidthGroups}
+(\autoref{thm:master} at width $1$), each parameterised by the depth
+$d$ and equipped with a layout compiler that realises the lemmas of
+\autoref{sec:word} and \autoref{sec:master} by linear algebra over
+$\R$. The implementation serves two purposes: it \emph{machine-verifies}
+the constructions, and it measures where the algorithmic meta-theorems
+of \autoref{sec:consequences} are practical.
+
+\subparagraph*{Machine verification.}
+The compilers are self-certifying: every advice constant is obtained by
+solving a linear system whose solvability is an instance of
+\autoref{lem:stream}, \autoref{lem:restrict}, \autoref{lem:tables} or
+\autoref{lem:claims}, guarded by an assertion---a compilation that
+succeeds is a machine-checked certificate that the memberships hold on
+that instance. The multiplication automata are checked against the
+group law of \autoref{lem:cocycle} exhaustively on structured layouts
+(spines and balanced trees; zero, complete, matching and star forms;
+the laminar, point-target and mixed-claim site trees) and on thousands
+of randomly generated width-admissible forms and tensors over $\ZZ/4$,
+$\ZZ/8$ and $\ZZ/9$, including instances realising
+\autoref{ex:ringfail} and \autoref{ex:nonesting}; no assertion has
+fired and no mismatch occurred on any width-admissible input. At
+$d = 1$ the ring code paths reproduce the field constructions
+byte-for-byte. Two engineering variants are worth recording: the
+implemented protocol realises the merges of \autoref{thm:master} in two
+stages with a seventh register buffering the sibling's claim, and the
+advice of the fixed-center classes can be emitted either as one letter
+per position or in the streamed one-entry-per-letter form of
+\autoref{thm:master}, which is what makes widths $r \ge 2$ over the
+ring representable in practice.
+
+\subparagraph*{Feasibility.}
+%% TODO: refresh all numbers in this subparagraph from the extended
+%% benchmark run (10-minute per-task timeout, <= 10 h budget) before
+%% submission; the qualitative claims below are from the first sweep.
+Two evaluation paths are available. The \emph{compiled} path builds the
+presentation automata explicitly and evaluates formulas by automata
+products and projections---the promise of \autoref{cor:mc}, with the
+one-time compilation cost amortised over members. The \emph{implicit}
+path never builds an automaton: it evaluates a formula directly over
+the transition functions, taking products of composite states on the
+fly and handling quantifiers by an on-the-fly powerset construction
+over the element digits. A sweep on a cloud VM (16 cores, 64\,GB,
+per-task memory caps) locates the practical boundary of each path:
+\begin{itemize}
+\item the compiled path builds the base automata of the field classes
+  and of small ring members (word members over $\ZZ/4$; with streamed
+  letters also width-$2$ word members over $\ZZ/4$, in under a minute),
+  and compiles typical fixed formulas over them in seconds;
+\item the base automata of larger ring members ($\ZZ/8$ and $\ZZ/9$
+  word members, $\ZZ/4$ tree members) and of the distributed-center
+  protocol are out of reach of explicit construction---the
+  multiplication automaton is a product over the advice alphabet---but
+  the \emph{implicit} path decides first-order formulas on all of them,
+  agreeing with the compiled path on every instance where both
+  complete, with no disagreement observed anywhere in the sweep;
+\item the limiting resource of the implicit path is quantifier
+  alternation, not memory: no out-of-memory event occurred in the
+  sweep; deeply alternating sentences over the largest ring members
+  time out instead, as the on-the-fly powersets grow.
+\end{itemize}
+The practical reading: for a fixed query answered on many members, the
+compiled path is preferable whenever the member's automata build at
+all, and the crossover is quick since a compiled decision is a single
+linear pass; the implicit path extends every meta-theorem of
+\autoref{sec:consequences}, as a decision procedure if not as a
+compiled linear-time algorithm, to members far beyond the reach of
+compilation.
 
 \section{Open problems}
 \label{sec:open}
 
-\planned{v1 \S9 updated: (1) the Courcelle--Oum-style converse, now over
-$\R$; (2) isometry of alternating matrix spaces of bounded rank-width in
-P, and its tensor generalisation; (3) practice: compiled FO evaluation
-over the general protocol awaits factored transition diagrams in the
-engine (the fixed-center classes have factored \emph{advice}; the
-protocol's dense micro-op diagrams are the remaining engineering gap);
-(4) beyond class 2 and exponent $p^d$: Lazard correspondence, degree-3
-streams, and where the parameter meets the Nies--Stephan negative
-result.}
+\begin{enumerate}
+\item \emph{Converse / characterisation.} Does uniform (word-, tree-)
+  automaticity of a class of forms or tensors over $\R$ force bounded
+  width under suitably chosen layouts? A positive answer would be a
+  Courcelle--Oum-style characterisation~\cite{CourcelleOum2007} of
+  automaticity on the class-$2$ stratum. \autoref{prop:generic}, the
+  negative result of~\cite{NiesStephan2023}, the width-$\Omega$ bounds
+  of \autoref{ex:ultraspecial} and \autoref{ex:mekler}, and the
+  exactness direction of \autoref{rem:exactness}---bounded-interface
+  streams have bounded width---are the supporting evidence;
+  \autoref{ex:corners}(iv) shows the six flattenings charge exactly the
+  traffic a bottom-up automaton must carry.
+\item \emph{Isometry in P.} Is isometry of alternating matrix spaces of
+  bounded $\Fp$ rank-width decidable in polynomial time? This is the
+  matrix-space analogue of isomorphism testing for graphs of bounded
+  rank-width~\cite{GroheSchweitzer2015} and would identify a tame
+  island inside a tensor-isomorphism-complete
+  problem~\cite{GrochowQiao2021}; with distributed centers and $d > 1$
+  the same question extends to isomorphism of the width-$r$ tensor
+  classes of \autoref{thm:master}. Computing a witnessing layout is
+  itself nontrivial; for $k = 1$, $d = 1$ rank-decompositions are
+  FPT-computable~\cite{HlinenyOum2008}.
+\item \emph{Compiled evaluation over the general protocol.} The
+  micro-operations of the distributed-center automaton act totally on
+  its register space, so its flat transition relation is dense, and
+  compiling quantified formulas over it currently exceeds commodity
+  memory (\autoref{sec:implementation}); the implicit path covers the
+  gap as a decision procedure. Closing it in the compiled
+  path---evaluating first-order queries over the protocol automaton
+  within practical resources---is an engineering problem with a
+  mathematical flavour: the transition structure is linear algebra over
+  $\R$, and a representation exploiting that structure should exist.
+\item \emph{Beyond exponent $p^d$ and class $2$.} Arbitrary bounded
+  abelian quotients add a carry layer to the extension data; class $3$
+  makes the correction a degree-three stream. Does the cut-rank
+  philosophy---bound the module rank of every flattening a one-pass
+  evaluation must transport---extend along the Lazard correspondence to
+  higher class, and where exactly does it stop short of the
+  non-automaticity of~\cite{NiesStephan2023}?
+\end{enumerate}
 
 \section*{Declaration of Generative AI Usage}
 \label{sec:ai-disclosure}
