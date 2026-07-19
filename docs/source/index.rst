@@ -2,10 +2,16 @@ AutStr: computing with infinite structures
 ==========================================
 
 AutStr represents infinite mathematical structures as finite automata and lets
-you query them with first-order and monadic second-order logic. See the
-`README <https://github.com/fariedabuzaid/AutStr>`_ for a tour. This site
-carries the API reference, generated from the docstrings, and the showcase
-notebooks — executed freshly on every documentation build.
+you query them with first-order and monadic second-order logic. Start with the
+**Overview** for a guided tour; the showcase notebooks — executed freshly on
+every documentation build — work through each area in depth, and the API
+reference is generated from the docstrings.
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Guide
+
+   overview
 
 .. toctree::
    :maxdepth: 1
