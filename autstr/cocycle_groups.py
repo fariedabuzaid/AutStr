@@ -320,7 +320,7 @@ class CocycleRankWidthGroups:
     """The uniformly tree-automatic class of distributed-center class-2
     groups of tensor cut-rank <= r over R = Z/p^d -- the implementation of
     the master theorem (paper: thm:master). The bottom-up automaton's
-    state is six R^r registers (plus three scratch slots):
+    state is six R^r registers (plus three scratch slots)::
 
         wy, wx : upward digit functionals   (column modules of F_y, F_x)
         qy, hx : mixed exports for inside targets       (F_py, F_px)
