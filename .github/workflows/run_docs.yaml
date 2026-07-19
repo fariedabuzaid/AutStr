@@ -6,13 +6,18 @@ on:
     branches:
       - 'main'
 
+# The build job needs only read access; the deploy job needs pages/id-token to
+# publish through GitHub's native Pages deployment (Settings -> Pages -> Source:
+# GitHub Actions).
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    # Only one deployment at a time; a second push supersedes the first.
+    # Only one build at a time per ref; a second push supersedes the first.
     concurrency: docs-${{ github.ref }}
     steps:
       - uses: actions/checkout@v4
@@ -39,9 +44,25 @@ jobs:
       - name: Build the HTML (executes every notebook)
         run: sphinx-build -b html -W --keep-going docs/source docs/build/html
 
-      - name: Deploy to GitHub Pages
-        # A pull request may not write to the repository, so only main deploys.
+      - name: Upload the built HTML as a Pages artifact
+        # A pull request only builds (to catch breakage); main also deploys.
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: JamesIves/github-pages-deploy-action@v4
+        uses: actions/upload-pages-artifact@v3
         with:
-          folder: docs/build/html
+          path: docs/build/html
+
+  deploy:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    # One deployment at a time; a newer run supersedes an in-flight one.
+    concurrency:
+      group: pages
+      cancel-in-progress: true
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
