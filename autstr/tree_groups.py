@@ -276,7 +276,11 @@ class CutRankTreeGroups:
         n_flat = (q ** r + q ** (r * r + r + k * r)
                   + q ** (2 * r * r + r + 2 * k * r + k * r * r))
         if factored is None:
-            factored = n_flat > 20000
+            factored = n_flat > 20000 or d > 1
+        if not factored and d > 1:
+            raise ValueError(
+                "d > 1 needs factored letters: over the ring the sibling "
+                "merge carries a pairing table, not a Q matrix")
         if not factored and n_flat > 20000:
             raise ValueError(
                 f"the flat advice alphabet would have {n_flat} letters; "
@@ -284,10 +288,17 @@ class CutRankTreeGroups:
         self.p, self.k, self.r, self.d = p, k, r, d
         self.q = q                              # center/quotient ring R = Z/p^d
         self.factored = factored
-        #: ring entries per stretch, by node kind
+        #: register vectors in a fixed enumeration order (pairing tables and
+        #: their streamed entries refer to registers by this index)
+        self._vecs = list(it.product(range(q), repeat=r))
+        #: ring entries per stretch, by node kind. Over the ring (d > 1) the
+        #: binary stretch carries, instead of the k bilinear forms Q, the k
+        #: full pairing tables over the register space: q^{2r} entries each.
         self.n_entries = {'a': r,
                           'b': r * r + r + k * r,
-                          'd': 2 * r * r + r + 2 * k * r + k * r * r}
+                          'd': 2 * r * r + r + 2 * k * r
+                               + (k * len(self._vecs) ** 2 if d > 1
+                                  else k * r * r)}
         self.digits = [str(x) for x in range(q)]
         self._digitset = set(self.digits)
 
@@ -607,14 +618,23 @@ class CutRankTreeGroups:
             lo = t - sz + 1
             Vt = np.zeros((r, sz), dtype=np.int64)
             if sz < n:
-                # carry the SATURATED free basis of the subtree's crossing block
-                basis, _ = cr.saturate(self._crossing(n, form, lo, t), p, d)
+                # carry a minimal GENERATING set of the crossing block's row
+                # module (Smith with the p-power factors kept). Restricting a
+                # crossing row of a subtree to a child block gives a crossing
+                # row of the child, so row modules restrict into row modules
+                # and every fold and read-off below solves. A saturated basis
+                # would not: pure closures are non-unique over Z/p^d and need
+                # not nest under restriction. The valuations this keeps in
+                # the interface are exactly why the sibling merge needs a
+                # pairing table over the ring (below) instead of a Q matrix.
+                basis, exps = cr.saturate(self._crossing(n, form, lo, t), p, d)
                 if basis.shape[0] > r:
                     raise ValueError(
                         f"subtree at position {t} has module cut-rank "
                         f"{basis.shape[0]} > r = {r}; this layout needs width "
                         f"{self.tree_cut_rank(shape, form)}")
-                Vt[:basis.shape[0]] = basis
+                for row, e in enumerate(exps):
+                    Vt[row] = (basis[row] * p ** e) % q
             L, R = node.left, node.right
             if L is None and R is None:
                 kind, entries = 'a', flat(Vt[:, 0])
@@ -636,18 +656,27 @@ class CutRankTreeGroups:
                 entries = (flat(TL) + flat(TR) + flat(Vt[:, -1])
                            + flat(RL) + flat(RR))
                 for l in range(k):
-                    # sibling block X[j, i] = B[j, i][l], i in L, j in R,
-                    # factored as V_R^T Q_l V_L over R = Z/p^d. This is the one
-                    # step that is FALSE over the ring with a naive interface;
-                    # the saturated bases VL, VR make it hold (Cor. cor:merge).
+                    # sibling block X[j, i] = B[j, i][l], i in L, j in R.
                     X = np.zeros((rsz, lsz), dtype=np.int64)
                     for jj in range(lp + 1, t):
                         for ii in range(lo, lp + 1):
                             label = form.get((jj, ii))
                             if label:
                                 X[jj - lp - 1, ii - lo] = label[l] % q
-                    Ql = cr.factor_two_sided(X, VL, VR, p, d)
-                    entries += flat(Ql)
+                    if d == 1:
+                        # over the field the block factors as V_R^T Q_l V_L
+                        Ql = cr.factor_two_sided(X, VL, VR, p, d)
+                        entries += flat(Ql)
+                    else:
+                        # over the ring the contribution a_R^T X a_L is a
+                        # well-defined bilinear function of the two register
+                        # values (rows of X are crossing rows of L, columns
+                        # crossing rows of R -- the membership solves below
+                        # certify it), but need not be a matrix in them: the
+                        # letter carries the full pairing table instead.
+                        cr.solve_left(VL, X, p, d)          # rows in rowsp(VL)
+                        cr.solve_left(VR, X.T, p, d)        # cols in rowsp(VR)
+                        entries += self._pairing_table(X, VL, VR)
             V[t] = Vt
             sub = Tree(kind if self.factored else kind + digs(entries),
                        built.get(id(L)) if L is not None else None,
@@ -660,6 +689,48 @@ class CutRankTreeGroups:
         for _ in range(k):
             root = Tree(CMARK, root, None)
         return root
+
+    def _column_span(self, V: np.ndarray) -> Dict[Tuple[int, ...], np.ndarray]:
+        """The image of a ↦ V a with one preimage per image vector: closure
+        of the column span under adding columns (at most q^r image vectors)."""
+        q = self.q
+        cols = V.shape[1]
+        span = {(0,) * V.shape[0]: np.zeros(cols, dtype=np.int64)}
+        frontier = list(span)
+        while frontier:
+            nxt = []
+            for w in frontier:
+                a = span[w]
+                for i in range(cols):
+                    w2 = tuple((wv + int(V[s, i])) % q
+                               for s, wv in enumerate(w))
+                    if w2 not in span:
+                        a2 = a.copy()
+                        a2[i] = (a2[i] + 1) % q
+                        span[w2] = a2
+                        nxt.append(w2)
+            frontier = nxt
+        return span
+
+    def _pairing_table(self, X: np.ndarray, VL: np.ndarray,
+                       VR: np.ndarray) -> list:
+        """The merge pairing as a table over the register space: entry
+        (w1, w2) -- in the fixed enumeration order of R^r x R^r -- is
+        a_R^T X a_L for preimages V_R a_R = w1, V_L a_L = w2 (well-defined
+        by the membership certificates); pairs outside the images are 0."""
+        q = self.q
+        spanL = self._column_span(VL)
+        spanR = self._column_span(VR)
+        table = []
+        for w1 in self._vecs:
+            aR = spanR.get(w1)
+            for w2 in self._vecs:
+                aL = spanL.get(w2)
+                if aR is None or aL is None:
+                    table.append(0)
+                else:
+                    table.append(int(aR @ X @ aL) % q)
+        return table
 
     def clique_form(self, n: int, label: Sequence[int] = None) -> Dict:
         """Nothing commutes; every crossing block is all-ones — cut-rank 1
@@ -842,10 +913,20 @@ class CutRankTreeGroups:
             elif ph < 2 * r2 + r + 2 * k * r:
                 l, u = divmod(ph - 2 * r2 - r - k * r, r)
                 s = bump(s, l, xi * val * w2y[u])
-            else:
+            elif self.d == 1:
+                # field: the k bilinear forms Q of the sibling block
                 l, rem = divmod(ph - 2 * r2 - r - 2 * k * r, r2)
                 u, t = divmod(rem, r)
                 s = bump(s, l, val * w2x[u] * w1y[t])
+            else:
+                # ring: the k pairing tables -- the entry indexed by the
+                # current register pair (right child's x, left child's y)
+                # is the sibling contribution; all other entries pass by
+                nv = len(self._vecs)
+                l, rem = divmod(ph - 2 * r2 - r - 2 * k * r, nv * nv)
+                i1, i2 = divmod(rem, nv)
+                if self._vecs[i1] == w2x and self._vecs[i2] == w1y:
+                    s = bump(s, l, val)
         if ph + 1 == self.n_entries[kind]:
             return ('t', s, ax, ay)
         return ('f', kind, ph + 1, s, w1x, w1y, w2x, w2y, ax, ay)

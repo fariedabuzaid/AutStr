@@ -148,14 +148,21 @@ transition solve.
   Validated by 10,636 fuzzed ring forms (0 compile failures, 0 simulate
   mismatches) + regression test
   (`test_interface_is_row_module_not_saturation`); d = 1 byte-identical.
-- **Tree compiler: OPEN.** Saturated interfaces fail restriction
-  (12/4415 fuzzed width-admissible Z/4 and Z/9 forms); row-module
-  interfaces fail the sibling merge (200/2224; the scratch counterexample
-  B_{31}=2 on ({1,2})({3,4}) is a realizable width-1 instance). Neither
-  simple choice works: the ring tree theorem needs a richer interface
-  (candidate: rank <= r*d layered/filtered interfaces) or a redefined
-  ring width. Mathematical decision pending (paper master theorem
-  depends on it).
+- **Tree compiler: RESOLVED (2026-07-19, stronger than hoped).** The
+  automaton-theoretic requirement is kernel containment (well-definedness
+  of the merge as a function of the registers), not matrix factorability.
+  Row-module interfaces satisfy it automatically; the merge contribution
+  is then a well-defined R-bilinear function on the register images that
+  need not extend to a Q matrix over R (Z/4: c = 2*(w/2)(v/2)) -- so the
+  merge letter carries a bounded *pairing table* (q^{2r} entries per
+  center coordinate, streamed in factored mode; d > 1 forces factored
+  letters). Interfaces stay at module cut-rank r -- no r*d blowup, no
+  saturation anywhere in the construction; d = 1 keeps the flat Q-matrix
+  letters byte-identically. Validated: 3350 fuzzed width-admissible forms
+  over Z/4 (widths 1-2), Z/9 and Z/8 -- 0 compile failures, 0 simulate
+  mismatches -- including the scratch counterexample instance; the
+  membership solves remain as compile-time lemma certificates. Regression
+  test: `test_ring_interfaces_and_pairing_tables`.
 - **Microcode compiler (CocycleRankWidthGroups, d > 1): OPEN.** 19/400
   fuzzed width-1 Z/4 tensors fail, including "module rank > 1" at *joint
   child intervals* (not subtree cuts — over the ring the six-flattening

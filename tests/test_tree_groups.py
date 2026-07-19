@@ -522,31 +522,33 @@ class TestCutRankTreeGroupsChainRing:
         sweep(shape6, form6, rounds=120)
 
     def test_factored_agrees_with_flat(self):
-        """Where both encodings exist, factored simulate decides exactly as
-        flat simulate (field and Z/4, r = 1)."""
+        """Where both encodings exist (the field), factored simulate decides
+        exactly as flat simulate; d > 1 forces factored letters (the ring
+        merge carries a pairing table, which has no flat encoding)."""
         from autstr.tree_groups import CutRankTreeGroups
         rng = random.Random(29)
-        for p, d in ((2, 1), (2, 2)):
-            flat = CutRankTreeGroups(p, d=d)
-            fac = CutRankTreeGroups(p, d=d, factored=True)
-            assert not flat.factored and fac.factored
-            n = 4
-            q = flat.q
-            for shape in (flat.spine(n), flat.balanced(n)):
-                for form in (flat.clique_form(n), flat.matching_form(n)):
-                    a_flat = flat.advice(shape, form)
-                    a_fac = fac.advice(shape, form)
-                    for _ in range(80):
-                        g = ((rng.randrange(q),),
-                             tuple(rng.randrange(q) for _ in range(n)))
-                        h = ((rng.randrange(q),),
-                             tuple(rng.randrange(q) for _ in range(n)))
-                        z = rng.choice([
-                            flat.multiply(n, form, g, h),
-                            ((rng.randrange(q),),
-                             tuple((x + y) % q for x, y in zip(g[1], h[1])))])
-                        assert flat.simulate(a_flat, g, h, z) \
-                            == fac.simulate(a_fac, g, h, z), (form, g, h, z)
+        flat = CutRankTreeGroups(2)
+        fac = CutRankTreeGroups(2, factored=True)
+        assert not flat.factored and fac.factored
+        n = 4
+        for shape in (flat.spine(n), flat.balanced(n)):
+            for form in (flat.clique_form(n), flat.matching_form(n)):
+                a_flat = flat.advice(shape, form)
+                a_fac = fac.advice(shape, form)
+                for _ in range(80):
+                    g = ((rng.randrange(2),),
+                         tuple(rng.randrange(2) for _ in range(n)))
+                    h = ((rng.randrange(2),),
+                         tuple(rng.randrange(2) for _ in range(n)))
+                    z = rng.choice([
+                        flat.multiply(n, form, g, h),
+                        ((rng.randrange(2),),
+                         tuple((x + y) % 2 for x, y in zip(g[1], h[1])))])
+                    assert flat.simulate(a_flat, g, h, z) \
+                        == fac.simulate(a_fac, g, h, z), (form, g, h, z)
+        assert CutRankTreeGroups(2, d=2).factored
+        with pytest.raises(ValueError):
+            CutRankTreeGroups(2, d=2, factored=False)
 
     def test_factored_check_implicit(self):
         """FO on a factored ring width-2 tree member via the implicit path."""
@@ -562,6 +564,41 @@ class TestCutRankTreeGroupsChainRing:
         assert not crt.check_implicit('M(x,x,z)', advice, x=g, z=wrong)
         assert crt.check_implicit('Eq(x,x)', advice, x=g)
         assert crt.check_implicit('exists y.(M(x,y,u))', advice, x=g, u=one)
+
+    def test_ring_interfaces_and_pairing_tables(self):
+        """Regression for the ring-interface finding: over Z/p^d the
+        interface must generate the row module (pure closures do not nest
+        under restriction) and the sibling merge must carry a pairing
+        table (the block need not factor as a Q matrix through valuation-
+        carrying interfaces). Both failure modes, previously fatal, now
+        compile and match the reference law."""
+        from autstr.tree_groups import CutRankTreeGroups
+        crt = CutRankTreeGroups(2, d=2)
+        rng = random.Random(11)
+        cases = [
+            # restriction failure (saturated interfaces): fuzz-found forms
+            (Tree('s', Tree('s', Tree('s', Tree('s'), None), None), None),
+             {(4, 2): (1,), (5, 2): (2,), (4, 3): (2,)}),
+            # merge failure (row-module interfaces without a table): the
+            # scratch counterexample B_{31} = 2 on ({1,2})({3,4})
+            (Tree('s', Tree('s', Tree('s'), None), Tree('s', Tree('s'), None)),
+             {(3, 1): (2,)}),
+        ]
+        for shape, raw in cases:
+            seq, _, _ = crt._layout(shape)
+            n = len(seq)
+            form = {k_: v for k_, v in raw.items() if k_[0] <= n}
+            assert crt.tree_cut_rank(shape, form) <= 1
+            advice = crt.advice(shape, form)
+            for _ in range(150):
+                g = ((rng.randrange(4),),
+                     tuple(rng.randrange(4) for _ in range(n)))
+                h = ((rng.randrange(4),),
+                     tuple(rng.randrange(4) for _ in range(n)))
+                z = crt.multiply(n, form, g, h)
+                assert crt.simulate(advice, g, h, z), (form, g, h)
+                wrong = (((z[0][0] + 1) % 4,), z[1])
+                assert not crt.simulate(advice, g, h, wrong), (form, g, h)
 
     @heavy
     def test_tree_merge_exhaustive_z4(self):
