@@ -131,6 +131,41 @@ at r = 1, neighborhood/domain satisfying sets. tests/test_rank_width.py.
   to `view=False` (headless builds must not spawn a viewer).
 - Version stays v3.1.0 for this branch (no further bumps).
 
+## Ring-interface finding (2026-07-19, paper-rewrite fuzzing)
+
+Adversarial fuzzing over valuation-rich random forms found latent compile
+failures in all three ring (d > 1) compilers on **width-admissible**
+instances — the branch's structured test forms (clique/matching/star/
+laminar) never hit them. Root cause: **pure closures are non-unique over
+Z/p^d and do not nest under column restriction** (over Z/4, span{(1,0,1)}
+and span{(1,2,1)} are both minimal pure overmodules of span{(2,0,2)}), so
+per-cut saturated interfaces can be incompatible with the next cut's
+transition solve.
+
+- **Word compiler: FIXED.** The correct interface is a minimal *generating
+  set of the row module* (Smith with the p-powers kept): restrictions of
+  row spaces land in row spaces exactly, so transitions always solve.
+  Validated by 10,636 fuzzed ring forms (0 compile failures, 0 simulate
+  mismatches) + regression test
+  (`test_interface_is_row_module_not_saturation`); d = 1 byte-identical.
+- **Tree compiler: OPEN.** Saturated interfaces fail restriction
+  (12/4415 fuzzed width-admissible Z/4 and Z/9 forms); row-module
+  interfaces fail the sibling merge (200/2224; the scratch counterexample
+  B_{31}=2 on ({1,2})({3,4}) is a realizable width-1 instance). Neither
+  simple choice works: the ring tree theorem needs a richer interface
+  (candidate: rank <= r*d layered/filtered interfaces) or a redefined
+  ring width. Mathematical decision pending (paper master theorem
+  depends on it).
+- **Microcode compiler (CocycleRankWidthGroups, d > 1): OPEN.** 19/400
+  fuzzed width-1 Z/4 tensors fail, including "module rank > 1" at *joint
+  child intervals* (not subtree cuts — over the ring the six-flattening
+  width does not bound them, unlike the field case).
+
+Until resolved: d > 1 tree/microcode members compiled from the structured
+families keep working (compile success is still a machine-checked
+certificate — the guarded solves are exactly the lemma instances); random
+valuation-rich instances may be rejected with a misleading width message.
+
 ## Non-issues (checked)
 - `chain_ring.right_inverse` / `inv_mod_pp` are still used by tests after the
   `factor_two_sided` rewrite (which now uses `solve_left`); not dead code.

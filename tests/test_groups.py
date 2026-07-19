@@ -523,6 +523,25 @@ class TestCutRankGroupsChainRing:
         with pytest.raises(ValueError):
             crg.encode(((4,), (0, 0)), 2)     # 4 is out of range
 
+    def test_interface_is_row_module_not_saturation(self):
+        """Width-1 form {(3,1): 2, (3,2): 1, (4,2): 2} over Z/4: pure
+        closures are non-unique over Z/p^d and need not nest under
+        restriction -- the saturated cut-3 interface (0,1,0) escapes
+        rowsp{(2,1)} -- so the compiler must carry row-module generators.
+        Regression for the fuzz-found compile failure."""
+        crg = CutRankGroups(2, d=2)
+        form = {(3, 1): (2,), (3, 2): (1,), (4, 2): (2,)}
+        assert crg.linear_cut_rank(4, form) == 1
+        advice = crg.advice(4, form)          # raised ValueError before
+        rng = random.Random(4)
+        for _ in range(200):
+            g = ((rng.randrange(4),), tuple(rng.randrange(4) for _ in range(4)))
+            h = ((rng.randrange(4),), tuple(rng.randrange(4) for _ in range(4)))
+            z = crg.multiply(4, form, g, h)
+            assert crg.simulate(advice, g, h, z), (g, h)
+            wrong = (((z[0][0] + 1) % 4,), z[1])
+            assert not crg.simulate(advice, g, h, wrong), (g, h)
+
     def test_cls_guard_raises_instead_of_hanging(self):
         """Members whose product automaton is infeasible (e.g. Z/8) get a
         clear error from check/evaluate/get_structure pointing at

@@ -1026,15 +1026,22 @@ class CutRankGroups:
             R = cr.solve_left(V_prev, Bt, p, d)
             V = np.zeros((r, t), dtype=np.int64)
             if t < n:
-                # carry the SATURATED free basis of the crossing block; its
-                # projection to earlier columns stays inside the previous
-                # saturation, so the transition T below always exists
-                basis, _ = cr.saturate(self._crossing(n, form, t), p, d)
+                # carry a minimal GENERATING set of the crossing block's row
+                # module (Smith with the p-power factors kept). Restricting a
+                # row of M_t to the first t-1 columns gives a row of M_{t-1},
+                # so row spaces restrict into row spaces and the transition T
+                # below always solves. A saturated basis would NOT work here:
+                # pure closures are non-unique over Z/p^d and need not nest
+                # under restriction (e.g. the width-1 form {(3,1): 2,
+                # (3,2): 1, (4,2): 2} over Z/4, where the saturated cut-3
+                # interface (0,1,0) restricts outside rowsp{(2,1)}).
+                basis, exps = cr.saturate(self._crossing(n, form, t), p, d)
                 if basis.shape[0] > r:
                     raise ValueError(
                         f"cut {t} has module cut-rank {basis.shape[0]} > r = {r}; "
                         f"this form needs width {self.linear_cut_rank(n, form)}")
-                V[:basis.shape[0]] = basis
+                for row, e in enumerate(exps):
+                    V[row] = (basis[row] * p ** e) % q
             # basis change between cuts: T V_prev = V restricted to earlier cols
             T = cr.solve_left(V_prev, V[:, :t - 1], p, d)
             entries = [T[i, j] for i in range(r) for j in range(r)]

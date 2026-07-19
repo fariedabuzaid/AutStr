@@ -116,15 +116,16 @@ valuations moving into the middle factor; and distributed-center
 their determined truncations and re-anchored as valuations drop.
 Consequences include linear-time first-order model checking on every
 member and decidability of the uniform theory of each class. The class is
-closed under central and direct products and contains uniform versions of
-the known automatic families---extraspecial $p$-groups (the finite
-counterpart of the Nies--Stephan presentation of $E_p$), tree-indexed
-laminar groups with growing center, commutation graphs of bounded
-pathwidth, treewidth or vertex cover, and the clique, on which no two
-generators commute---while generic forms have width $\Omega(n)$ under
-every layout, and Mekler's graph-interpreting groups, ultraspecial
-field-multiplication tensors and the relatively free class-$2$ group lie
-outside. All constructions are implemented and machine-verified in the
+closed under central and direct products, and many natural families of
+class-$2$ groups---none of which had a uniform automatic presentation
+before---arise as low-width layouts: the extraspecial $p$-groups (whose
+direct limit $E_p$ is the one previously known word-automatic class-$2$
+group), tree-indexed laminar groups with growing center, groups whose
+commutation graph has bounded pathwidth, treewidth or vertex cover, and
+the clique, on which no two generators commute. Generic forms have width
+$\Omega(n)$ under every layout, and Mekler's graph-interpreting groups,
+ultraspecial field-multiplication tensors and the relatively free
+class-$2$ group lie outside. All constructions are implemented and machine-verified in the
 \AutStr{} library; the layout compilers derive every advice constant by
 solving a linear system whose solvability is one of our factorisation
 lemmas, so each successful compilation certifies the lemmas on that
