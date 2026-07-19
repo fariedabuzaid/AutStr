@@ -84,8 +84,7 @@ powers_of_two = x | x       # { 2^n : n >= 0 }
 Under the hood every relation *is* a finite automaton. Sieving the multiples of
 2 and 3 out of the integers > 1 — a couple of steps of the [infinite Sieve of
 Eratosthenes](notebooks/arithmetic_and_algebra.ipynb) — leaves this 9-state
-recognizer (accepting states are doubled; the 2·3·5·7 sieve automaton already needs
-157 states):
+recognizer (accepting states are doubled:
 
 <p align="center">
   <picture>
