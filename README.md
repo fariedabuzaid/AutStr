@@ -88,8 +88,11 @@ recognizer (accepting states are doubled; the full 2·3·5·7 sieve automaton ne
 157 states):
 
 <p align="center">
-  <img src="docs/media/sieve_automaton.png" width="720"
-       alt="A 9-state automaton recognizing the integers greater than 1 that are divisible by neither 2 nor 3">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/media/sieve_automaton-dark.png">
+    <img src="docs/media/sieve_automaton-light.png" width="720"
+         alt="A 9-state automaton recognizing the integers greater than 1 that are divisible by neither 2 nor 3">
+  </picture>
 </p>
 
 ---

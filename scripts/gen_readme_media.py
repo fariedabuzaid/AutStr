@@ -29,12 +29,24 @@ def coprime_automaton(primes):
 
 def main():
     MEDIA.mkdir(parents=True, exist_ok=True)
-    target = MEDIA / "sieve_automaton"
     dfa = coprime_automaton([2, 3])            # 9 states: clean and legible
-    dot = dfa.show_diagram(filename=str(target), format="png", view=False)
-    dot.attr(dpi="160", bgcolor="transparent")
-    dot.render(filename=str(target), format="png", cleanup=True)
-    print(f"wrote {target}.png  ({dfa.num_states} states)")
+
+    tmp = MEDIA / "_sieve_tmp"
+    dot = dfa.show_diagram(filename=str(tmp), format="png", view=False)
+    dot.graph_attr.update(dpi="160", bgcolor="transparent")
+
+    # Two theme-aware variants (embedded via <picture> in the README): dark ink
+    # for GitHub's light theme, light ink for its dark theme. Transparent
+    # background so either sits cleanly on the page.
+    for suffix, ink in [("light", "black"), ("dark", "white")]:
+        dot.node_attr.update(color=ink, fontcolor=ink)
+        dot.edge_attr.update(color=ink, fontcolor=ink)
+        target = MEDIA / f"sieve_automaton-{suffix}"
+        dot.render(filename=str(target), format="png", cleanup=True)
+        print(f"wrote {target}.png  ({dfa.num_states} states, {ink} ink)")
+
+    for stray in MEDIA.glob("_sieve_tmp*"):
+        stray.unlink()
 
 
 if __name__ == "__main__":
