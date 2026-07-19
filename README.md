@@ -32,10 +32,8 @@ as several tools at once:
 All four are the same underlying object — an *automatic presentation* — viewed
 from different angles.
 
-> 📖 **[Documentation & guided tour → fariedabuzaid.github.io/AutStr](https://fariedabuzaid.github.io/AutStr/)**
-> — a full [overview chapter](https://fariedabuzaid.github.io/AutStr/overview.html),
-> the API reference, and executable notebooks for every part of the library. This
-> README is the short version.
+> 📖 For a thorough introduction to the library, please consult the
+> **[Documentation](https://fariedabuzaid.github.io/AutStr/)**.
 
 ---
 
@@ -142,8 +140,7 @@ batch:
 | `autstr.groups`, `autstr.tree_groups` | finite **abelian** groups, **index-≤2 cyclic** groups (dihedral, quaternion, semidihedral, modular), **extraspecial** p-groups, class-2 groups of bounded **rank-width** (over F_p or ℤ/pᵈ) | group multiplication `M` |
 | `autstr.cocycle_groups` | **distributed-center** class-2 groups of bounded rank-width | multiplication `M` |
 
-Three capabilities cut across all of these — each with its own chapter in the
-[documentation](https://fariedabuzaid.github.io/AutStr/overview.html):
+Three capabilities cut across all of these:
 
 - **Composition** (`autstr.composition`) — disjoint union and direct products of
   structures, and union and finite-product closure of classes.
@@ -155,8 +152,7 @@ Three capabilities cut across all of these — each with its own chapter in the
   programme over finite trees read by bottom-up tree automata, the step from
   Büchi's theorem to Rabin's.
 
-The [overview chapter](https://fariedabuzaid.github.io/AutStr/overview.html) and
-the executable notebooks in [`notebooks/`](notebooks/) work through all of it,
+The executable notebooks in [`notebooks/`](notebooks/) work through all of it,
 one per area — arithmetic & algebra, graphs, groups, composition, and implicit
 evaluation.
 
