@@ -540,14 +540,12 @@ class TestClaimAndVerifyChainRing:
         self.sim_check(crw4, sites, T)
         self.sim_check(crw4, sites, {})
 
-    def test_reanchor_z4(self, crw4):
+    def test_partially_determined_claims_z4(self, crw4):
         """A claim vector {v1: 2, v2: 1} over Z/4: position v1 determines
-        only 2P, v2 later pins P down -- the compiler must emit the ring
-        re-anchor op `zr` and the protocol must still match the law."""
+        the claim only up to valuation, v2 pins it down later -- the
+        claim-module tables must carry exactly the determined content."""
         sites = CocycleSites(2, self.Z4_DEEP, d=2)
         T = {(4, 3, 1): 2, (4, 3, 2): 1}
-        advice = crw4.advice(sites, T)
-        assert any(l.startswith('zr') for l in _letters(advice))
         self.sim_check(crw4, sites, T)
         # anchor-first and both-valuation variants (no re-anchor needed)
         self.sim_check(crw4, sites, {(4, 3, 1): 1, (4, 3, 2): 2})
@@ -585,15 +583,13 @@ class TestClaimAndVerifyChainRing:
         assert found >= 8, f"only {found} width-1 ring instances found"
 
     def test_d1_is_the_field_class(self):
-        """d = 1 (default) compiles byte-identical advice to an explicit
-        d=1 instance, over the field letter format."""
+        """d = 1 (the default) and an explicit d=1 instance compile
+        identical instruction streams."""
         sites, T = mixed_instance()
         default = CocycleRankWidthGroups(2)
         explicit = CocycleRankWidthGroups(2, d=1)
         assert default.q == explicit.q == 2
         assert _tree_eq(default.advice(sites, T), explicit.advice(sites, T))
-        assert not any(l.startswith('zr')
-                       for l in _letters(default.advice(sites, T)))
 
     def test_guards(self, crw4):
         # width over 1 rejected over the ring
@@ -643,66 +639,66 @@ class TestClaimAndVerifyChainRing:
                                        z=(wb, z[1]))
 
 
-@heavy
-class TestClaimAndVerifyAutomaton:
-    """End to end through the real presentation automata, instantiated over
-    the sub-alphabet of merge letters that the test instances use. Heavy:
-    the micro-op letters act totally on the register states, so the flat
-    per-pair transition diagrams are dense -- unlike every other class in
-    the package (factored letters are the real fix, see
-    paper/theorem3-notes.md)."""
+class TestWidthTwo:
+    """Width r >= 2 through the general protocol -- the first widths beyond
+    one for the distributed-center class, over the field and the ring."""
 
-    @pytest.fixture(scope="class")
-    def auto(self, crw2):
-        instances = []
-        sites, T = mixed_instance()
-        instances.append(("mixed", sites, T))
-        instances.append(("zero", sites, {}))
-        lam_sites, lam_T, _ = laminar_sites(2, SPINEY)
-        instances.append(("laminar", lam_sites, lam_T))
-        merges = set()
-        for _, s, t in instances:
-            merges |= crw2.used_merge_letters(crw2.advice(s, t))
-        crw = CocycleRankWidthGroups(2, merge_letters=merges)
-        sta, variables = crw.evaluate('M(x,y,z)')
-        return crw, (sta, variables), instances
-
-    def test_multiplication_end_to_end(self, auto):
-        """Measured 2026-07-11: passes within a 4G memory cap."""
-        crw, (sta, variables), instances = auto
-        rng = random.Random(9)
-        for name, sites, T in instances:
-            advice = crw.advice(sites, T)
-            elems = elements(sites)
-            for g, h in it.product(elems, repeat=2):
-                expected = sites.multiply(T, g, h)
-                trees = {'advice': advice,
-                         'x': crw.encode(g, sites, advice),
-                         'y': crw.encode(h, sites, advice),
-                         'z': crw.encode(expected, sites, advice)}
-                assert sta.accepts(*[trees[v] for v in variables]), \
-                    (name, g, h)
-                wb = list(expected[0])
+    def sim_check(self, crw, sites, T, rounds=150, seed=1):
+        advice = crw.advice(sites, T)
+        rng = random.Random(seed)
+        q = sites.q
+        elems = [(tuple(rng.randrange(q) for _ in sites.Z),
+                  tuple(rng.randrange(q) for _ in sites.X))
+                 for _ in range(40)]
+        for _ in range(rounds):
+            g, h = rng.choice(elems), rng.choice(elems)
+            z = sites.multiply(T, g, h)
+            tx = crw.encode(g, sites, advice)
+            ty = crw.encode(h, sites, advice)
+            assert crw.simulate(advice, tx, ty,
+                                crw.encode(z, sites, advice)), (g, h)
+            if sites.Z:
+                wb = list(z[0])
                 v = rng.randrange(len(wb))
-                wb[v] = (wb[v] + 1) % 2
-                trees['z'] = crw.encode((tuple(wb), expected[1]), sites,
-                                        advice)
-                assert not sta.accepts(*[trees[v] for v in variables]), \
-                    (name, g, h)
+                wb[v] = (wb[v] + rng.randrange(1, q)) % q
+                assert not crw.simulate(
+                    advice, tx, ty,
+                    crw.encode((tuple(wb), z[1]), sites, advice)), (g, h)
 
-    def test_nonabelian_uniform(self, auto):
-        """One automaton decides commutativity across distributed-center
-        members. Measured 2026-07-11: exceeds a 4G memory cap (the nested
-        existential projections over the dense per-pair diagrams); needs a
-        larger machine or factored transition letters."""
-        crw, _, _ = auto
-        phi = 'exists x.(exists y.(exists z.(M(x,y,z) and (not M(y,x,z)))))'
-        sta, variables = crw.evaluate(phi)
-        assert variables == ['advice']
-        lam_sites, lam_T, _ = laminar_sites(2, SPINEY)
-        mixed_s, mixed_T = mixed_instance()
-        cases = [(crw.advice(lam_sites, lam_T), True),
-                 (crw.advice(mixed_s, mixed_T), True),
-                 (crw.advice(mixed_s, {}), False)]
-        for advice, expected in cases:
-            assert sta.accepts(advice) == expected
+    def test_scattered_field(self):
+        """The width lower-bound family compiles exactly at its width."""
+        crw = CocycleRankWidthGroups(2, r=2)
+        sites, T = scattered_sites(2, 2)
+        assert sites.cut_width(T) == 2
+        self.sim_check(crw, sites, T)
+        with pytest.raises(ValueError):
+            CocycleRankWidthGroups(2, r=1).advice(sites, T)
+
+    def test_scattered_ring(self):
+        crw = CocycleRankWidthGroups(2, r=2, d=2)
+        sites, T = scattered_sites(2, 2, d=2)
+        self.sim_check(crw, sites, T)
+        Tv = dict(T)
+        Tv[(4, 3, 1)] = 2                      # valuation-carrying variant
+        if sites.cut_width(Tv) <= 2:
+            self.sim_check(crw, sites, Tv)
+
+    def test_random_width2_field(self):
+        crw = CocycleRankWidthGroups(2, r=2)
+        rng = random.Random(7)
+        found = attempts = 0
+        while found < 8 and attempts < 2000:
+            attempts += 1
+            shape = random_site_shape(rng, rng.randint(4, 7))
+            sites = CocycleSites(2, shape)
+            if len(sites.X) < 3 or not sites.Z or sites.n_sites > 7:
+                continue
+            triples = [(j, i, v) for i in sites.X for j in sites.X
+                       if i < j for v in sites.Z]
+            rng.shuffle(triples)
+            T = {t: 1 for t in triples[:rng.randint(2, 5)]}
+            if sites.cut_width(T) != 2:
+                continue
+            found += 1
+            self.sim_check(crw, sites, T, rounds=40, seed=attempts)
+        assert found >= 5, f"only {found} width-2 instances found"

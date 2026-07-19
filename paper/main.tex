@@ -1473,14 +1473,14 @@ of randomly generated width-admissible forms and tensors over $\ZZ/4$,
 $\ZZ/8$ and $\ZZ/9$, including instances realising
 \autoref{ex:ringfail} and \autoref{ex:nonesting}; no assertion has
 fired and no mismatch occurred on any width-admissible input. At
-$d = 1$ the ring code paths reproduce the field constructions
-byte-for-byte. Two engineering variants are worth recording: the
-implemented protocol realises the merges of \autoref{thm:master} in two
-stages with a seventh register buffering the sibling's claim, and the
-advice of the fixed-center classes can be emitted either as one letter
-per position or in the streamed one-entry-per-letter form of
-\autoref{thm:master}, which is what makes widths $r \ge 2$ over the
-ring representable in practice.
+$d = 1$ the fixed-center ring code paths reproduce the field
+constructions byte-for-byte. The distributed-center implementation
+realises the protocol of \autoref{thm:master} exactly---six registers,
+one-step merges, table-driven letters---at any width $r$ and depth $d$;
+the advice of the fixed-center classes can be emitted either as one
+letter per position or in the streamed one-entry-per-letter form, which
+is what makes widths $r \ge 2$ over the ring representable in
+practice.
 
 \subparagraph*{Feasibility.}
 %% TODO: refresh all numbers in this subparagraph from the extended

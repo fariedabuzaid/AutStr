@@ -163,15 +163,28 @@ transition solve.
   mismatches -- including the scratch counterexample instance; the
   membership solves remain as compile-time lemma certificates. Regression
   test: `test_ring_interfaces_and_pairing_tables`.
-- **Microcode compiler (CocycleRankWidthGroups, d > 1): OPEN.** 19/400
-  fuzzed width-1 Z/4 tensors fail, including "module rank > 1" at *joint
-  child intervals* (not subtree cuts — over the ring the six-flattening
-  width does not bound them, unlike the field case).
-
-Until resolved: d > 1 tree/microcode members compiled from the structured
-families keep working (compile success is still a machine-checked
-certificate — the guarded solves are exactly the lemma instances); random
-valuation-rich instances may be rejected with a misleading width message.
+- **Microcode compiler (CocycleRankWidthGroups, d > 1): RESOLVED
+  (2026-07-19) by the protocol refactor.** The width-1 microcode (seven
+  registers, two-stage merges, joint-interval rebases) was replaced by a
+  full implementation of the paper's master-theorem machine: six
+  R^r-registers at any width r and depth d, one-step merges (no
+  joint-interval interfaces exist any more), row-module generator
+  interfaces, and a table-driven instruction stream (linear ops for the
+  restriction-calculus folds and read-offs; streamed tables for the
+  pairings, claim-module extensions/joins and export rebases — the claim
+  register is a representative of the residual element of the claim
+  module, superseding the truncation/re-anchor encoding). Every linear
+  coefficient and every table is derived through solves that instantiate
+  the paper's lemmas, assertion-guarded. Validated: all field corners
+  exhaustively, 300 fuzzed width-1 Z/4 tensors (the profile that broke
+  the microcode at 19/400), 120 width-2 field + 40 width-2 Z/4 fuzzed
+  tensors, Z/9 — zero failures, zero mismatches; width r >= 2 works for
+  this class for the first time. The explicit `cls` is gone by
+  construction (the instruction phase is part of the state):
+  `evaluate`/`check`/`get_structure` raise with a pointer to
+  `check_implicit`/`evaluate_implicit`/`simulate`, which are the
+  supported paths; the sub-alphabet heavy test was removed accordingly,
+  and the `merge_letters` constructor parameter no longer exists.
 
 ## Non-issues (checked)
 - `chain_ring.right_inverse` / `inv_mod_pp` are still used by tests after the

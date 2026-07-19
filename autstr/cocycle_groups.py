@@ -10,27 +10,25 @@ extension with the bilinear cocycle
     (b, a)(b', a') = (b + b' + C(a, a'), a + a'),
     C(a, a')_v     = sum_{i<j} T[j, i, v] a_j a'_i .
 
-The center coordinates b range over R = Z/p^d (exponent-p^d center, "Idea 2"
-of paper/scratch-chainring.tex); the quotient coordinates a range over F_p.
-The default d = 1 is the field case R = F_p. Over the ring the width is the
-*module cut-rank* -- the free rank of the saturated interface -- which the
-``chain_ring`` module supplies (Lemma "lem:sat"); the two-sided factorisation
-that the tree merge needs also lives there (``chain_ring.factor_two_sided``,
-Corollary "cor:merge").
+Both coordinate blocks range over R = Z/p^d (an exponent-p^d center forces
+an exponent-p^d quotient); the default d = 1 is the field case R = F_p. The
+width is the *module cut-rank*: the minimal number of generators of each
+flattening's module, which ``chain_ring`` computes via Smith normal form.
 
-This module provides the reference group law and the *six crossing
-flattenings* whose ranks measure, per subtree cut, the traffic a bottom-up
-automaton must carry: upward digit functionals (F_y, F_x), upward pair-sums
-(F_m), inward claims (F_g), and the mixed exports whose products flow back
-into inside checks (F_py, F_px). The flattenings are genuinely different
-matrices -- reshaping changes rank -- so the width is their maximum, not a
-single bipartition rank. The uniformly tree-automatic presentation
-(claim-and-verify automaton with microcode advice) builds on these measures
-and is developed next; the classes `CutRankTreeGroups` (all z-sites on a
-chain above the root) and `TreeExtraspecialGroups` (z-sites at the leaves,
-laminar targets, width 1) are the two known corners of the class.
+This module provides the reference group law, the *six crossing
+flattenings* whose module ranks measure, per subtree cut, the traffic a
+bottom-up automaton must carry -- upward digit functionals (F_y, F_x),
+upward pair-sums (F_m), inward claims (F_g), and the mixed exports whose
+products flow back into inside checks (F_py, F_px); reshaping changes rank,
+so the width is their maximum -- and `CocycleRankWidthGroups`, the
+uniformly tree-automatic presentation realising the master theorem's
+six-register protocol at any width r and depth d. The classes
+`CutRankTreeGroups` (all z-sites on a chain above the root) and
+`TreeExtraspecialGroups` (z-sites at the leaves, laminar targets, width 1)
+are corner cases.
 """
 import itertools as it
+import sys
 from typing import Dict, List, Sequence, Tuple
 
 import numpy as np
@@ -314,869 +312,796 @@ def scattered_sites(p: int, m: int, d: int = 1) -> Tuple[CocycleSites, Dict]:
 
 
 # ====================================================================
-# The claim-and-verify automaton (width 1) with microcode advice
+# The claim-and-verify automaton: the six-register protocol
 # ====================================================================
-
-def _vratio(target: Dict, base: Dict, p: int, ctx: str, d: int = 1) -> int:
-    """The scalar c over R = Z/p^d with target == c * base (as sparse
-    vectors); raises AssertionError if target is outside the R-span of base --
-    every call is a machine-checked instance of a restriction lemma. At d = 1
-    (the field) c is the unique proportionality factor; over the ring c may
-    carry valuation and is the minimal `chain_ring.solve_left` solution."""
-    q = p ** d
-    base = {k: v % q for k, v in base.items() if v % q}
-    target = {k: v % q for k, v in target.items() if v % q}
-    if not base:
-        if target:
-            raise AssertionError(f"lemma failure ({ctx}): target outside span")
-        return 0
-    keys = sorted(set(base) | set(target))
-    V = np.array([[base.get(k, 0) for k in keys]], dtype=np.int64)
-    B = np.array([[target.get(k, 0) for k in keys]], dtype=np.int64)
-    try:
-        return int(cr.solve_left(V, B, p, d)[0, 0]) % q
-    except ValueError:
-        raise AssertionError(f"lemma failure ({ctx}): not proportional")
-
-
-def _vratio2(entries: Dict, u: Dict, w: Dict, p: int, ctx: str,
-             d: int = 1) -> int:
-    """The scalar c with entries[(a, b)] == c * u[a] * w[b] over R = Z/p^d."""
-    q = p ** d
-    outer = {(a, b): u[a] * w[b] % q for a in u for b in w if u[a] * w[b] % q}
-    return _vratio(entries, outer, p, ctx, d)
-
-
-def _vratio3(entries: Dict, u: Dict, w: Dict, x: Dict, p: int, ctx: str,
-             d: int = 1) -> int:
-    """The scalar c with entries[(a, b, e)] == c * u[a] * w[b] * x[e]
-    over R = Z/p^d."""
-    q = p ** d
-    outer = {(a, b, e): u[a] * w[b] * x[e] % q
-             for a in u for b in w for e in x if u[a] * w[b] * x[e] % q}
-    return _vratio(entries, outer, p, ctx, d)
-
-
-def _vsolve2(target: Dict, b1: Dict, b2: Dict, p: int, ctx: str, d: int = 1):
-    """(c1, c2) over R = Z/p^d with target == c1*b1 + c2*b2; AssertionError
-    if unsolvable."""
-    q = p ** d
-    target = {k: v % q for k, v in target.items() if v % q}
-    if not target:
-        return 0, 0
-    keys = sorted(set(target) | set(b1) | set(b2))
-    V = np.array([[b1.get(k, 0) % q for k in keys],
-                  [b2.get(k, 0) % q for k in keys]], dtype=np.int64)
-    B = np.array([[target.get(k, 0) for k in keys]], dtype=np.int64)
-    try:
-        X = cr.solve_left(V, B, p, d)
-    except ValueError:
-        raise AssertionError(f"lemma failure ({ctx}): 2-term system unsolvable")
-    return int(X[0, 0]) % q, int(X[0, 1]) % q
-
-
-def _unit_val(c: int, p: int, d: int):
-    """Decompose c in R = Z/p^d as (u, s) with c == u * p^s and u a unit
-    (u = 1, s = d for c = 0)."""
-    q = p ** d
-    c = int(c) % q
-    if c == 0:
-        return 1, d
-    s = cr.valuation(c, p, d)
-    return (c // p ** s) % q, s
-
 
 class CocycleRankWidthGroups:
     """The uniformly tree-automatic class of distributed-center class-2
-    groups of tensor cut-rank 1 (see paper/theorem3-notes.md): the common
-    generalisation, at width r = 1, of `CutRankTreeGroups` (fixed center on
-    a chain) and `TreeExtraspecialGroups` (laminar leaf targets). With
-    ``d > 1`` everything runs over the chain ring R = Z/p^d ("Idea 2"): the
-    bases are the saturated free interfaces (`chain_ring.saturate`), the
-    registers and constants range over R, and the claim register carries the
-    *determined truncation* p^s * P of the claim coordinate, re-anchored by
-    the ring-only `zr` op when a later z-position determines more of it.
-    The default d = 1 is byte-identical to the original field construction.
+    groups of tensor cut-rank <= r over R = Z/p^d -- the implementation of
+    the master theorem (paper: thm:master). The bottom-up automaton's
+    state is six R^r registers (plus three scratch slots):
 
-    The advice is *microcode*: each site of a `CocycleSites` layout expands
-    into its site letter followed by a chain of micro-op letters, each
-    carrying at most three R-constants (d base-p digits each), over an
-    alphabet of O(q^5) letters independent of the tensor. Element digits
-    repeat along a site's stretch (the universe automaton enforces
-    constancy), so the multiplication automaton's state is exactly the
-    seven-register machine of the protocol::
+        wy, wx : upward digit functionals   (column modules of F_y, F_x)
+        qy, hx : mixed exports for inside targets       (F_py, F_px)
+        m      : representative of the exports element of E_S = rowsp(F_m)
+        g      : representative of the residuals element of the claim
+                 module Gamma_S = colsp(F_g); a residual leaving the
+                 module is a rejection
 
-        wy, wx : upward digit functionals      (F_y, F_x)
-        phy,phx: mixed exports for inside targets (F_py, F_px)
-        m      : pair-sum exports in the F_m basis
-        g      : claim coordinates (W g = residuals), unique by
-                 full-column-rank bases; inconsistency = rejection
-        bg     : the sibling's claim, buffered between a merge and its
-                 consistency check (the generalised "siblings must agree")
+    The advice is a *table-driven instruction stream*: each site expands
+    into its marker letter followed by a chain of operations, each either
+    linear -- a streamed matrix or injection column, the folds and
+    read-off coefficients of the restriction calculus (paper
+    lem:restrict) -- or a streamed *table* keyed on register values and
+    the residual digit: the pairing tables of lem:tables and the claim
+    extensions and joins of lem:claims. Over the ring these functions are
+    well-defined and bilinear on the interface images but need not be
+    matrices. Merges are one-step: the binary marker consumes both
+    children's raw registers and the stretch above it folds directly to
+    the parent cut; no joint-interval interfaces exist.
 
-    `advice(sites, T)` compiles a tensor of cut-width 1 into microcode;
-    every scalar it derives is guarded by an AssertionError that is a
-    machine-checked instance of a restriction lemma, so a compilation that
-    succeeds *is* a certificate that the factorisations of the protocol
-    exist for this instance. Width r >= 2 needs entry-op chains for the
-    matrix constants and is deliberately not implemented yet."""
+    `advice(sites, T)` compiles a tensor of module cut-width <= r; every
+    linear coefficient and every table entry is derived through
+    `chain_ring` solves whose solvability instantiates a lemma of the
+    paper, guarded by an assertion -- a compilation that succeeds is a
+    machine-checked certificate for that instance. Interfaces are minimal
+    generating sets of the flattening modules (Smith normal form with the
+    p-power factors kept); at d = 1 they are ordinary bases and every
+    table is semantically a matrix, though the letter format is uniform
+    in d.
 
-    OPS1 = {'sy', 'sx', 'sq', 'sh', 'sm', 'sg', 'iy', 'ix', 'iq', 'ih',
-            'qy', 'hx', 'rm', 'rg', 'gm', 'z0', 'zr', 'bg', 'bc'}
+    The explicit presentation automata are beyond the enumeration builder
+    by construction (the instruction phase is part of the state);
+    `simulate` runs the exact transition function over the convolved
+    trees, and `check_implicit` / `evaluate_implicit` decide first-order
+    properties through the functional atoms.
+    """
 
-    def __init__(self, p: int, merge_letters=None, d: int = 1):
-        """With `merge_letters=None` the full ISA is available: the
-        simulator and the compiler work, but the presentation automata are
-        too large for the enumeration-based builder. Passing an explicit
-        set of merge letters (e.g. collected from compiled advices via
-        `used_merge_letters`) instantiates the automata over that
-        sub-alphabet. With `d > 1` the center ring is R = Z/p^d ("Idea 2"):
-        registers and micro-op constants range over R, each constant spelled
-        as d base-p digits in the letter names (so d = 1 is byte-identical
-        to the original field encoding)."""
+    #: marker letters: (site kind, arity)
+    MARKERS = {'L': (XSITE, 0), 'K': (ZSITE, 0), 'U': (XSITE, 1),
+               'V': (ZSITE, 1), 'M': (XSITE, 2), 'W': (ZSITE, 2)}
+    _XMARK = ('L', 'U', 'M')
+    _ZMARK = ('K', 'V', 'W')
+
+    #: register ids: out slots 00-08 (wy wx qy hx m g t0 t1 t2), left
+    #: child 10-15, right child 20-25; value sources 30 (x digit), 31
+    #: (y digit), 33 (the residual digit d0 = z - x - y)
+    _OUT = {'wy': '00', 'wx': '01', 'qy': '02', 'hx': '03',
+            'm': '04', 'g': '05', 't0': '06', 't1': '07', 't2': '08'}
+    _DIGSRC = {'30': 'x', '31': 'y', '33': 'd0'}
+
+    def __init__(self, p: int, r: int = 1, d: int = 1):
         if p < 2 or p > 9 or any(p % f == 0 for f in range(2, int(p ** 0.5) + 1)):
             raise ValueError(f"p must be a prime in 2..9, got {p}")
+        if r < 1:
+            raise ValueError(f"width r must be >= 1, got {r}")
         if d < 1:
             raise ValueError(f"center ring depth d must be >= 1, got {d}")
-        self.p = p
-        self.d = d
-        self.q = p ** d                    # the ring R = Z/p^d
-        self._merge_letters = None if merge_letters is None \
-            else frozenset(merge_letters)
-        self.digits = [str(x) for x in range(self.q)]
-        self._digit_val = {x: int(x) for x in self.digits}
-        self._parsed = {}
+        self.p, self.r, self.d = p, r, d
+        self.q = p ** d
+        self.digits = [str(v) for v in range(self.q)]
+        self._digit_val = {s: int(s) for s in self.digits}
         self.element_letters = set(self.digits)
-        self._cls = None
+        self._vecs = list(it.product(range(self.q), repeat=r))
+        self._vec_index = {v: i for i, v in enumerate(self._vecs)}
+        self._zero = (0,) * r
+        self._parsed = {}
+
+    # ---------------- letters ----------------
 
     def _enc(self, c: int) -> str:
-        """A ring constant as d base-p digits (least significant first);
-        the d = 1 encoding is the original single-digit form."""
-        return ''.join(str(dig)
-                       for dig in cr.to_digits(int(c) % self.q, self.p, self.d))
+        """A ring scalar as an entry letter: 'e' + d base-p digits."""
+        return 'e' + ''.join(str(dd)
+                             for dd in cr.to_digits(int(c) % self.q,
+                                                    self.p, self.d))
 
-    @property
-    def advice_letters(self):
-        """The full microcode ISA. The merge letters carry 13 constants
-        (folds to the joint bases, the three sibling products, the two
-        cross m->claim translations), so the flat alphabet has 2 q^13 + O(q^3)
-        letters: fine for the transition function and the simulator, too
-        large for the enumeration-based automaton builder -- building the
-        presentation automata is gated until factored transition letters
-        land in the engine (see theorem3-notes.md)."""
-        q, enc = self.q, self._enc
-        letters = ['L', 'K', 'U', 'V', 'n', 'g0', 'bl']
-        for op in ('sy', 'sx', 'sq', 'sh', 'sm', 'sg'):
-            letters += [f'{op}{enc(c)}' for c in range(q)]
-        for op in ('iy', 'ix', 'iq', 'ih', 'qy', 'hx', 'rm', 'rg', 'gm',
-                   'b1'):
-            letters += [f'{op}{enc(c)}' for c in range(1, q)]
-        for op in ('za', 'zc', 'bk'):
-            letters += [f'{op}{enc(c)}{enc(e)}' for c in range(q)
-                        for e in range(q)]
-        letters += [f'z0{enc(c)}' for c in range(q)]
-        if self.d > 1:                     # the ring re-anchor op
-            letters += [f'zr{enc(c)}{enc(a)}{enc(b)}' for c in range(q)
-                        for a in range(q) for b in range(q)]
-        if self._merge_letters is not None:
-            return set(letters) | set(self._merge_letters)
-        if 2 * q ** 13 > 20_000_000:
-            raise ValueError(
-                f"the full merge ISA has 2 * {q}^13 letters -- too many to "
-                f"enumerate; instantiate with merge_letters="
-                f"used_merge_letters(advice), or use check_implicit / "
-                f"simulate, which never enumerate the alphabet")
-        for kind in ('M', 'W'):
-            letters += [kind + ''.join(enc(c) for c in cs)
-                        for cs in it.product(range(q), repeat=13)]
-        return set(letters)
-
-    def _isa_count(self) -> int:
-        """|advice_letters| computed arithmetically (the full merge ISA may
-        be too large to enumerate)."""
-        q = self.q
-        n = 7 + 6 * q + 10 * (q - 1) + 3 * q * q + q
-        if self.d > 1:
-            n += q ** 3
-        n += (len(self._merge_letters) if self._merge_letters is not None
-              else 2 * q ** 13)
-        return n
-
-    @property
-    def sigma(self):
-        return {PAD} | set(self.digits) | self.advice_letters
-
-    #: cap on the transition enumerations of the lazy `cls` build; beyond it
-    #: the build would run for minutes to hours, so `cls` raises instead
-    _CLS_ENUMERATION_CAP = 50_000_000
-
-    def _cls_cost(self) -> int:
-        """Transition enumerations the lazy `cls` build performs (dominated by
-        the seven-register multiplication automaton: state pairs x letters x
-        digits^3)."""
-        n_states = 1 + self.q ** 7
-        return ((n_states + 1) ** 2 * self._isa_count()
-                * len(self.element_letters) ** 3)
-
-    @property
-    def cls(self) -> UniformlyTreeAutomaticClass:
-        """The uniformly tree-automatic presentation (built lazily: the
-        seven-register multiplication automaton enumerates a large
-        state-pair x letter product)."""
-        if self._cls is None:
-            cost = self._cls_cost()
-            if cost > self._CLS_ENUMERATION_CAP:
-                hint = ("instantiate with merge_letters="
-                        "used_merge_letters(advice) for a sub-alphabet, or "
-                        if self._merge_letters is None else "")
-                raise ValueError(
-                    f"advice alphabet too large to build the explicit "
-                    f"presentation automata: {self._isa_count()} "
-                    f"letters, ~{cost:.0e} transition enumerations "
-                    f"(cap {self._CLS_ENUMERATION_CAP:.0e}); {hint}"
-                    f"use check_implicit or simulate instead")
-            self._cls = UniformlyTreeAutomaticClass({
-                'U': self._universe_automaton(),
-                'M': self._multiplication_automaton(),
-                'Eq': self._eq_automaton(),
-            }, padding_symbol=PAD)
-            self._cls.element_alphabet = list(self.element_letters)
-        return self._cls
-
-    # ---------------- the automata ----------------
-
-    def _shape_step(self, a, lq, rq):
-        """Shape legality shared by U and Eq: which child pattern each
-        advice letter admits. Returns False if illegal."""
-        if a in ('L', 'K'):
-            return lq is None and rq is None
-        if a[0] in ('M', 'W'):
-            return lq is not None and rq is not None
-        # unary site letters and all micro-ops
-        return (lq is None) != (rq is None)
-
-    def _universe_automaton(self) -> SparseTreeAutomaton:
-        """Shape plus per-stretch digit constancy: a site letter records the
-        element digit, the micro-ops above it must repeat it."""
-        def delta(lq, rq, sym):
-            a, x = sym
-            if 'dead' in (lq, rq) or x not in self.element_letters:
-                return 'dead'
-            if not self._shape_step(a, lq, rq):
-                return 'dead'
-            if a in ('L', 'K', 'U', 'V') or a[0] in ('M', 'W'):
-                return ('d', x)
-            child = lq if rq is None else rq
-            return child if child == ('d', x) else 'dead'
-
-        states = ['dead'] + [('d', d) for d in self.digits]
-        return sta_from_delta(self.sigma, states, 2, delta,
-                              {('d', d) for d in self.digits},
-                              tapes=[self.advice_letters, self.element_letters])
-
-    def _eq_automaton(self) -> SparseTreeAutomaton:
-        def delta(lq, rq, sym):
-            a, x, y = sym
-            if 'dead' in (lq, rq) or x != y or x not in self.element_letters:
-                return 'dead'
-            return 'ok' if self._shape_step(a, lq, rq) else 'dead'
-
-        return sta_from_delta(self.sigma, ['ok', 'dead'], 3, delta, {'ok'},
-                              tapes=[self.advice_letters] +
-                                    [self.element_letters] * 2)
-
-    _OP_CODES = {'sy': 9, 'sx': 10, 'sq': 11, 'sh': 12, 'sm': 13,
-                 'sg': 14, 'iy': 15, 'ix': 16, 'iq': 17, 'ih': 18,
-                 'qy': 19, 'hx': 20, 'rm': 21, 'rg': 22, 'gm': 23,
-                 'b1': 24, 'za': 25, 'zc': 26, 'z0': 27, 'bk': 28,
-                 'zr': 29}
-    _OP_NCONSTS = {'sy': 1, 'sx': 1, 'sq': 1, 'sh': 1, 'sm': 1, 'sg': 1,
-                   'iy': 1, 'ix': 1, 'iq': 1, 'ih': 1, 'qy': 1, 'hx': 1,
-                   'rm': 1, 'rg': 1, 'gm': 1, 'b1': 1, 'za': 2, 'zc': 2,
-                   'z0': 1, 'bk': 2, 'zr': 3}
-    _SITE_CODES = {'L': 0, 'K': 1, 'U': 2, 'V': 3, 'n': 6, 'g0': 7, 'bl': 8}
+    def _src_size(self, src: str) -> int:
+        return self.q if src in self._DIGSRC else self.q ** self.r
 
     def _parse_letter(self, a):
-        """Letter -> (code, consts), memoized; None if malformed. Constants
-        are d base-p digits each (least significant first)."""
+        """Letter -> spec, memoized; None if malformed. Specs:
+        ('mark', kind, arity) | ('P', tgt, src, total) |
+        ('D', tgt, digsrc, total) | ('T', tgt, srcs, total) |
+        ('C', srcs, total) | ('e', value)."""
         hit = self._parsed.get(a)
         if hit is not None:
             return hit
-        d, p = self.d, self.p
-
-        def consts(s, n):
-            if len(s) != n * d or not all(c.isdigit() and int(c) < p
-                                          for c in s):
-                return None
-            return tuple(cr.from_digits([int(c) for c in s[i * d:(i + 1) * d]],
-                                        p)
-                         for i in range(n))
-
-        if a in self._SITE_CODES:
-            out = (self._SITE_CODES[a], ())
-        elif a[0] in ('M', 'W') and len(a) == 1 + 13 * d:
-            cs = consts(a[1:], 13)
-            if cs is None:
-                return None
-            out = (4 if a[0] == 'M' else 5, cs)
-        elif a[:2] in self._OP_CODES:
-            cs = consts(a[2:], self._OP_NCONSTS[a[:2]])
-            if cs is None:
-                return None
-            out = (self._OP_CODES[a[:2]], cs)
-        else:
-            return None
-        self._parsed[a] = out
+        out = None
+        r = self.r
+        if a in self.MARKERS:
+            kind, arity = self.MARKERS[a]
+            out = ('mark', kind, arity)
+        elif a and a[0] == 'e' and len(a) == 1 + self.d \
+                and all(c.isdigit() and int(c) < self.p for c in a[1:]):
+            out = ('e', cr.from_digits([int(c) for c in a[1:]], self.p))
+        elif a and a[0] == 'P' and len(a) == 5:
+            out = ('P', a[1:3], a[3:5], r * r)
+        elif a and a[0] == 'D' and len(a) == 5 and a[3:5] in self._DIGSRC:
+            out = ('D', a[1:3], a[3:5], r)
+        elif a and a[0] == 'T' and len(a) >= 4 and a[3].isdigit():
+            n = int(a[3])
+            if len(a) == 4 + 2 * n:
+                srcs = tuple(a[4 + 2 * i: 6 + 2 * i] for i in range(n))
+                total = 1
+                for s in srcs:
+                    total *= self._src_size(s)
+                out = ('T', a[1:3], srcs, total * (r + 1))
+        elif a and a[0] == 'C' and len(a) >= 2 and a[1].isdigit():
+            n = int(a[1])
+            if len(a) == 2 + 2 * n:
+                srcs = tuple(a[2 + 2 * i: 4 + 2 * i] for i in range(n))
+                total = 1
+                for s in srcs:
+                    total *= self._src_size(s)
+                out = ('C', srcs, total)
+        if out is not None:
+            self._parsed[a] = out
         return out
 
-    def _m_delta(self, lq, rq, sym):
-        """The seven-register claim-and-verify transition over R = Z/p^d
-        (shared by the automaton construction and the direct simulator)."""
-        p = self.q
-        a, x, y, z = sym
-        if lq == 'dead' or rq == 'dead':
-            return 'dead'
-        info = self._parse_letter(a)
+    # ---------------- the transition function ----------------
+
+    def _read(self, frame, digs, src):
+        """A source's current value: register tuple or digit scalar."""
+        if src in self._DIGSRC:
+            return digs[self._DIGSRC[src]]
+        bank, idx = src[0], int(src[1])
+        if bank == '0':
+            return frame[1][idx]
+        if bank == '1':
+            return frame[2][idx]
+        return frame[3][idx]
+
+    def _combo_index(self, frame, digs, srcs):
+        """The mixed-radix index of the sources' current values, in the
+        enumeration order the compiler streams tables in."""
+        idx = 0
+        for src in srcs:
+            v = self._read(frame, digs, src)
+            idx = idx * self._src_size(src) + \
+                (v if src in self._DIGSRC else self._vec_index[v])
+        return idx
+
+    def _digs(self, x, y, z):
         dx = self._digit_val.get(x)
         dy = self._digit_val.get(y)
         dz = self._digit_val.get(z)
-        if info is None or dx is None or dy is None or dz is None:
+        if dx is None or dy is None or dz is None:
+            return None
+        return {'x': dx, 'y': dy, 'd0': (dz - dx - dy) % self.q}
+
+    def _m_step(self, lq, rq, sym):
+        """One bottom-up step: sym = (advice letter, x, y, z labels).
+        States are frames ('f', out9, inL6, inR6, op, phase); an op in
+        progress carries the combo index it froze at its header."""
+        q, r = self.q, self.r
+        if lq == 'dead' or rq == 'dead':
             return 'dead'
-        code, cs = info
-        d0 = (dz - dx - dy) % p
-        if lq is not None and rq is not None:
-            if code == 4 and d0 == 0 or code == 5:
-                fy, fq, fyq, fx, fh, fxh, fml, fmr, cpm, a5, a6, c2, c3 = cs
-                wyl, wxl, qyl, hxl, ml, gl, _ = lq
-                wyr, wxr, qyr, hxr, mr, gr, _ = rq
-                return ((fy * wyl + wyr) % p,
-                        (wxl + fx * wxr) % p,
-                        (fq * qyl + fyq * wyl + qyr) % p,
-                        (hxl + fh * hxr + fxh * wxr) % p,
-                        (fml * ml + fmr * mr + cpm * wxr * wyl) % p,
-                        (gl + a5 * wxr * qyl + c3 * mr) % p,
-                        (gr + a6 * wyl * hxr + c2 * ml) % p)
+        a, x, y, z = sym
+        digs = self._digs(x, y, z)
+        spec = self._parse_letter(a)
+        if digs is None or spec is None:
             return 'dead'
-        if lq is None and rq is None:
-            if code == 0 and d0 == 0 or code == 1:
-                return (0,) * 7
-            return 'dead'
-        q = lq if rq is None else rq
-        if code == 2:
-            return q if d0 == 0 else 'dead'
-        if code == 3:
-            return q
-        if code in (0, 1, 4, 5):
-            return 'dead'
-        wy, wx, qy, hx, m, g, bg = q
-        if code == 6:
-            return q
-        if code == 7:
-            return q if g == 0 else 'dead'
-        if code == 8:
-            return (wy, wx, qy, hx, m, g, 0)
-        if code == 9:
-            return ((cs[0] * wy) % p, wx, qy, hx, m, g, bg)
-        if code == 10:
-            return (wy, (cs[0] * wx) % p, qy, hx, m, g, bg)
-        if code == 11:
-            return (wy, wx, (cs[0] * qy) % p, hx, m, g, bg)
-        if code == 12:
-            return (wy, wx, qy, (cs[0] * hx) % p, m, g, bg)
-        if code == 13:
-            return (wy, wx, qy, hx, (cs[0] * m) % p, g, bg)
-        if code == 14:
-            return (wy, wx, qy, hx, m, (cs[0] * g) % p, bg)
-        if code == 15:
-            return ((wy + cs[0] * dy) % p, wx, qy, hx, m, g, bg)
-        if code == 16:
-            return (wy, (wx + cs[0] * dx) % p, qy, hx, m, g, bg)
-        if code == 17:
-            return (wy, wx, (qy + cs[0] * dy) % p, hx, m, g, bg)
-        if code == 18:
-            return (wy, wx, qy, (hx + cs[0] * dx) % p, m, g, bg)
-        if code == 19:
-            return (wy, wx, (qy + cs[0] * wy) % p, hx, m, g, bg)
-        if code == 20:
-            return (wy, wx, qy, (hx + cs[0] * wx) % p, m, g, bg)
-        if code == 21:
-            return (wy, wx, qy, hx, (m + cs[0] * dx * wy) % p, g, bg)
-        if code == 22:
-            return (wy, wx, qy, hx, m, (g + cs[0] * dx * qy) % p, bg)
-        if code == 23:
-            return (wy, wx, qy, hx, m, (g + cs[0] * m) % p, bg)
-        if code == 24:
-            return (wy, wx, qy, hx, m, (g + cs[0] * bg) % p, bg)
-        if code == 25:
-            return (wy, wx, qy, hx, m, (cs[0] * (d0 - cs[1] * m)) % p, bg)
-        if code == 26:
-            return q if (cs[1] * g - d0 + cs[0] * m) % p == 0 else 'dead'
-        if code == 27:
-            return q if (d0 - cs[0] * m) % p == 0 else 'dead'
-        if code == 28:
-            return q if (cs[0] * g + cs[1] * bg) % p == 0 else 'dead'
-        if code == 29:
-            # ring re-anchor: the entering z-position determines more of the
-            # truncated claim than the positions seen so far -- check the old
-            # truncation against the new residual, then re-seed the register
-            val = (d0 - cs[0] * m) % p
-            if (g - cs[1] * val) % p:
+        if spec[0] == 'mark':
+            _, kind, arity = spec
+            kids = [s for s in (lq, rq) if s is not None]
+            if len(kids) != arity:
                 return 'dead'
-            return (wy, wx, qy, hx, m, (cs[2] * val) % p, bg)
-        return 'dead'
-
-    def simulate(self, advice: Tree, tx: Tree, ty: Tree, tz: Tree) -> bool:
-        """Run the multiplication transition directly over the convolved
-        trees (fast oracle for compiler development; the automaton built by
-        `_multiplication_automaton` realises exactly this run)."""
-        def run(a, x, y, z):
-            if a is None:
-                return None
-            lq = run(a.left, x.left if x else None, y.left if y else None,
-                     z.left if z else None)
-            rq = run(a.right, x.right if x else None, y.right if y else None,
-                     z.right if z else None)
-            if lq == 'dead' or rq == 'dead':
+            regs = []
+            for k in kids:
+                if k[0] != 'f' or k[4] is not None:
+                    return 'dead'
+                regs.append(tuple(k[1][:6]))
+            zero6 = (self._zero,) * 6
+            inL = regs[0] if arity >= 1 else zero6
+            inR = regs[1] if arity == 2 else zero6
+            return ('f', (self._zero,) * 9, inL, inR, None, 0)
+        # operation letters are unary
+        child = lq if rq is None else (rq if lq is None else None)
+        if child is None or child[0] != 'f':
+            return 'dead'
+        _, out, inL, inR, op, ph = child
+        if spec[0] in ('P', 'D'):
+            if op is not None:
                 return 'dead'
-            sym = (a.label,
-                   x.label if x else PAD, y.label if y else PAD,
-                   z.label if z else PAD)
-            return self._m_delta(lq, rq, sym)
-        return run(advice, tx, ty, tz) == (0,) * 7
+            return ('f', out, inL, inR, spec, 0)
+        if spec[0] == 'T':
+            if op is not None:
+                return 'dead'
+            myidx = self._combo_index(child, digs, spec[2])
+            return ('f', out, inL, inR, spec + (myidx,), 0)
+        if spec[0] == 'C':
+            if op is not None:
+                return 'dead'
+            myidx = self._combo_index(child, digs, spec[1])
+            return ('f', out, inL, inR, spec + (myidx,), 0)
+        if spec[0] != 'e' or op is None:
+            return 'dead'
+        val = spec[1]
+        kind = op[0]
 
-    def _multiplication_automaton(self) -> SparseTreeAutomaton:
-        states = ['dead'] + list(it.product(range(self.q), repeat=7))
-        return sta_from_delta(self.sigma, states, 4, self._m_delta,
-                              {(0,) * 7},
-                              tapes=[self.advice_letters] +
-                                    [self.element_letters] * 3)
+        def put(o, ti, i, v):
+            row = list(o[ti])
+            row[i] = v % q
+            return o[:ti] + (tuple(row),) + o[ti + 1:]
 
-    # ---------------- the advice compiler ----------------
+        if kind == 'P':
+            _, tgt, src, total = op
+            i, j = divmod(ph, r)
+            w = self._read(child, digs, src)
+            ti = int(tgt[1])
+            out = put(out, ti, i, out[ti][i] + val * w[j])
+        elif kind == 'D':
+            _, tgt, dsrc, total = op
+            ti = int(tgt[1])
+            out = put(out, ti, ph,
+                      out[ti][ph] + val * digs[self._DIGSRC[dsrc]])
+        elif kind == 'T':
+            _, tgt, srcs, total, myidx = op
+            combo, slot = divmod(ph, r + 1)
+            if combo == myidx:
+                if slot == 0:
+                    if val == 0:
+                        return 'dead'
+                else:
+                    out = put(out, int(tgt[1]), slot - 1, val)
+        else:                                            # 'C'
+            _, srcs, total, myidx = op
+            if ph == myidx and val == 0:
+                return 'dead'
+        ph += 1
+        if ph == op[-2] if kind in ('T', 'C') else ph == op[3]:
+            return ('f', out, inL, inR, None, 0)
+        return ('f', out, inL, inR, op, ph)
 
-    def _r1_bases(self, sites: CocycleSites, T: Dict, lo: int, hi: int):
-        """Width-1 SATURATED basis vectors of the six flattenings of the
-        interval over R = Z/p^d, as sparse dicts. Vy/Vx/Vpy/Vpx live over
-        x-positions, Bm and w over z-positions. The saturated free basis
-        (`chain_ring.saturate`) is what makes the restriction and
-        factorisation lemmas hold over the ring; at d = 1 it is the ordinary
-        normalized field basis."""
-        p, d, q = self.p, self.d, self.q
-        ent = sites._flattening_entries(T, lo, hi)
+    def _m_accepting(self, state) -> bool:
+        return state != 'dead' and state is not None and state[0] == 'f' \
+            and state[4] is None
 
-        def basis(e, key_of, ctx):
-            groups = {}
-            for pair_key, coeff in e.items():
-                own, other = key_of(pair_key)
-                groups.setdefault(other, {})[own] = coeff % q
-            cands = [c for c in groups.values() if any(v % q
-                                                       for v in c.values())]
-            if not cands:
-                return {}
-            keys = sorted({k for c in cands for k in c})
-            M = np.array([[c.get(k, 0) for k in keys] for c in cands],
-                         dtype=np.int64)
-            sat, _ = cr.saturate(M, p, d)
-            if sat.shape[0] > 1:
-                raise AssertionError(f"lemma failure ({ctx}): module rank > 1")
-            vec = {k: int(sat[0, i]) % q for i, k in enumerate(keys)
-                   if sat[0, i] % q}
-            # canonical: the unit part of the leading entry scaled to 1
-            u, _ = _unit_val(vec[min(vec)], p, d)
-            inv = cr.unit_inverse(u, p, d)
-            vec = {k: v * inv % q for k, v in vec.items()}
-            return vec
+    # ---------------- interfaces and elements ----------------
 
-        return {
-            'Vy': basis(ent['F_y'], lambda k: (k[0], k[1]), 'Vy rank'),
-            'Vx': basis(ent['F_x'], lambda k: (k[0], k[1]), 'Vx rank'),
-            'Vpy': basis(ent['F_py'], lambda k: (k[0], k[1]), 'Vpy rank'),
-            'Vpx': basis(ent['F_px'], lambda k: (k[0], k[1]), 'Vpx rank'),
-            'Bm': basis(ent['F_m'], lambda k: (k[1], k[0]), 'Bm rank'),
-            'w': basis(ent['F_g'], lambda k: (k[0], k[1]), 'claim rank'),
-        }
-
-    @staticmethod
-    def _restrict(vec: Dict, lo: int, hi: int) -> Dict:
-        return {k: v for k, v in vec.items() if lo <= k <= hi}
-
-    def _pair_block(self, sites, T, t, lo, hi, targets):
-        """Entries of the read-off pairs {t, i}, i in [lo, hi], keyed by
-        (i, v) with v restricted by the predicate `targets`."""
-        out = {}
-        for (j, i, v), coeff in T.items():
-            if j == t and lo <= i <= hi and targets(v):
-                out[(i, v)] = coeff % self.q
+    def _generators(self, vectors, width_ctx):
+        """A minimal generating set (<= r; Smith normal form with the
+        p-power factors kept) of the module spanned by the vectors."""
+        vecs = [v for v in vectors if any(c % self.q for c in v.values())]
+        if not vecs:
+            return []
+        keys = sorted({k for v in vecs for k in v})
+        M = np.array([[v.get(k, 0) % self.q for k in keys] for v in vecs],
+                     dtype=np.int64)
+        basis, exps = cr.saturate(M, self.p, self.d)
+        if basis.shape[0] > self.r:
+            raise ValueError(
+                f"{width_ctx}: module rank {basis.shape[0]} > r = {self.r}")
+        out = []
+        for row, e in zip(basis, exps):
+            scaled = {k: int(row[i] * self.p ** e) % self.q
+                      for i, k in enumerate(keys)
+                      if row[i] * self.p ** e % self.q}
+            out.append(scaled)
         return out
 
-    def _bank_ops(self, old, new, lo, hi, own, digit_pos, p, banks=None):
-        """Rebase + injection ops from child bases `old` to node bases
-        `new` over the child interval [lo, hi]; `own` is the node's own
-        position (or None) for the digit injections. The functional
-        registers flow forward, so ring constants (possibly with valuation)
-        need no inversion."""
-        d, enc = self.d, self._enc
-        ops = []
-        # mixed banks first: their qy/hx ops consume the *old* wy/wx
-        table = (('Vpy', 'sq', 'iq', 'qy', 'Vy'),
-                 ('Vpx', 'sh', 'ih', 'hx', 'Vx'),
-                 ('Vy', 'sy', 'iy', None, None),
-                 ('Vx', 'sx', 'ix', None, None))
-        for bank, scale, inject, mix, mixsrc in table:
-            if banks is not None and bank not in banks:
+    def _elem(self, gens, rep):
+        """The module element represented by `rep` over the generators."""
+        out = {}
+        for c, g in zip(rep, gens):
+            if c % self.q == 0:
                 continue
-            target = self._restrict(new[bank], lo, hi)
-            if mix is None:
-                theta = _vratio(target, self._restrict(old[bank], lo, hi),
-                                p, f'{bank} restriction', d)
-                cmix = 0
-            else:
-                theta, cmix = _vsolve2(target,
-                                       self._restrict(old[bank], lo, hi),
-                                       self._restrict(old[mixsrc], lo, hi),
-                                       p, f'{bank} mixed restriction', d)
-            if theta != 1:
-                ops.append(f'{scale}{enc(theta)}')
-            if cmix:
-                ops.append(f'{mix}{enc(cmix)}')
-            if own is not None:
-                cinj = new[bank].get(own, 0)
-                if cinj:
-                    ops.append(f'{inject}{enc(cinj)}')
-        return ops
+            for k, v in g.items():
+                out[k] = (out.get(k, 0) + c * v) % self.q
+        return {k: v for k, v in out.items() if v}
 
-    def _claim_rebase_ops(self, w_old, w_new, s_old, p, ctx):
-        """Ops taking the claim register from basis w_old (truncation
-        valuation s_old) to basis w_new over the same z-set; returns
-        (ops, s_new). Two saturated bases of the same rank-1 module differ
-        by a unit, so the rebase is always invertible."""
-        d, q, enc = self.d, self.q, self._enc
-        if not w_old:
-            if w_new:
-                raise AssertionError(f'lemma failure ({ctx}): claim born late')
-            return [], 0
-        if not w_new:
-            return ['g0'], 0
-        phi = _vratio(w_new, w_old, p, ctx, d)
-        if phi % p == 0:
-            raise AssertionError(f'lemma failure ({ctx}): rebase kills basis')
-        inv = cr.unit_inverse(phi, p, d)
-        return ([f'sg{enc(inv)}'] if inv != 1 else []), s_old
+    def _canon(self, gens, elem, width=None):
+        """The canonical representative of an element, or None if it lies
+        outside the module (the membership check of the protocol)."""
+        width = self.r if width is None else width
+        elem = {k: v % self.q for k, v in elem.items() if v % self.q}
+        if not elem:
+            return (0,) * width
+        if not gens:
+            return None
+        keys = sorted({k for g in gens for k in g} | set(elem))
+        V = np.array([[g.get(k, 0) for k in keys] for g in gens],
+                     dtype=np.int64)
+        B = np.array([[elem.get(k, 0) for k in keys]], dtype=np.int64)
+        try:
+            X = cr.solve_left(V, B, self.p, self.d)
+        except ValueError:
+            return None
+        rep = [0] * width
+        for i in range(len(gens)):
+            rep[i] = int(X[0, i]) % self.q
+        return tuple(rep)
+
+    def _coeffs(self, gens, vec, ctx, width=None):
+        """`vec` as an R-combination of the generators (a restriction-lemma
+        certificate); AssertionError if it is not one."""
+        rep = self._canon(gens, vec, width=width)
+        if rep is None:
+            raise AssertionError(f"lemma failure ({ctx}): vector outside "
+                                 f"the generated module")
+        return rep
+
+    def _span_preimages(self, gens):
+        """The image of a |-> (gens . a) with one preimage per value (at
+        most q^r values, closure of the column span)."""
+        keys = sorted({k for g in gens for k in g})
+        span = {self._zero: {}}
+        frontier = [self._zero]
+        while frontier:
+            nxt = []
+            for w in frontier:
+                a = span[w]
+                for k in keys:
+                    col = tuple(g.get(k, 0) for g in gens) + \
+                        (0,) * (self.r - len(gens))
+                    w2 = tuple((wv + col[i]) % self.q
+                               for i, wv in enumerate(w))
+                    if w2 not in span:
+                        a2 = dict(a)
+                        a2[k] = (a2.get(k, 0) + 1) % self.q
+                        span[w2] = a2
+                        nxt.append(w2)
+            frontier = nxt
+        return span
+
+    def _value(self, lam, w):
+        return sum(l * wv for l, wv in zip(lam, w)) % self.q
+
+    def _add_elems(self, gens_a, rep_a, gens_b, rep_b, sign=1):
+        ea = self._elem(gens_a, rep_a)
+        for k, v in self._elem(gens_b, rep_b).items():
+            ea[k] = (ea.get(k, 0) + sign * v) % self.q
+        return ea
+
+    # ---------------- op emission ----------------
+
+    def _emit_P(self, out, tgt, src, mat):
+        if not any(any(c % self.q for c in row) for row in mat):
+            return
+        out.append('P' + tgt + src)
+        for row in mat:
+            for c in row:
+                out.append(self._enc(c))
+
+    def _emit_D(self, out, tgt, dsrc, col):
+        if not any(c % self.q for c in col):
+            return
+        out.append('D' + tgt + dsrc)
+        for c in col:
+            out.append(self._enc(c))
+
+    def _spaces(self, srcs):
+        return [range(self.q) if s in self._DIGSRC else self._vecs
+                for s in srcs]
+
+    def _emit_T(self, out, tgt, srcs, fn):
+        out.append('T' + tgt + str(len(srcs)) + ''.join(srcs))
+        for combo in it.product(*self._spaces(srcs)):
+            rep = fn(*combo)
+            if rep is None:
+                out.append(self._enc(0))
+                out.extend(self._enc(0) for _ in range(self.r))
+            else:
+                out.append(self._enc(1))
+                out.extend(self._enc(c) for c in rep)
+
+    def _emit_C(self, out, srcs, fn):
+        out.append('C' + str(len(srcs)) + ''.join(srcs))
+        for combo in it.product(*self._spaces(srcs)):
+            out.append(self._enc(1 if fn(*combo) else 0))
+
+    def _emit_add(self, out, tgt, other, gens, sign=1):
+        """tgt := tgt (+/-) other, both representatives over `gens`."""
+        self._emit_T(out, tgt, (tgt, other),
+                     lambda a_, b_: self._canon(
+                         gens, self._add_elems(gens, a_, gens, b_,
+                                               sign=sign)))
+
+    # ---------------- the compiler ----------------
+
+    def _bank_data(self, sites, T, lo, hi):
+        """The six interface generator sets of the cut [lo, hi]."""
+        ent = sites._flattening_entries(T, lo, hi)
+
+        def group(e, own_of, other_of):
+            cols = {}
+            for k, c in e.items():
+                cols.setdefault(other_of(k), {})[own_of(k)] = c % self.q
+            return list(cols.values())
+
+        w = f"cut [{lo}, {hi}]"
+        first = lambda k: k[0]
+        second = lambda k: k[1]
+        return {
+            'Vy': self._generators(group(ent['F_y'], first, second), w),
+            'Vx': self._generators(group(ent['F_x'], first, second), w),
+            'Vpy': self._generators(group(ent['F_py'], first, second), w),
+            'Vpx': self._generators(group(ent['F_px'], first, second), w),
+            'Em': self._generators(group(ent['F_m'], second, first), w),
+            'Cg': self._generators(group(ent['F_g'], first, second), w),
+        }
+
+    def _fold_ops(self, out, banks_S, banks_C, in_prefix, lo_c, hi_c, t,
+                  inject_kind):
+        """Fold the four functional registers from a child cut into the
+        parent registers (paper lem:restrict(1)); at an x-site, inject the
+        parent's own digit column once (`inject_kind` gates it so a binary
+        node injects during one child pass only)."""
+        table = (('Vy', 'wy', None, '31'), ('Vx', 'wx', None, '30'),
+                 ('Vpy', 'qy', 'Vy', '31'), ('Vpx', 'hx', 'Vx', '30'))
+        mixreg = {'Vy': 'wy', 'Vx': 'wx'}
+        inside = lambda k: lo_c <= k <= hi_c
+        for bank, reg, mix, dsrc in table:
+            gens_S = banks_S[bank]
+            stacked = banks_C[bank] + (banks_C[mix] if mix else [])
+            n1 = len(banks_C[bank])
+            mat_main = [[0] * self.r for _ in range(self.r)]
+            mat_mix = [[0] * self.r for _ in range(self.r)]
+            for i, g in enumerate(gens_S):
+                restr = {k: v for k, v in g.items() if inside(k)}
+                if not any(v % self.q for v in restr.values()):
+                    continue
+                lam = self._coeffs(stacked, restr,
+                                   f"{bank} fold at {t}",
+                                   width=max(len(stacked), 1))
+                for jdx, c in enumerate(lam[:len(stacked)]):
+                    if jdx < n1:
+                        mat_main[i][jdx] = c
+                    else:
+                        mat_mix[i][jdx - n1] = c
+            self._emit_P(out, self._OUT[reg],
+                         in_prefix + self._OUT[reg][1], mat_main)
+            if mix:
+                self._emit_P(out, self._OUT[reg],
+                             in_prefix + self._OUT[mixreg[mix]][1],
+                             mat_mix)
+            if inject_kind == XSITE:
+                col = [g.get(t, 0) for g in gens_S]
+                col += [0] * (self.r - len(col))
+                self._emit_D(out, self._OUT[reg], dsrc, col)
+
+    def _restrict_fn(self, gens_from, gens_to, keep, ctx):
+        def fn(rep):
+            elem = {k: v for k, v in self._elem(gens_from, rep).items()
+                    if keep(k)}
+            out = self._canon(gens_to, elem)
+            if out is None:
+                raise AssertionError(f"lemma failure ({ctx})")
+            return out
+        return fn
+
+    def _pairing_certify(self, block, gens_R, gens_L, ctx):
+        """Membership certificates of a target-keyed sibling block
+        (paper lem:tables): i-vectors in the L-module, j-vectors in the
+        R-module."""
+        rows, cols = {}, {}
+        for v, b in block.items():
+            for (j, i), c in b.items():
+                rows.setdefault((j, v), {})[i] = c
+                cols.setdefault((i, v), {})[j] = c
+        for vec in rows.values():
+            self._coeffs(gens_L, vec, ctx)
+        for vec in cols.values():
+            self._coeffs(gens_R, vec, ctx)
+
+    def _pairing_fn(self, block, gens_R, gens_L, gens_out, ctx):
+        """The pairing table of a target-keyed sibling block: the two
+        register values determine the represented target element."""
+        self._pairing_certify(block, gens_R, gens_L, ctx)
+        spanR = self._span_preimages(gens_R)
+        spanL = self._span_preimages(gens_L)
+
+        def fn(wr, wl):
+            aR, aL = spanR.get(wr), spanL.get(wl)
+            if aR is None or aL is None:
+                return self._zero
+            elem = {}
+            for v, b in block.items():
+                s = 0
+                for (j, i), c in b.items():
+                    s += c * aR.get(j, 0) * aL.get(i, 0)
+                if s % self.q:
+                    elem[v] = s % self.q
+            rep = self._canon(gens_out, elem)
+            if rep is None:
+                raise AssertionError(f"lemma failure ({ctx})")
+            return rep
+        return fn
+
+    def _readoff_split(self, T, t, lo_c, hi_c, lo, hi):
+        """Coefficient vectors of the pairs {t, i}, i in the child
+        interval, split by target: (outside S, inside the child,
+        inside the sibling)."""
+        outs, own, sib = {}, {}, {}
+        for (j, i, v), c in T.items():
+            if j != t or not lo_c <= i <= hi_c:
+                continue
+            if not lo <= v <= hi:
+                outs.setdefault(v, {})[i] = c % self.q
+            elif lo_c <= v <= hi_c:
+                own.setdefault(v, {})[i] = c % self.q
+            else:
+                sib.setdefault(v, {})[i] = c % self.q
+        return outs, own, sib
+
+    def _readoff_map(self, blocks, gens_in, gens_out, ctx):
+        """The read-off table: the x digit and one child register value
+        determine the represented target element. Register values outside
+        the interface image cannot occur in a live run and get don't-care
+        entries; for values in the image the membership is a lemma
+        instance."""
+        lams = {v: self._coeffs(gens_in, b, ctx) for v, b in blocks.items()}
+        image = set(self._span_preimages(gens_in))
+
+        def fn(xd, w):
+            if w not in image:
+                return self._zero
+            elem = {v: (xd * self._value(lam, w)) % self.q
+                    for v, lam in lams.items()}
+            rep = self._canon(gens_out, elem)
+            if rep is None:
+                raise AssertionError(f"lemma failure ({ctx})")
+            return rep
+        return fn
 
     def advice(self, sites: CocycleSites, T: Dict) -> Tree:
-        """Compile a width-1 tensor over the site layout into microcode
-        advice over R = Z/p^d. Raises ValueError if some cut exceeds width 1
-        (module cut-rank over the ring); every scalar derivation asserts its
-        restriction lemma.
-
-        Over the ring the claim register can only carry the *determined
-        truncation* p^s * P of the claim coordinate P, where s is the least
-        valuation of the (saturated) claim basis over the z-positions read
-        so far; the compiler tracks s statically per node, normalizes unit
-        parts through `sg`, cross-multiplies consistency checks by the
-        matching p-powers, and re-anchors with the ring-only `zr` op when a
-        new z-position determines more than the ones before it. At d = 1
-        every valuation is 0 and the compiled stream is the original field
-        microcode, byte for byte."""
-        p, d, q, enc = self.p, self.d, self.q, self._enc
-        if sites.p != p or sites.d != d:
+        """Compile a tensor of module cut-width <= r into the instruction
+        stream; ValueError beyond the width, AssertionError on any failed
+        lemma instance."""
+        if sites.p != self.p or sites.d != self.d:
             raise ValueError("sites and class must share p and d")
         sites.check_tensor(T)
         width = sites.cut_width(T)
-        if width > 1:
-            raise ValueError(f"tensor has cut-width {width} > 1")
-
-        bases: Dict[int, Dict] = {}
-        claim_s: Dict[int, int] = {}
-        adv: Dict[int, Tree] = {}
-
-        def chain(tree, ops):
-            for op in ops:
-                tree = Tree(op, tree, None)
-            return tree
+        if width > self.r:
+            raise ValueError(f"tensor has cut-width {width} > r = {self.r}")
+        OUT = self._OUT
+        banks: Dict[int, Dict] = {}
+        built: Dict[int, Tree] = {}
 
         for node in sites.seq:
             t = sites.pos[id(node)]
             sz = sites.size[id(node)]
-            lo = t - sz + 1
+            lo, hi = t - sz + 1, t
             kind = sites.site[t]
-            B_S = self._r1_bases(sites, T, lo, t)
-            L, R = node.left, node.right
+            B_S = self._bank_data(sites, T, lo, hi)
+            Lc, Rc = node.left, node.right
+            ops: list = []
 
-            if L is None and R is None:
-                letter = 'L' if kind == XSITE else 'K'
-                ops = []
-                s_t = 0
+            if kind == XSITE:
+                self._emit_C(ops, ('33',), lambda d0: d0 == 0)
+
+            if Lc is None and Rc is None:                       # leaf
                 if kind == XSITE:
-                    for bank, inject in (('Vy', 'iy'), ('Vx', 'ix'),
-                                         ('Vpy', 'iq'), ('Vpx', 'ih')):
-                        c = B_S[bank].get(t, 0)
-                        if c:
-                            ops.append(f'{inject}{enc(c)}')
+                    for bank, reg, dsrc in (('Vy', 'wy', '31'),
+                                            ('Vx', 'wx', '30'),
+                                            ('Vpy', 'qy', '31'),
+                                            ('Vpx', 'hx', '30')):
+                        col = [g.get(t, 0) for g in B_S[bank]]
+                        col += [0] * (self.r - len(col))
+                        self._emit_D(ops, OUT[reg], dsrc, col)
                 else:
-                    w = B_S['w']
-                    if w:
-                        # singleton saturated basis: w[t] is a unit
-                        u, s_t = _unit_val(w[t], p, d)
-                        cc = cr.unit_inverse(u, p, d)
-                        ops.append(f'za{enc(cc)}{enc(0)}')
-                    else:
-                        ops.append(f'z0{enc(0)}')
-                adv[t] = chain(Tree(letter), ops)
-                bases[t] = B_S
-                claim_s[t] = s_t
-                continue
+                    self._emit_T(ops, OUT['g'], ('33',),
+                                 lambda d0: self._canon(B_S['Cg'],
+                                                        {t: d0}))
+                marker = 'L' if kind == XSITE else 'K'
+                sub = Tree(marker)
 
-            if L is None or R is None:
-                child = L if L is not None else R
-                cpos = sites.pos[id(child)]
-                B_C = bases[cpos]
-                below = chain(adv[cpos], [])
-                letter = 'U' if kind == XSITE else 'V'
-                ops, s_t = self._site_ops(sites, T, t, lo, t - 1, B_C, B_S,
-                                          kind, claim_s[cpos])
-                adv[t] = chain(Tree(letter, below, None), ops)
-                bases[t] = B_S
-                claim_s[t] = s_t
-                continue
-
-            # binary: L keeps wy/qy raw for the merge products, R keeps
-            # wx/hx raw; the merge letter folds the raw sides into the
-            # joint bases of J = [lo, t-1] and consumes the products.
-            lp, rp = sites.pos[id(L)], sites.pos[id(R)]
-            B_L, B_R = bases[lp], bases[rp]
-            s_L, s_R = claim_s[lp], claim_s[rp]
-            B_J = self._r1_bases(sites, T, lo, t - 1)
-            pre_L = self._bank_ops(B_L, B_J, lo, lp, None, None, p,
-                                   banks=('Vpx', 'Vx'))
-            pre_R = self._bank_ops(B_R, B_J, lp + 1, t - 1, None, None, p,
-                                   banks=('Vpy', 'Vy'))
-
-            # folds of the raw sides (solved against the child bases)
-            fy = _vratio(self._restrict(B_J['Vy'], lo, lp), B_L['Vy'], p,
-                         'Vy fold L', d)
-            fq, fyq = _vsolve2(self._restrict(B_J['Vpy'], lo, lp),
-                               B_L['Vpy'], B_L['Vy'], p, 'Vpy fold L', d)
-            fx = _vratio(self._restrict(B_J['Vx'], lp + 1, t - 1), B_R['Vx'],
-                         p, 'Vx fold R', d)
-            fh, fxh = _vsolve2(self._restrict(B_J['Vpx'], lp + 1, t - 1),
-                               B_R['Vpx'], B_R['Vx'], p, 'Vpx fold R', d)
-            fml = _vratio({k: v for k, v in B_L['Bm'].items()
-                           if not lp + 1 <= k <= t - 1}, B_J['Bm'], p,
-                          'Bm fold L', d)
-            fmr = _vratio({k: v for k, v in B_R['Bm'].items()
-                           if not lo <= k <= lp}, B_J['Bm'], p, 'Bm fold R', d)
-
-            # sibling products and cross m->claim translations; the claim
-            # discharges land in the children's truncated coordinates, so
-            # their constants carry the matching p-powers
-            wL, wR, wJ = B_L['w'], B_R['w'], B_J['w']
-            new_pairs = {(j, i, v): c % q for (j, i, v), c in T.items()
-                         if lo <= i <= lp and lp + 1 <= j <= t - 1}
-            blockL = {k: c for k, c in new_pairs.items() if lo <= k[2] <= lp}
-            blockR = {k: c for k, c in new_pairs.items()
-                      if lp + 1 <= k[2] <= t - 1}
-            blockO = {k: c for k, c in new_pairs.items()
-                      if not lo <= k[2] <= t - 1}
-            c_gl = _vratio3(blockL, B_R['Vx'], B_L['Vpy'], wL, p,
-                            'sibling block -> L claims', d)
-            c_gr = _vratio3({(k[1], k[0], k[2]): c for k, c in blockR.items()},
-                            B_L['Vy'], B_R['Vpx'], wR, p,
-                            'sibling block -> R claims', d)
-            cpm = _vratio3(blockO, B_R['Vx'], B_L['Vy'], B_J['Bm'], p,
-                           'sibling block -> exports', d)
-            psiL = _vratio(self._restrict(B_L['Bm'], lp + 1, t - 1), wR, p,
-                           'm_L -> R claims', d)
-            psiR = _vratio(self._restrict(B_R['Bm'], lo, lp), wL, p,
-                           'm_R -> L claims', d)
-            consts = (fy, fq, fyq, fx, fh, fxh, fml, fmr, cpm,
-                      (-c_gl * p ** s_L) % q, (-c_gr * p ** s_R) % q,
-                      (-psiL * p ** s_R) % q, (-psiR * p ** s_L) % q)
-            letter = (('M' if kind == XSITE else 'W')
-                      + ''.join(enc(c) for c in consts))
-            if self._merge_letters is not None \
-                    and letter not in self._merge_letters:
-                raise ValueError(
-                    f"merge letter {letter!r} is not in the instantiated "
-                    f"sub-alphabet; collect it with used_merge_letters first")
-
-            # claim join on the stretch above the merge: pick the child
-            # whose truncation determines more of the joint coordinate
-            ops = []
-            phiL = _vratio(self._restrict(wJ, lo, lp), wL, p, 'claim join L',
-                           d)
-            phiR = _vratio(self._restrict(wJ, lp + 1, t - 1), wR, p,
-                           'claim join R', d)
-            uL, eL = _unit_val(phiL, p, d)
-            uR, eR = _unit_val(phiR, p, d)
-            sLp = min(s_L + eL, d) if wL else d
-            sRp = min(s_R + eR, d) if wR else d
-            s_J = 0
-            if wL and phiL:
-                if not wR or sLp <= sRp:
-                    inv = cr.unit_inverse(uL, p, d)
-                    if inv != 1:
-                        ops.append(f'sg{enc(inv)}')
-                    if wR:
-                        c = (uR * p ** (sRp - sLp)) % q
-                        ops.append(f'bk{enc(c)}{enc(q - 1)}')
-                    s_J = sLp
-                else:                     # re-anchor to the right claim
-                    cc = (uL * p ** (sLp - sRp)
-                          * cr.unit_inverse(uR, p, d)) % q
-                    ops.append(f'bk{enc(1)}{enc(-cc)}')
-                    ops.append(f'sg{enc(0)}')
-                    ops.append(f'b1{enc(cr.unit_inverse(uR, p, d))}')
-                    s_J = sRp
-            elif wL and not phiL:
-                ops.append('g0')
-                if wR and phiR:
-                    ops.append(f'b1{enc(cr.unit_inverse(uR, p, d))}')
-                    s_J = sRp
-                elif wR:
-                    ops.append(f'bk{enc(0)}{enc(1)}')
-            else:                                     # no L claims
-                if wR and phiR:
-                    ops.append(f'b1{enc(cr.unit_inverse(uR, p, d))}')
-                    s_J = sRp
-                elif wR:
-                    ops.append(f'bk{enc(0)}{enc(1)}')
-            ops.append('bl')
-            site_ops, s_t = self._site_ops(sites, T, t, lo, t - 1, B_J, B_S,
-                                           kind, s_J)
-            ops += site_ops
-            adv[t] = chain(Tree(letter, chain(adv[lp], pre_L),
-                           chain(adv[rp], pre_R)), ops)
-            bases[t] = B_S
-            claim_s[t] = s_t
-
-        return adv[sites.pos[id(sites.seq[-1])]]
-
-    @staticmethod
-    def used_merge_letters(advice: Tree):
-        """The merge letters occurring in a compiled advice tree (for
-        instantiating a sub-alphabet class that can build its automata)."""
-        out = set()
-        stack = [advice]
-        while stack:
-            node = stack.pop()
-            if node is None:
-                continue
-            if node.label and node.label[0] in ('M', 'W'):
-                out.add(node.label)
-            stack.append(node.left)
-            stack.append(node.right)
-        return out
-
-    def _z_in(self, sites, v, lo, hi):
-        return lo <= v <= hi
-
-    @staticmethod
-    def _restrict_keys(vec: Dict, other: Dict) -> Dict:
-        return {k: v for k, v in vec.items() if k in other}
-
-    def _m_rebase_ops(self, bm_old, bm_new, drop_lo, drop_hi, p, ctx):
-        """Rebase m from bm_old to bm_new, where the columns in
-        [drop_lo, drop_hi] left the outside (their mass moves via merge
-        constants, not here)."""
-        d, enc = self.d, self._enc
-        kept = {k: v for k, v in bm_old.items() if not drop_lo <= k <= drop_hi}
-        if bm_new:
-            theta = _vratio(kept, bm_new, p, ctx, d)
-            # kept = theta' * bm_new: we need m_new with m_new*bm_new = m*kept
-            return [f'sm{enc(theta)}'] if theta != 1 else []
-        if kept:
-            raise AssertionError(f'lemma failure ({ctx}): exports survive '
-                                 f'without a basis')
-        return [f'sm{enc(0)}'] if bm_old else []
-
-    def _site_ops(self, sites, T, t, lo, hi, B_C, B_S, kind, s_C):
-        """The stretch above a site node t whose (possibly joint) child
-        covers [lo, hi]: m rebase, read-offs, claim work, bank work. `s_C`
-        is the claim truncation valuation entering the stretch; returns
-        (ops, s_S) with the valuation leaving it."""
-        p, d, q, enc = self.p, self.d, self.q, self._enc
-        ops = []
-        if kind == XSITE:
-            # m rebase first (read-offs emit in the S basis)
-            ops += self._m_rebase_ops(B_C['Bm'], B_S['Bm'], t, t - 1, p,
-                                      'Bm x-site')
-            # read-off of pairs {t, i}: targets outside S
-            out_block = self._pair_block(
-                sites, T, t, lo, hi, lambda v: not lo <= v <= t)
-            crm = _vratio2(out_block, B_C['Vy'], B_S['Bm'], p,
-                           'read-off -> exports', d)
-            if crm:
-                ops.append(f'rm{enc(crm)}')
-            # read-off targets inside (discharge the truncated claim)
-            in_block = self._pair_block(sites, T, t, lo, hi,
-                                        lambda v: lo <= v <= hi)
-            crg = _vratio2(in_block, B_C['Vpy'], B_C['w'], p,
-                           'read-off -> claims', d)
-            c_dis = (-crg * p ** s_C) % q
-            if c_dis:
-                ops.append(f'rg{enc(c_dis)}')
-            claim_ops, s_S = self._claim_rebase_ops(B_C['w'], B_S['w'], s_C,
-                                                    p, 'claim rebase x-site')
-            ops += claim_ops
-            ops += self._bank_ops(B_C, B_S, lo, hi, t, t, p)
-        else:
-            # z-site: the residual enters the claim; cm couples m
-            cm = B_C['Bm'].get(t, 0) % q
-            wC, wS = B_C['w'], B_S['w']
-            omega = wS.get(t, 0) % q
-            u_o, s_o = _unit_val(omega, p, d)
-            if wC:
-                phi = _vratio(self._restrict(wS, lo, hi), wC, p,
-                              'claim extend restriction', d)
-                u_phi, e_phi = _unit_val(phi, p, d)
-                if phi:
-                    s_kept = min(s_C + e_phi, d)
-                    inv = cr.unit_inverse(u_phi, p, d)
-                    if omega and s_o < s_kept:
-                        # ring re-anchor: position t determines more of the
-                        # claim than everything read so far
-                        u_o_inv = cr.unit_inverse(u_o, p, d)
-                        ca = (p ** (s_kept - s_o) * u_o_inv * u_phi) % q
-                        ops.append(f'zr{enc(cm)}{enc(ca)}{enc(u_o_inv)}')
-                        s_S = s_o
-                    else:
-                        c2 = 0 if not omega else \
-                            (u_o * p ** (s_o - s_kept) * inv) % q
-                        ops.append(f'zc{enc(cm)}{enc(c2)}')
-                        if inv != 1:
-                            ops.append(f'sg{enc(inv)}')
-                        s_S = s_kept
+            elif Lc is None or Rc is None:                      # unary
+                child = Lc if Lc is not None else Rc
+                cp = sites.pos[id(child)]
+                csz = sites.size[id(child)]
+                B_C = banks[cp]
+                lo_c, hi_c = cp - csz + 1, cp
+                self._fold_ops(ops, B_S, B_C, '1', lo_c, hi_c, t, kind)
+                outside = lambda v: not lo <= v <= hi
+                if kind == XSITE:
+                    self._emit_T(ops, OUT['m'], ('14',),
+                                 self._restrict_fn(
+                                     B_C['Em'], B_S['Em'], outside,
+                                     f"exports restrict at {t}"))
+                    self._emit_T(ops, OUT['t1'], ('15',),
+                                 lambda grep: tuple(grep))
+                    outs, own, sib = self._readoff_split(T, t, lo_c, hi_c,
+                                                         lo, hi)
+                    if outs:
+                        self._emit_T(ops, OUT['t0'], ('30', '10'),
+                                     self._readoff_map(
+                                         outs, B_C['Vy'], B_S['Em'],
+                                         f"read-off exports at {t}"))
+                        self._emit_add(ops, OUT['m'], OUT['t0'],
+                                       B_S['Em'])
+                    if own:
+                        self._emit_T(ops, OUT['t0'], ('30', '12'),
+                                     self._readoff_map(
+                                         own, B_C['Vpy'], B_C['Cg'],
+                                         f"read-off claims at {t}"))
+                        self._emit_add(ops, OUT['t1'], OUT['t0'],
+                                       B_C['Cg'], sign=-1)
+                    self._emit_T(ops, OUT['g'], (OUT['t1'],),
+                                 lambda grep: self._canon(
+                                     B_S['Cg'],
+                                     self._elem(B_C['Cg'], grep)))
                 else:
-                    ops.append('g0')
-                    if omega:
-                        ops.append(f'za{enc(cr.unit_inverse(u_o, p, d))}'
-                                   f'{enc(cm)}')
-                        s_S = s_o
-                    else:
-                        ops.append(f'z0{enc(cm)}')
-                        s_S = 0
-            else:
-                if omega:
-                    ops.append(f'za{enc(cr.unit_inverse(u_o, p, d))}'
-                               f'{enc(cm)}')
-                    s_S = s_o
+                    Em_C, Cg_C = B_C['Em'], B_C['Cg']
+
+                    def fn_ext(grep, mrep, d0):
+                        rho = (d0 - self._elem(Em_C, mrep).get(t, 0)) \
+                            % self.q
+                        elem = self._elem(Cg_C, grep)
+                        elem[t] = rho
+                        return self._canon(B_S['Cg'], elem)
+
+                    self._emit_T(ops, OUT['g'], ('15', '14', '33'), fn_ext)
+                    self._emit_T(ops, OUT['m'], ('14',),
+                                 self._restrict_fn(
+                                     B_C['Em'], B_S['Em'], outside,
+                                     f"exports restrict at {t}"))
+                marker = 'U' if kind == XSITE else 'V'
+                sub = Tree(marker, built[id(child)], None)
+
+            else:                                               # binary
+                lp, rp = sites.pos[id(Lc)], sites.pos[id(Rc)]
+                lsz, rsz = sites.size[id(Lc)], sites.size[id(Rc)]
+                B_L, B_R = banks[lp], banks[rp]
+                lo_l, hi_l = lp - lsz + 1, lp
+                lo_r, hi_r = rp - rsz + 1, rp
+                outside = lambda v: not lo <= v <= hi
+                in_l = lambda v: lo_l <= v <= hi_l
+                in_r = lambda v: lo_r <= v <= hi_r
+                self._fold_ops(ops, B_S, B_L, '1', lo_l, hi_l, t, kind)
+                self._fold_ops(ops, B_S, B_R, '2', lo_r, hi_r, t, ZSITE)
+                # exports: restrict and add both children
+                self._emit_T(ops, OUT['m'], ('14',),
+                             self._restrict_fn(
+                                 B_L['Em'], B_S['Em'], outside,
+                                 f"exports restrict L at {t}"))
+                self._emit_T(ops, OUT['t0'], ('24',),
+                             self._restrict_fn(
+                                 B_R['Em'], B_S['Em'], outside,
+                                 f"exports restrict R at {t}"))
+                self._emit_add(ops, OUT['m'], OUT['t0'], B_S['Em'])
+                # split-pair blocks by target
+                blocks = {}
+                for (j, i, v), c in T.items():
+                    if lo_l <= i <= hi_l and lo_r <= j <= hi_r:
+                        blocks.setdefault(v, {})[(j, i)] = c % self.q
+                b_out = {v: b for v, b in blocks.items() if outside(v)}
+                b_L = {v: b for v, b in blocks.items() if in_l(v)}
+                b_R = {v: b for v, b in blocks.items() if in_r(v)}
+                b_t = {t: blocks[t]} if t in blocks else {}
+                if b_out:
+                    self._emit_T(ops, OUT['t0'], ('21', '10'),
+                                 self._pairing_fn(
+                                     b_out, B_R['Vx'], B_L['Vy'],
+                                     B_S['Em'],
+                                     f"sibling exports at {t}"))
+                    self._emit_add(ops, OUT['m'], OUT['t0'], B_S['Em'])
+                # claims: initialise both, then discharge
+                self._emit_T(ops, OUT['t1'], ('15',),
+                             lambda grep: tuple(grep))
+                self._emit_T(ops, OUT['t2'], ('25',),
+                             lambda grep: tuple(grep))
+                if b_L:
+                    self._emit_T(ops, OUT['t0'], ('21', '12'),
+                                 self._pairing_fn(
+                                     b_L, B_R['Vx'], B_L['Vpy'],
+                                     B_L['Cg'],
+                                     f"sibling claims L at {t}"))
+                    self._emit_add(ops, OUT['t1'], OUT['t0'], B_L['Cg'],
+                                   sign=-1)
+                if b_R:
+                    self._emit_T(ops, OUT['t0'], ('23', '10'),
+                                 self._pairing_fn(
+                                     b_R, B_R['Vpx'], B_L['Vy'],
+                                     B_R['Cg'],
+                                     f"sibling claims R at {t}"))
+                    self._emit_add(ops, OUT['t2'], OUT['t0'], B_R['Cg'],
+                                   sign=-1)
+                # cross exports: each child's m at the sibling's targets
+                self._emit_T(ops, OUT['t0'], ('24',),
+                             self._restrict_fn(
+                                 B_R['Em'], B_L['Cg'], in_l,
+                                 f"cross exports R->L at {t}"))
+                self._emit_add(ops, OUT['t1'], OUT['t0'], B_L['Cg'],
+                               sign=-1)
+                self._emit_T(ops, OUT['t0'], ('14',),
+                             self._restrict_fn(
+                                 B_L['Em'], B_R['Cg'], in_r,
+                                 f"cross exports L->R at {t}"))
+                self._emit_add(ops, OUT['t2'], OUT['t0'], B_R['Cg'],
+                               sign=-1)
+                if kind == XSITE:
+                    # read-offs of {t, i} over each child, targets sorted
+                    for pre, blo, bhi, B_C, own_tmp, sib_tmp, B_sib in (
+                            ('1', lo_l, hi_l, B_L, OUT['t1'], OUT['t2'],
+                             B_R),
+                            ('2', lo_r, hi_r, B_R, OUT['t2'], OUT['t1'],
+                             B_L)):
+                        outs, own, sib = self._readoff_split(
+                            T, t, blo, bhi, lo, hi)
+                        if outs:
+                            self._emit_T(ops, OUT['t0'], ('30', pre + '0'),
+                                         self._readoff_map(
+                                             outs, B_C['Vy'], B_S['Em'],
+                                             f"read-off exports at {t}"))
+                            self._emit_add(ops, OUT['m'], OUT['t0'],
+                                           B_S['Em'])
+                        if own:
+                            self._emit_T(ops, OUT['t0'], ('30', pre + '2'),
+                                         self._readoff_map(
+                                             own, B_C['Vpy'], B_C['Cg'],
+                                             f"read-off claims at {t}"))
+                            self._emit_add(ops, own_tmp, OUT['t0'],
+                                           B_C['Cg'], sign=-1)
+                        if sib:
+                            self._emit_T(ops, OUT['t0'], ('30', pre + '0'),
+                                         self._readoff_map(
+                                             sib, B_C['Vy'], B_sib['Cg'],
+                                             f"read-off sibling claims "
+                                             f"at {t}"))
+                            self._emit_add(ops, sib_tmp, OUT['t0'],
+                                           B_sib['Cg'], sign=-1)
+                    self._emit_T(ops, OUT['g'], (OUT['t1'], OUT['t2']),
+                                 lambda gl, gr: self._canon(
+                                     B_S['Cg'],
+                                     {**self._elem(B_L['Cg'], gl),
+                                      **self._elem(B_R['Cg'], gr)}))
                 else:
-                    ops.append(f'z0{enc(cm)}')
-                    s_S = 0
-            ops += self._m_rebase_ops(B_C['Bm'], B_S['Bm'], t, t, p,
-                                      'Bm z-site')
-            ops += self._bank_ops(B_C, B_S, lo, hi, None, None, p)
-        return ops, s_S
+                    # z-site: accumulate the t-coordinate of the exports
+                    # and the sibling pairs targeting t, then join with
+                    # the residual
+                    Em_L, Em_R = B_L['Em'], B_R['Em']
+                    self._emit_T(ops, OUT['t0'], ('14', '24'),
+                                 lambda mL, mR: (
+                                     (self._elem(Em_L, mL).get(t, 0)
+                                      + self._elem(Em_R, mR).get(t, 0))
+                                     % self.q,) + (0,) * (self.r - 1))
+                    if b_t:
+                        self._pairing_certify(b_t, B_R['Vx'], B_L['Vy'],
+                                              f"sibling residual at {t}")
+                        spanR = self._span_preimages(B_R['Vx'])
+                        spanL = self._span_preimages(B_L['Vy'])
+                        bt = b_t[t]
+
+                        def fn_pt(acc, wr, wl):
+                            s = acc[0]
+                            aR, aL = spanR.get(wr), spanL.get(wl)
+                            if aR is not None and aL is not None:
+                                for (j, i), c in bt.items():
+                                    s += c * aR.get(j, 0) * aL.get(i, 0)
+                            return (s % self.q,) + (0,) * (self.r - 1)
+
+                        self._emit_T(ops, OUT['t0'],
+                                     (OUT['t0'], '21', '10'), fn_pt)
+
+                    def fn_join(gl, gr, acc, d0):
+                        elem = {**self._elem(B_L['Cg'], gl),
+                                **self._elem(B_R['Cg'], gr)}
+                        elem[t] = (d0 - acc[0]) % self.q
+                        return self._canon(B_S['Cg'], elem)
+
+                    self._emit_T(ops, OUT['g'],
+                                 (OUT['t1'], OUT['t2'], OUT['t0'], '33'),
+                                 fn_join)
+                marker = 'M' if kind == XSITE else 'W'
+                sub = Tree(marker, built[id(Lc)], built[id(Rc)])
+
+            for op in ops:
+                sub = Tree(op, sub, None)
+            built[id(node)] = sub
+            banks[t] = B_S
+
+        return built[id(sites.seq[-1])]
 
     # ---------------- encodings and class operations ----------------
 
     def encode(self, element, sites: CocycleSites, advice: Tree) -> Tree:
         """Element tree of the advice's shape: each site's digit repeats
-        along its stretch (micro-ops inherit the digit of the site below)."""
+        along its instruction stretch."""
         b, a = element
         if len(b) != len(sites.Z) or len(a) != len(sites.X):
             raise ValueError("element does not fit the site layout")
-        if not all(0 <= x < self.q for x in tuple(b) + tuple(a)):
+        if not all(0 <= v < self.q for v in tuple(b) + tuple(a)):
             raise ValueError(f"components must lie in Z/{self.q}")
         zi = {v: idx for idx, v in enumerate(sites.Z)}
         xi = {w: idx for idx, w in enumerate(sites.X)}
@@ -1187,8 +1112,7 @@ class CocycleRankWidthGroups:
                 return None, None
             left, ldig = build(node.left)
             right, rdig = build(node.right)
-            letter = node.label
-            if letter in ('L', 'K', 'U', 'V') or letter[0] in ('M', 'W'):
+            if node.label in self.MARKERS:
                 counter[0] += 1
                 t = counter[0]
                 digit = (str(a[xi[t]]) if sites.site[t] == XSITE
@@ -1197,32 +1121,91 @@ class CocycleRankWidthGroups:
                 digit = ldig if ldig is not None else rdig
             return Tree(digit, left, right), digit
 
-        tree, _ = build(advice)
+        tree, _ = self._with_depth(advice, lambda: build(advice))
         if counter[0] != sites.n_sites:
             raise ValueError("advice does not match the site layout")
         return tree
 
+    def decode(self, tree: Tree, advice: Tree):
+        """Inverse of `encode`: the digit at each marker; z-sites to b and
+        x-sites to a, in ascending post-order."""
+        bs, xs = [], []
+
+        def rec(an, en):
+            if an is None:
+                return
+            rec(an.left, en.left)
+            rec(an.right, en.right)
+            if an.label in self._XMARK:
+                xs.append(int(en.label))
+            elif an.label in self._ZMARK:
+                bs.append(int(en.label))
+
+        self._with_depth(advice, lambda: rec(advice, tree))
+        return tuple(bs), tuple(xs)
+
     def multiply(self, sites: CocycleSites, T: Dict, g, h):
         return sites.multiply(T, g, h)
 
-    def evaluate(self, phi):
-        return self.cls.evaluate(phi)
+    def simulate(self, advice: Tree, tx: Tree, ty: Tree, tz: Tree) -> bool:
+        """Run the transition function over the convolved trees, with an
+        explicit stack (instruction stretches can be long)."""
+        results = {}
+        stack = [(advice, tx, ty, tz, False)]
+        while stack:
+            an, xn, yn, zn, done = stack.pop()
+            if an is None:
+                continue
+            if not done:
+                stack.append((an, xn, yn, zn, True))
+                stack.append((an.left, xn.left if xn else None,
+                              yn.left if yn else None,
+                              zn.left if zn else None, False))
+                stack.append((an.right, xn.right if xn else None,
+                              yn.right if yn else None,
+                              zn.right if zn else None, False))
+                continue
+            lq = results.get(id(an.left)) if an.left is not None else None
+            rq = results.get(id(an.right)) if an.right is not None else None
+            sym = (an.label, xn.label if xn else PAD,
+                   yn.label if yn else PAD, zn.label if zn else PAD)
+            results[id(an)] = self._m_step(lq, rq, sym)
+        return self._m_accepting(results[id(advice)])
 
-    def check(self, phi, sites: CocycleSites, advice: Tree, **elements) -> bool:
-        trees = {name: self.encode(el, sites, advice)
-                 for name, el in elements.items()}
-        return self.cls.check(phi, advice, **trees)
+    # ---------------- the (gated) explicit presentation ----------------
+
+    @property
+    def cls(self):
+        raise ValueError(
+            "the protocol automaton's explicit presentation is beyond the "
+            "enumeration builder (the instruction phase is part of the "
+            "state); use check_implicit / evaluate_implicit / simulate")
+
+    def evaluate(self, phi):
+        return self.cls
+
+    def check(self, phi, sites: CocycleSites, advice: Tree,
+              **elements) -> bool:
+        return self.cls
+
+    def get_structure(self, advice: Tree):
+        return self.cls
+
+    # ---------------- implicit atoms ----------------
+
+    def _shape_step(self, a, lq, rq):
+        spec = self._parse_letter(a)
+        if spec is None:
+            return None
+        if spec[0] == 'mark':
+            have = (lq is not None) + (rq is not None)
+            return spec if have == spec[2] else None
+        return spec if (lq is None) != (rq is None) else None
 
     def _implicit_atoms(self) -> Dict:
-        """Functional bottom-up base automata (Dom, Adv, M, Eq) built straight
-        from the microcode deltas -- no explicit product automaton, so this
-        works for the full-ISA and ring members whose `cls` cannot be built."""
+        """Functional bottom-up atoms (Dom, Adv, M, Eq); nothing built."""
         from autstr.implicit import ImplicitTA
         element_letters = self.element_letters
-
-        def legal(a):
-            return (self._parse_letter(a) is not None
-                    if isinstance(a, str) and a else False)
 
         def shape(args, q_of):
             adv = args[0]
@@ -1230,12 +1213,10 @@ class CocycleRankWidthGroups:
             def step(sym, left, right):
                 if left == 'dead' or right == 'dead' or not q_of(sym):
                     return 'dead'
-                a = sym[adv]
-                if not legal(a) or not self._shape_step(
-                        a, None if left is None else 'q',
-                        None if right is None else 'q'):
+                spec = self._shape_step(sym[adv], left, right)
+                if spec is None:
                     return 'dead'
-                if a in ('L', 'K', 'U', 'V') or a[0] in ('M', 'W'):
+                if spec[0] == 'mark':
                     return ('d', sym[args[1]]) if len(args) > 1 else 'ok'
                 if len(args) == 1:
                     return 'ok'
@@ -1251,77 +1232,67 @@ class CocycleRankWidthGroups:
             return shape(args, lambda sym: True)
 
         def Eq(args):
-            xv, yv = args[1], args[2]
-
             def step(sym, left, right):
                 if left == 'dead' or right == 'dead' \
-                        or sym[xv] not in element_letters or sym[xv] != sym[yv]:
+                        or sym[args[1]] not in element_letters \
+                        or sym[args[1]] != sym[args[2]]:
                     return 'dead'
-                a = sym[args[0]]
-                if not legal(a) or not self._shape_step(
-                        a, None if left is None else 'q',
-                        None if right is None else 'q'):
-                    return 'dead'
-                return 'ok'
+                return 'ok' if self._shape_step(sym[args[0]], left,
+                                                right) is not None \
+                    else 'dead'
             return ImplicitTA(args, step, lambda st: st == 'ok')
 
         def M(args):
             adv, xv, yv, zv = args
             return ImplicitTA(
                 args,
-                lambda sym, left, right: self._m_delta(
+                lambda sym, left, right: self._m_step(
                     left, right, (sym[adv], sym[xv], sym[yv], sym[zv])),
-                lambda st: st == (0,) * 7)
+                self._m_accepting)
 
         return {'Dom': Dom, 'Adv': Adv, 'M': M, 'Eq': Eq}
 
-    def decode(self, tree: Tree, advice: Tree):
-        """Inverse of `encode` over the member's advice: the digit at each
-        site letter, z-sites to b and x-sites to a (ascending post-order)."""
-        bs, xs = [], []
-
-        def rec(an, en):
-            if an is None:
-                return
-            rec(an.left, en.left)
-            rec(an.right, en.right)
-            letter = an.label
-            if letter in ('L', 'U') or letter[0] == 'M':
-                xs.append(int(en.label))
-            elif letter in ('K', 'V') or letter[0] == 'W':
-                bs.append(int(en.label))
-
-        rec(advice, tree)
-        return tuple(bs), tuple(xs)
-
     @property
     def implicit_cls(self):
-        """The fully implicit presentation of this class (functional atoms
-        only, nothing compiled): an `autstr.implicit.ImplicitTreeClass` over
-        raw element trees."""
         from autstr.implicit import ImplicitTreeClass
         return ImplicitTreeClass(self._implicit_atoms(),
                                  list(self.element_letters))
 
-    def check_implicit(self, phi, sites: CocycleSites, advice: Tree, **elements) -> bool:
-        """Like `check`, evaluated implicitly (no query or base tree
-        automaton) -- the only viable model checker for the full-ISA and ring
-        members whose `cls` cannot be built. See `autstr.implicit`."""
+    def _with_depth(self, advice, fn):
+        """Instruction stretches are long unary chains; raise the
+        recursion limit for tree walks proportionally."""
+        n = 0
+        stack = [advice]
+        while stack:
+            node = stack.pop()
+            if node is None:
+                continue
+            n += 1
+            stack.append(node.left)
+            stack.append(node.right)
+        old = sys.getrecursionlimit()
+        sys.setrecursionlimit(max(old, 4 * n + 10000))
+        try:
+            return fn()
+        finally:
+            sys.setrecursionlimit(old)
+
+    def check_implicit(self, phi, sites: CocycleSites, advice: Tree,
+                       **elements) -> bool:
+        """First-order model checking over the functional atoms."""
         trees = {name: self.encode(el, sites, advice)
                  for name, el in elements.items()}
-        return self.implicit_cls.check(phi, advice, **trees)
+        return self._with_depth(
+            advice, lambda: self.implicit_cls.check(phi, advice, **trees))
 
     def evaluate_implicit(self, phi, sites: CocycleSites, advice: Tree,
                           **elements):
-        """The satisfying set of phi on the member presented by the advice,
-        computed implicitly: unassigned free variables stay open and are
-        solved for. Yields assignments {var: (b, a)}; `len` is the exact
-        solution count without enumeration."""
+        """The satisfying set of phi, computed implicitly; yields
+        assignments {var: (b, a)}."""
         from autstr.implicit import MappedSolutions
         trees = {name: self.encode(el, sites, advice)
                  for name, el in elements.items()}
-        sols = self.implicit_cls.evaluate(phi, advice, **trees)
-        return MappedSolutions(sols, lambda t: self.decode(t, advice))
-
-    def get_structure(self, advice: Tree) -> TreeAutomaticPresentation:
-        return self.cls.get_structure(advice)
+        sols = self._with_depth(
+            advice,
+            lambda: self.implicit_cls.evaluate(phi, advice, **trees))
+        return MappedSolutions(sols, lambda tr: self.decode(tr, advice))
