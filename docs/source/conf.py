@@ -47,6 +47,8 @@ _nb_dst = _here / 'notebooks'
 if _nb_dst.exists():
     shutil.rmtree(_nb_dst)
 _nb_dst.mkdir(exist_ok=True)
+for _old in _nb_dst.glob('*.ipynb'):
+    _old.unlink()
 for _nb in sorted((_here.parent.parent / 'notebooks').glob('*.ipynb')):
     shutil.copyfile(_nb, _nb_dst / _nb.name.replace('ü', 'ue'))
 
