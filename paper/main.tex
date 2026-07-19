@@ -15,7 +15,8 @@
 %%   5 Master theorem ............. WRITTEN (restriction calculus, pairing
 %%                                  tables, claim modules; string + fixed-center
 %%                                  corollaries)
-%%   6 Wealth of subclasses ....... skeleton (v1 sec "grouptheory" + scratch 5-6)
+%%   6 Wealth of subclasses ....... WRITTEN (interface, products, tables,
+%%                                  widths, collapse, generic, dividing line)
 %%   7 Consequences ............... skeleton (v1 sec 7, nearly verbatim)
 %%   8 Implementation ............. skeleton (v1 sec 8 + implicit eval + benchmark)
 %%   9 Open problems .............. skeleton (v1 sec 9, updated)
@@ -26,6 +27,7 @@
 \documentclass[a4paper,UKenglish,autoref,anonymous]{lipics-v2021}
 
 \usepackage{microtype}
+\usepackage{booktabs}
 
 \bibliographystyle{plainurl}
 
@@ -1163,49 +1165,243 @@ is strictly stronger than the union of its corners.
 \section{The wealth of the class}
 \label{sec:span}
 
-\planned{The class as a product of constructions; absorb scratch \S5--6
-and v1 \S6. Content plan:
-\begin{itemize}
-\item \emph{Corners and named families as corollaries}: extraspecial
-  $p^{1+2m}$; Heisenberg over $\Fp^n$; special $p$-groups of bounded
-  width; the $n$-qubit Pauli group ($p=2$ clique); shared-center graph
-  groups with graph rank-width $\le r$ (via the rank-width interface,
-  v1 \texttt{prop:rankwidth}, structural nodes); tree-indexed laminar and
-  point-target families (growing center, non-laminar: strictly outside
-  both fixed-center classes); higher center exponent ($d > 1$).
-\item \emph{Closure under composition}: central and direct products are
-  block-diagonal tensors; with block-consecutive layouts the width is the
-  \emph{maximum} over blocks (scratch \S6, the Feferman--Vaught-style
-  modularity of the advice); the axes table (layout / width / center
-  placement / quotient exponent / center exponent / composition) and the
-  constructions table, adapted from scratch Tables 1--2.
-\item \emph{Classical width measures} (v1 \texttt{prop:widths}): vertex
-  cover, pathwidth, treewidth bounds, with the $k$-factors.
-\item \emph{Collapse at the tame end} (v1 \texttt{prop:collapse}) and
-  where genuine isomorphism-theoretic content lives ($k \ge 2$;
-  distributed centers already at width 1).
-\item \emph{Generic wideness} (v1 \texttt{prop:generic}) and
-  \emph{the dividing line}: Mekler's construction (private targets,
-  generically unbounded width), ultraspecial field-multiplication tensors
-  (width $\Theta(m)$), the relatively free group (Nies--Stephan
-  non-automatic): the class is the tame complement of Mekler's
-  construction inside class-$2$ exponent-$p^d$ groups.
-\end{itemize}}
+This section maps what bounded width does and does not buy. The
+parameter interfaces exactly with graph rank-width
+(\autoref{prop:rankwidth}); the class is closed under central and direct
+products, with the width of a product being the \emph{maximum}, not the
+sum, of the widths of its factors (\autoref{prop:products}); the
+classical width measures of the commutation graph bound it
+(\autoref{prop:widths}); and at the tame end it collapses, while
+generically it explodes (\autoref{prop:collapse},
+\autoref{prop:generic}). \autoref{tab:constructions} places the named
+constructions.
+
+\begin{proposition}[rank-width interface]
+\label{prop:rankwidth}
+Extend tree layouts by \emph{structural nodes} carrying no generator
+(the element encodings carry a forced $0$ digit there; the automata are
+unchanged). Then for $k = 1$ and $d = 1$: a form belongs to
+$\tre{p,1,r,1}$ (with structural nodes) if and only if the
+$\Fp$-labelled commutation graph of $B$ has rank-width at most $r$ over
+$\Fp$, and a rank-decomposition converts to a layout without changing
+the width.
+\end{proposition}
+
+\begin{proof}
+A rank-decomposition is a subcubic tree with the vertices at its leaves;
+rooting it at an arbitrary edge yields a binary tree whose internal
+nodes become structural. The generator set of any subtree is one side of
+an edge cut of the decomposition, and its crossing block is the
+bipartite adjacency block whose rank defines cut-rank. Conversely a
+layout converts to a rank-decomposition by replacing every generator at
+an internal node with a structural node whose new leaf child carries the
+generator: this adds only singleton cuts, of cut-rank $\le 1$, so the
+width is unchanged for $r \ge 1$.
+\end{proof}
+
+\begin{proposition}[closure under central and direct products]
+\label{prop:products}
+Let $T_1, T_2$ be cocycle tensors over $\R$ on disjoint site trees, of
+widths $r_1, r_2$. Grafting the two trees onto a common root presents
+$G(T_1) \times G(T_2)$ (a direct product; identifying central generators
+instead gives central products) with width $\max(r_1, r_2, 1)$. The
+same holds for any finite number of factors.
+\end{proposition}
+
+\begin{proof}
+The combined tensor is block-diagonal: no commutation pair and no
+target crosses between the blocks. A subtree cut of the grafted layout
+either lies inside one block---where every flattening equals that
+block's flattening padded by zero rows and columns, of unchanged module
+rank---or contains one block entirely, in which case the entries
+crossing the cut are exactly the entries crossing the induced cut of the
+other block. Identifying central generators merges $z$-sites; the claim
+flattenings gain summed rows, which cannot raise the module rank beyond
+the maximum plus the all-ones pattern of rank $1$.
+\end{proof}
+
+The proposition is the model-theoretic heart of the section: the
+operations that preserve uniform automaticity---central products, direct
+products, direct factors with abelian groups, raising the center's
+exponent---\emph{are} group-theoretic constructions, and the advice of a
+product is the concatenation of the factors' advices under a common
+root. One compiled formula therefore serves every iterated combination
+of every family in \autoref{tab:constructions} at once: constructions
+classically studied in isolation become a single decidable family.
+
+\begin{table}[t]
+\centering\small
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}p{4.4cm}p{5.6cm}p{3.2cm}@{}}
+\toprule
+Construction & Setting & Width \\
+\midrule
+finite abelian $p$-group & no commutation & $0$ \\
+extraspecial $p^{1+2m}$ & matching, $k = 1$ & $1$ \\
+Heisenberg over $\Fp^{n}$ & symplectic normal form & $1$ \\
+$n$-qubit Pauli group & $p = 2$, clique & $1$ \\
+special $p$-groups & fixed $k$, form of width $\le r$ & $r$ \\
+shared-center graph group & $[x_i, x_j] = y$ on edges & graph rank-width \\
+tree-indexed laminar & distributed center, laminar & $1$ \\
+point-target family & distributed, non-laminar & $1$ \\
+exponent-$p^d$ centers & any of the above over $\R$ & unchanged \\
+central / direct products & block-diagonal tensors & $\max$ of blocks \\
+\midrule
+ultraspecial (Heisenberg over $\mathbb{F}_{p^m}$) & field-multiplication
+tensor & $\Theta(m)$ \\
+Mekler groups & private target per non-edge & $\Omega(n)$ \\
+relatively free class-$2$, $\exp p$ & fully free & not
+automatic~\cite{NiesStephan2023} \\
+\bottomrule
+\end{tabular}
+\caption{Named constructions as layouts. The rows below the line are
+excluded---and are exactly the model-theoretically wild objects.}
+\label{tab:constructions}
+\end{table}
 
 \begin{proposition}[classical width measures]
 \label{prop:widths}
-\emph{[Placeholder: v1 \texttt{prop:widths}, over $\R$.]}
+Let $\Gamma$ be the commutation graph of a form $B$ over $\R$ (edges =
+non-commuting pairs).
+\begin{enumerate}
+\item If $\Gamma$ has a vertex cover $C$ of size $c$, then every layout
+  that places $C$ first has width $\le c$; in particular $\lcr(B) \le
+  c$. An arbitrary layout has width $\le kc$, and the factor $k$ is
+  necessary.
+\item If $\Gamma$ has pathwidth $w$, then $\lcr(B) \le w + 1$.
+\item If $\Gamma$ has treewidth $w$, then $\tcr(B) \le k(w+1)$.
+\end{enumerate}
 \end{proposition}
+
+\begin{proof}
+All three are counting arguments---the module rank of a matrix is at
+most its number of nonzero rows and at most its number of nonzero
+columns---and hold over $\R$ verbatim. (1) Put the cover first. A cut $S
+\subseteq C$ offers at most $|S| \le c$ columns. A cut $S \supseteq C$
+contains every edge's cover endpoint, so the nonzero columns of the
+crossing block are indexed by $C$: again module rank $\le c$. In an
+arbitrary layout the nonzero entries lie in the $c_1 \le |C \cap S|$
+columns of the inside cover vertices and the $\le k c_2$ rows of the
+outside ones, whence module rank $\le c_1 + k c_2 \le kc$; a star with
+$c = 1$ whose edge to the $j$-th leaf is labelled $e_j$ attains $k$ at
+the cut separating the center from its leaves. (2) Order the vertices by
+a path decomposition; the earlier endpoints of crossing edges at any cut
+are active vertices, so nonzero columns number $\le w + 1$. (3) Expand
+each bag of a tree decomposition into a chain introducing its new
+vertices, and take this as the layout. The bag of the current edge of
+the decomposition separates the subtree from the rest, so every
+crossing pair has an endpoint in it: nonzero columns for
+below-endpoints ($\le w+1$) and $k$ rows per above-endpoint bound the
+module rank by $k(w+1)$.
+\end{proof}
 
 \begin{proposition}[collapse at the tame end]
 \label{prop:collapse}
-\emph{[Placeholder: v1 \texttt{prop:collapse}.]}
+Let $p$ be odd and $d = 1$.
+\begin{enumerate}
+\item If $\Gamma$ has a vertex cover of size $c$, then $G(B) \cong H
+  \times \Zp^{\,m}$ with $|H| \le p^{\,c(k+1) + k}$; for fixed $c$ and
+  $k$ the class of such groups is, up to isomorphism, a finite list of
+  cores times elementary abelian factors.
+\item For $k = 1$, every $G(B)$ is isomorphic to (extraspecial of
+  exponent $p$) $\times$ (elementary abelian): the symplectic normal
+  form aligns every form with a matching.
+\end{enumerate}
 \end{proposition}
+
+\begin{proof}
+(1) The radical $\bigcap_{l \le k} \operatorname{rad}(B_l)$ has
+codimension $\le c(k+1)$: pairing against $e_j$ for $j$ outside the
+cover constrains only the $c$ cover coordinates of a vector (every edge
+at $j$ ends in the cover), and pairing against the $c$ cover vertices
+adds at most $ck$ further linear conditions. Split off the radical (for
+odd $p$ its preimage is elementary abelian and complements off the
+commutator support), so $|H| \le p^{\,c(k+1)+k}$; the bound's shape is
+right: a star with $c = 1$, $k = n - 1$ and $B_{ui} = e_i$ has trivial
+radical and $|H| = p^{2n-1}$. (2) is the classical normal form of an
+alternating form: rank $2m$, matching of $m$ hyperbolic pairs, radical
+split off.
+\end{proof}
+
+The reading for the mixed audience: at $k = 1$, $d = 1$ (and bounded
+vertex cover for any $k$) the parameter buys presentation-theoretic
+rather than isomorphism-theoretic generality---the clique of
+\autoref{ex:clique} is abstractly a Heisenberg group times an abelian
+group, but the automaton multiplies in the \emph{given} presentation
+without computing the normal form. The isomorphism-theoretic content of
+the class lives at $k \ge 2$, where pairs of alternating forms already
+have infinitely many normal-form families and triples are
+wild~\cite{GrochowQiao2021}; at $d \ge 2$, where the center's exponent
+is an invariant the field case cannot see; and, already at width one,
+with the distributed centers of \autoref{thm:master}, whose laminar and
+point-target families have commutator subgroups of rank $\Theta(n)$ and
+so escape the collapse of \autoref{prop:collapse} entirely.
 
 \begin{proposition}[generic forms are wide]
 \label{prop:generic}
-\emph{[Placeholder: v1 \texttt{prop:generic}.]}
+Let $k = 1$, $d = 1$, and let $B$ be uniformly random. With high
+probability, every linear layout of $B$ has width $\ge n/2 -
+O(\sqrt{n})$ and every tree layout has width $\ge n/3 - O(\sqrt{n})$;
+in particular $\tcr(B) = \Omega(n)$.
 \end{proposition}
+
+\begin{proof}[Proof sketch]
+For a fixed set $S$ with $|S| = m \le n/2$, the crossing block is a
+uniform random $(n-m) \times m$ matrix over $\Fp$, and $\Pr[\rk < m -
+s] \le p^{-s(n-2m+s)} \le p^{-s^2}$. A union bound over all $\le 2^n$
+sets with $s = c\sqrt{n}$ leaves all sets of size $m \in [n/3, n/2]$
+with rank $\ge m - c\sqrt n$. Every linear layout has a cut of size
+$\lfloor n/2 \rfloor$, and every binary tree has a subtree whose
+interval size lies in $[n/3, 2n/3]$; complement if necessary.
+\end{proof}
+
+\subparagraph*{The dividing line.}
+The excluded rows of \autoref{tab:constructions} are excluded provably,
+and they are exactly the model-theoretically wild objects.
+
+\begin{example}[ultraspecial groups]
+\label{ex:ultraspecial}
+The Heisenberg group over the field $\mathbb{F}_{p^m}$---an
+\emph{ultraspecial} group---has generators $a_1, \dots, a_m, b_1,
+\dots, b_m$ and commutation tensor the multiplication of
+$\mathbb{F}_{p^m}$, written over $\Fp$ with $k = m$: $[a_i, b_j]$ is
+the field product $e_i e_j$ in the center. Its width is $\Theta(m)$
+under every layout: take a cut $S$ with $2m/3 \le |S| \le 4m/3$, let
+(by symmetry) the $a$-side be the majority side of $S$, and pick any
+$b_j$ outside $S$---one exists since $S$ is not everything. The columns
+of the crossing block indexed by the $a_i \in S$ contain the vectors
+$(e_i e_j)_l$, and a vanishing combination forces $(\sum_i c_i e_i)\,
+e_j = 0$, hence $\sum_i c_i e_i = 0$ since $e_j$ is invertible: those
+columns are linearly independent, and the rank is $\ge |S|/2 - 1 =
+\Omega(m)$.
+\end{example}
+
+\begin{example}[Mekler groups]
+\label{ex:mekler}
+Mekler's construction~\cite{Mekler1981} interprets a graph in a
+class-$2$ exponent-$p$ group whose commutator structure gives each
+non-adjacent generator pair a \emph{private} central target. Private
+targets defeat every layout: fix any site tree and a subtree $S$
+containing between one and two thirds of the $x$-sites. Each pair
+$\{u, v\}$ split by $S$ with a private target $z_{uv}$ contributes,
+depending on where $z_{uv}$ lies, a row of $F_y/F_x$ or of $F_g$ whose
+support---the private column $(v, z_{uv})$, resp.\ the private pair
+column---is disjoint from every other such row's support. Disjointly
+supported nonzero rows are linearly independent, so the width is at
+least the number of inside endpoints with a split private pair, which
+is $\Omega(n)$ whenever the non-adjacency is dense---as it is for the
+graphs Mekler's interpretation uses.
+\end{example}
+
+Together with \autoref{prop:generic} and the theorem of Nies and
+Stephan that the relatively free class-$2$ exponent-$p$ group is not
+word-automatic~\cite{NiesStephan2023}, the picture is consistent in
+both directions: bounded rank-width is a thin, structured slice, and
+the constructions that certify wildness---generic forms, field
+multiplication, private targets, full freeness---all have width
+$\Omega(n)$. Within class-$2$ groups with center of exponent $p^d$, the
+class of \autoref{thm:master} is the tame complement of Mekler's
+construction.
 
 \section{Algorithmic consequences}
 \label{sec:consequences}
