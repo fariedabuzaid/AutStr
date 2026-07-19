@@ -37,6 +37,9 @@ MANIFEST
 pip-log.txt
 pip-delete-this-directory.txt
 
+# Benchmark output
+benchmarks/implicit_vs_explicit_report.md
+
 # Unit test / coverage reports
 htmlcov/
 .tox/
@@ -132,6 +135,8 @@ dmypy.json
 notebooks/automaton
 notebooks/automaton.png
 
-# Sphinx build output and generated API stubs
+# Sphinx build output, generated API stubs, build-time notebook copies
 docs/build/
 docs/source/api/
+docs/source/notebooks/
+docs/source/jupyter_execute/

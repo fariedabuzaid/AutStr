@@ -20,18 +20,75 @@ from nltk.sem import logic
 from autstr.presentations import AutomaticPresentation
 from autstr.sparse_automata import SparseDFA
 from autstr.buildin.automata import one
-from autstr.buildin.presentations import create_sparse_dfa
+from autstr.buildin.presentations import create_sparse_dfa, encode_symbol
 from autstr.utils.automata_tools import expand, pad, permute_tapes, projection, word_automaton
 from autstr.utils.logic import get_free_elementary_vars
 from autstr.utils.misc import get_unique_id
 
 
-def dfa_from_delta(sigma, states, arity, delta, initial, finals) -> SparseDFA:
+def dfa_from_delta(sigma, states, arity, delta, initial, finals,
+                   tapes=None, dead=None) -> SparseDFA:
     """Build a SparseDFA from a transition function over the full symbol
-    space sigma^arity. Convenience for constructing presentation automata."""
-    input_symbols = set(it.product(sorted(sigma), repeat=arity))
-    transitions = {q: {sym: delta(q, sym) for sym in input_symbols} for q in states}
-    return create_sparse_dfa(list(states), input_symbols, transitions, initial, finals)
+    space sigma^arity. Convenience for constructing presentation automata.
+
+    :param tapes: optional per-tape alphabets (the string analog of
+        `sta_from_delta`'s parameter). A convolution tape usually ranges over
+        a small part of the base alphabet — the advice tape reads advice
+        letters, an element tape reads element letters — and every mixed
+        tuple is dead. Naming the tapes' alphabets restricts the enumeration
+        to their product; every other symbol falls to `dead`, which must then
+        be named and becomes every state's sparse default.
+    :param dead: name of the sink state (required with `tapes`); delta must
+        map it to itself on every enumerated symbol.
+    """
+    import numpy as np
+
+    if tapes is None:
+        input_symbols = set(it.product(sorted(sigma), repeat=arity))
+        transitions = {q: {sym: delta(q, sym) for sym in input_symbols} for q in states}
+        return create_sparse_dfa(list(states), input_symbols, transitions, initial, finals)
+
+    if dead is None:
+        raise ValueError("tapes requires a named dead state")
+    if len(tapes) != arity:
+        raise ValueError(f"expected {arity} tape alphabets, got {len(tapes)}")
+    states = list(states)
+    state_to_index = {s: i for i, s in enumerate(states)}
+    if dead not in state_to_index:
+        raise ValueError(f"dead state {dead!r} is not in states")
+    if initial not in state_to_index:
+        raise ValueError(f"initial state {initial!r} is not in states")
+    base_alphabet = set(sigma)
+    exceptions = {q: [] for q in states}
+    for sym in it.product(*[sorted(t) for t in tapes]):
+        enc = None
+        for q in states:
+            target = delta(q, sym)
+            if target != dead:
+                if target not in state_to_index:
+                    raise ValueError(
+                        f"delta({q!r}, {sym!r}) = {target!r} is not in states")
+                if enc is None:
+                    enc = encode_symbol(sym, base_alphabet)
+                exceptions[q].append((enc, state_to_index[target]))
+    max_exceptions = max(1, max(len(e) for e in exceptions.values()))
+    ex_syms = np.full((len(states), max_exceptions), -1, dtype=np.int64)
+    ex_states = np.full((len(states), max_exceptions), -1, dtype=np.int64)
+    for q, rows in exceptions.items():
+        rows.sort()
+        i = state_to_index[q]
+        ex_syms[i, :len(rows)] = [s for s, _ in rows]
+        ex_states[i, :len(rows)] = [t for _, t in rows]
+    return SparseDFA(
+        num_states=len(states),
+        default_states=np.full(len(states), state_to_index[dead], dtype=np.int64),
+        exception_symbols=ex_syms,
+        exception_states=ex_states,
+        is_accepting=np.array([q in finals for q in states], dtype=bool),
+        start_state=state_to_index[initial],
+        symbol_arity=arity,
+        base_alphabet=base_alphabet,
+    ).minimize()
 
 
 class UniformlyAutomaticClass:
@@ -87,12 +144,13 @@ class UniformlyAutomaticClass:
             names |= UniformlyAutomaticClass._variable_names(phi.second)
         return names
 
-    def _relativize(self, phi: logic.Expression, advice_var: str) -> str:
+    @staticmethod
+    def _relativize(phi: logic.Expression, advice_var: str) -> str:
         """Rewrite a class formula into a formula over the wrapped
         presentation: atoms get the advice variable prepended and quantifiers
         are relativized to the domain Dom(advice, ·). Negated quantifiers are
         rewritten to quantified negations on the fly."""
-        rec = lambda psi: self._relativize(psi, advice_var)
+        rec = lambda psi: UniformlyAutomaticClass._relativize(psi, advice_var)
         if isinstance(phi, logic.AllExpression):
             x = str(phi.variable)
             return f"all {x}.((not Dom({advice_var},{x})) or {rec(phi.term)})"
@@ -186,6 +244,39 @@ class UniformlyAutomaticClass:
         return dfa.accepts([
             tuple(columns[v][i] for v in variables) for i in range(len(advice))
         ])
+
+    def _implicit_element_alphabet(self):
+        alphabet = getattr(self, 'element_alphabet', None)
+        if alphabet is None:
+            raise ValueError(
+                "check_implicit needs the class's element-tape alphabet; set "
+                "`.element_alphabet` (the per-position element symbols).")
+        return alphabet
+
+    def check_implicit(self, phi, advice, **assignments) -> bool:
+        """Model check a formula against the member S_advice *without* compiling
+        a query automaton: the formula is evaluated on the fly over the base
+        automata (implicit product / on-the-fly powerset / acceptance flip). Same
+        contract as `check`; scales to classes whose query automaton is
+        infeasible to build. See `autstr.implicit`."""
+        from autstr import implicit
+        return implicit.check_class_string(
+            phi, advice, assignments, dict(self.presentation.automata),
+            self._implicit_element_alphabet(),
+            self._relativize, self._variable_names)
+
+    def evaluate_implicit(self, phi, advice, **assignments):
+        """The satisfying set of phi on the member S_advice, computed
+        implicitly (no query automaton): unassigned free variables stay open
+        and are solved for over the fixed advice. Returns a
+        `StringSolutionSet` of `{var: word}` assignments — its `len` is the
+        exact solution count (no enumeration), iterating lazily yields the
+        assignments. See `autstr.implicit`."""
+        from autstr import implicit
+        return implicit.evaluate_class_string(
+            phi, advice, assignments, dict(self.presentation.automata),
+            self._implicit_element_alphabet(),
+            self._relativize, self._variable_names)
 
     def define(self, name: str, phi: Union[str, logic.Expression]) -> SparseDFA:
         """Define a new class relation by a first-order formula over the

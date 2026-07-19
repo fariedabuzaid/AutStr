@@ -26,16 +26,26 @@ bottom-up state in F_p tracks the deficit c_z - c_x - c_y still owed by the
 ancestors, each inner node subtracts its commutator contribution
 a_x(w)*b_y(w), and siblings must agree on the owed amount when their
 branches merge — p + 1 states in total, independent of the shape.
+
+**Bounded rank-width** (`CutRankTreeGroups(p, k, r)`): the tree analog of
+`autstr.groups.CutRankGroups`. A member is a class-2 central extension of
+Z_p^n by Z_p^k whose commutation form admits a *tree* layout in which every
+subtree's crossing block has rank <= r over F_p; the advice spells out the
+factorizations node by node, and a spine layout is exactly the word class.
 """
 import itertools as it
-from typing import Dict, Optional, Union
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
+import numpy as np
+
+from autstr import chain_ring as cr
 from autstr.sparse_tree_automata import SparseTreeAutomaton, Tree
 from autstr.tree_presentations import TreeAutomaticPresentation
 from autstr.tree_uniform import UniformlyTreeAutomaticClass, sta_from_delta
 
 PAD = '*'
 SHAPE = 's'
+CMARK = 'c'
 
 
 class TreeExtraspecialGroups:
@@ -59,6 +69,7 @@ class TreeExtraspecialGroups:
             'M': self._multiplication_automaton(),
             'E': self._equality_automaton(),
         }, padding_symbol=PAD, max_states=max_states)
+        self.cls.element_alphabet = list(self.element_letters)
 
     # ---------------- the automata ----------------
 
@@ -175,6 +186,906 @@ class TreeExtraspecialGroups:
         quantified existentially."""
         return self.cls.check(phi, self.advice(shape), **elements)
 
+    def check_implicit(self, phi, shape: Tree, **elements) -> bool:
+        """Like `check`, evaluated implicitly (no query tree automaton)."""
+        return self.cls.check_implicit(phi, self.advice(shape), **elements)
+
     def get_structure(self, shape: Tree) -> TreeAutomaticPresentation:
         """The tree-automatic presentation of the single group G_shape."""
         return self.cls.get_structure(self.advice(shape))
+
+
+# ====================================================================
+# Class-2 groups of bounded rank-width (tree layouts of bounded cut-rank)
+# ====================================================================
+
+class CutRankTreeGroups:
+    """For a fixed prime p, center dimension k, width r and ring depth d, the
+    uniformly tree-automatic class of class-2 groups over R = Z/p^d whose
+    commutation form admits a *tree* layout of module cut-rank <= r (bounded
+    rank-width over R) — the tree analog of `autstr.groups.CutRankGroups`, which
+    is recovered exactly on spine layouts. With d = 1 (the default) R is the
+    field F_p and this is the original construction; d > 1 is the exponent-p^d
+    ("Idea 2") case. The tree merge is the one step the field proof genuinely
+    uses a field: the sibling block factorises as V_R^T Q V_L, which is false
+    over R with a naive interface but holds once the carried bases are the
+    SATURATED free interfaces (chain_ring.factor_two_sided, Cor. cor:merge).
+
+    Generators are the post-order positions 1..n of a binary layout tree;
+    the form is a dict {(j, i): label in Z_p^k, i < j} presenting
+    x_j x_i = x_i x_j y^B[j,i], and the group law is the same bilinear
+    cocycle as in the word class. Elements are (b, a) encoded as digit
+    labellings of the advice's shape; the k center digits live on a chain
+    of 'c' nodes above the layout root.
+
+    Bottom-up, the state at a subtree S is (s, wx, wy): the correction
+    accumulated by pairs inside S, and r linear functionals w = V·(digits
+    of S) of each factor's digits, where V is a row basis of S's crossing
+    block. Two vectors are needed because a crossing pair can be consumed
+    in two ways: its larger endpoint is an ancestor of S (the read-off
+    pairs y-functionals of S with that ancestor's x-digit), or the pair is
+    split between siblings (the merge pairs the right child's x-functionals
+    against the left child's y-functionals — in post-order the left subtree
+    lies entirely below the right one). The advice letter at a node holds
+    the factorization data over R = Z/p^d (each entry as d base-p digits)::
+
+        leaf:   'a' + v (r)
+        unary:  'b' + T (r x r) + v (r) + R (k x r)
+        binary: 'd' + T_L, T_R (r x r) + v (r) + R_L, R_R (k x r)
+                    + Q (k x (r x r))
+
+    with w <- T_L w_L + T_R w_R + v*digit (both factors), correction
+    s <- s_L + s_R + x_t*(R_L wy_L + R_R wy_R) + wx_R^T Q_l wy_L, and the
+    'c' chain consuming s coordinate by coordinate: z_c - x_c - y_c = s.
+    That is q^(k+2r) layout states however large the tree. `advice` compiles
+    (shape, form) into letters — saturated free bases of the crossing blocks
+    plus solving the consistency systems, including the two-sided factorization
+    V_R^T Q V_L of the sibling block — and fails precisely when some subtree's
+    module cut-rank exceeds r; `tree_cut_rank` measures the width a layout needs.
+    Every well-shaped advice presents some group in the class: the streamed
+    cocycle is bilinear by construction.
+
+    The multiplication automaton is a product over the whole letter alphabet, so
+    building it is only feasible for a small ring alphabet; `cls` is therefore
+    lazy and `simulate` runs the transition directly over the tapes for larger q.
+
+    Signature: M(x,y,z), Eq(x,y); the center is first-order definable.
+    """
+
+    #: factored-mode node markers: leaf, unary, binary layout node
+    MARKERS = ('a', 'b', 'd')
+
+    def __init__(self, p: int, k: int = 1, r: int = 1, d: int = 1,
+                 factored: bool = None):
+        """`factored=None` (the default) enumerates one advice letter per
+        factorisation tuple when that alphabet fits under 20000 letters (the
+        original encoding, byte-identical) and otherwise switches to
+        *factored* letters: each layout node becomes a bare marker ('a'
+        leaf / 'b' unary / 'd' binary) followed by a unary chain of one
+        letter per ring entry, with the element digit repeated along the
+        stretch. The factored alphabet has q+4 letters however large r, k
+        and d are -- this is what makes width r >= 2 over the ring
+        representable."""
+        if p < 2 or p > 9 or any(p % f == 0 for f in range(2, int(p ** 0.5) + 1)):
+            raise ValueError(f"p must be a prime in 2..9 (single digits), got {p}")
+        if k < 1 or r < 1:
+            raise ValueError("need k >= 1 central and r >= 1 state dimensions")
+        if d < 1:
+            raise ValueError(f"center ring depth d must be >= 1, got {d}")
+        q = p ** d
+        n_flat = (q ** r + q ** (r * r + r + k * r)
+                  + q ** (2 * r * r + r + 2 * k * r + k * r * r))
+        if factored is None:
+            factored = n_flat > 20000 or d > 1
+        if not factored and d > 1:
+            raise ValueError(
+                "d > 1 needs factored letters: over the ring the sibling "
+                "merge carries a pairing table, not a Q matrix")
+        if not factored and n_flat > 20000:
+            raise ValueError(
+                f"the flat advice alphabet would have {n_flat} letters; "
+                f"choose smaller p, k, r or d, or use factored=True")
+        self.p, self.k, self.r, self.d = p, k, r, d
+        self.q = q                              # center/quotient ring R = Z/p^d
+        self.factored = factored
+        #: register vectors in a fixed enumeration order (pairing tables and
+        #: their streamed entries refer to registers by this index)
+        self._vecs = list(it.product(range(q), repeat=r))
+        #: ring entries per stretch, by node kind. Over the ring (d > 1) the
+        #: binary stretch carries, instead of the k bilinear forms Q, the k
+        #: full pairing tables over the register space: q^{2r} entries each.
+        self.n_entries = {'a': r,
+                          'b': r * r + r + k * r,
+                          'd': 2 * r * r + r + 2 * k * r
+                               + (k * len(self._vecs) ** 2 if d > 1
+                                  else k * r * r)}
+        self.digits = [str(x) for x in range(q)]
+        self._digitset = set(self.digits)
+
+        def mat(entries, off, rows, cols):
+            return tuple(tuple(entries[off + i * cols + j] for j in range(cols))
+                         for i in range(rows))
+
+        self.leaf_letters = {}
+        self.unary_letters = {}
+        self.binary_letters = {}
+        self.entry_letters: Dict[str, int] = {}
+        if factored:
+            self.entry_letters = {self._letter_name('e', (c,)): c
+                                  for c in range(q)}
+            advice = {CMARK} | set(self.MARKERS) | set(self.entry_letters)
+        else:
+            self.leaf_letters = {
+                self._letter_name('a', entries): tuple(entries)
+                for entries in it.product(range(q), repeat=r)}
+            for entries in it.product(range(q), repeat=r * r + r + k * r):
+                T = mat(entries, 0, r, r)
+                v = entries[r * r: r * r + r]
+                R = mat(entries, r * r + r, k, r)
+                self.unary_letters[self._letter_name('b', entries)] = (T, v, R)
+            for entries in it.product(range(q),
+                                      repeat=2 * r * r + r + 2 * k * r + k * r * r):
+                off = 0
+                TL = mat(entries, off, r, r); off += r * r
+                TR = mat(entries, off, r, r); off += r * r
+                v = entries[off: off + r]; off += r
+                RL = mat(entries, off, k, r); off += k * r
+                RR = mat(entries, off, k, r); off += k * r
+                Q = tuple(mat(entries, off + l * r * r, r, r) for l in range(k))
+                self.binary_letters[self._letter_name('d', entries)] = \
+                    (TL, TR, v, RL, RR, Q)
+            advice = ({CMARK} | set(self.leaf_letters)
+                      | set(self.unary_letters) | set(self.binary_letters))
+
+        self.sigma = {PAD} | self._digitset | advice
+        self.advice_letters = advice
+        self.element_letters = self._digitset
+        self._cls = None
+
+    def _letter_name(self, prefix: str, entries: Sequence[int]) -> str:
+        """Advice-letter key: the prefix ('a' leaf, 'b' unary, 'd' binary) plus
+        every ring entry spelled as its d base-p digits (fixed width d, so the
+        d = 1 field encoding is the original single-digit form)."""
+        return prefix + ''.join(
+            str(dig) for e in entries
+            for dig in cr.to_digits(int(e) % self.q, self.p, self.d))
+
+    #: cap on the transition enumerations of the lazy `cls` build; beyond it
+    #: the build would run for minutes to hours, so `cls` raises instead
+    _CLS_ENUMERATION_CAP = 50_000_000
+
+    def _cls_cost(self) -> int:
+        """Transition enumerations the lazy `cls` build performs (dominated by
+        the multiplication automaton: state pairs x advice x digits^3)."""
+        q, k, r = self.q, self.k, self.r
+        n_states = 1 + q ** (k + 2 * r) + sum(q ** (k - j) for j in range(1, k + 1))
+        if self.factored:
+            E = self.n_entries
+            n_states += (q ** (2 * r) * E['a'] + q ** (k + 4 * r) * E['b']
+                         + q ** (k + 6 * r) * E['d'])
+        n_letters = len(self.advice_letters)
+        return (n_states + 1) ** 2 * n_letters * q ** 3
+
+    @property
+    def cls(self) -> UniformlyTreeAutomaticClass:
+        """The uniformly tree-automatic presentation, built lazily: the tree
+        multiplication automaton is a product over the whole letter alphabet, so
+        its construction is only feasible for a small ring alphabet. The
+        reference law, `advice` compiler, width measure and `simulate` never
+        need it and stay cheap for any q."""
+        if self._cls is None:
+            cost = self._cls_cost()
+            if cost > self._CLS_ENUMERATION_CAP:
+                raise ValueError(
+                    f"advice alphabet too large to build the explicit "
+                    f"presentation automata: "
+                    f"{len(self.leaf_letters) + len(self.unary_letters) + len(self.binary_letters)}"
+                    f" letters, ~{cost:.0e} transition enumerations "
+                    f"(cap {self._CLS_ENUMERATION_CAP:.0e}); "
+                    f"use check_implicit or simulate instead")
+            self._cls = UniformlyTreeAutomaticClass({
+                'U': self._universe_automaton(),
+                'M': self._multiplication_automaton(),
+                'Eq': self._eq_automaton(),
+            }, padding_symbol=PAD)
+            self._cls.element_alphabet = list(self.digits)
+        return self._cls
+
+    # ---------------- the automata ----------------
+
+    def _shape_core(self, a, x, lq, rq):
+        """One shape step shared by U, Eq and their implicit atoms: `a` is
+        the advice letter, `x` the tracked element digit (None when digit
+        constancy is not being tracked); the caller has already checked the
+        digit condition and dead children."""
+        k = self.k
+        child = lq if rq is None else (rq if lq is None else None)
+        if a == CMARK:
+            if child == 'lay':
+                return ('c', 1)
+            if isinstance(child, tuple) and child[0] == 'c' and child[1] < k:
+                return ('c', child[1] + 1)
+            return 'dead'
+        if not self.factored:
+            if a in self.leaf_letters:
+                return 'lay' if lq is None and rq is None else 'dead'
+            if a in self.unary_letters:
+                return 'lay' if child == 'lay' else 'dead'
+            if a in self.binary_letters:
+                return 'lay' if lq == 'lay' and rq == 'lay' else 'dead'
+            return 'dead'
+        if a == 'a':
+            return ('s', 'a', 0, x) if lq is None and rq is None else 'dead'
+        if a == 'b':
+            return ('s', 'b', 0, x) if child == 'lay' else 'dead'
+        if a == 'd':
+            return ('s', 'd', 0, x) if lq == 'lay' and rq == 'lay' else 'dead'
+        if a in self.entry_letters:
+            if isinstance(child, tuple) and child[0] == 's' and child[3] == x:
+                kind, ph = child[1], child[2]
+                return ('lay' if ph + 1 == self.n_entries[kind]
+                        else ('s', kind, ph + 1, x))
+        return 'dead'
+
+    def _shape_delta(self, q_of, track_digit=False):
+        """Shared shape logic for U and Eq: q_of(sym) is the digit condition;
+        with `track_digit` the state remembers the digit repeating along a
+        factored stretch (only U needs this)."""
+        k = self.k
+
+        def delta(lq, rq, sym):
+            if 'dead' in (lq, rq) or not q_of(sym):
+                return 'dead'
+            return self._shape_core(sym[0], sym[1] if track_digit else None,
+                                    lq, rq)
+
+        states = ['lay', 'dead'] + [('c', j) for j in range(1, k + 1)]
+        if self.factored:
+            digs = self.digits if track_digit else [None]
+            states += [('s', kind, ph, x) for kind in self.MARKERS
+                       for ph in range(self.n_entries[kind]) for x in digs]
+        return delta, states, {('c', k)}
+
+    def _universe_automaton(self) -> SparseTreeAutomaton:
+        delta, states, finals = self._shape_delta(
+            lambda sym: sym[1] in self._digitset, track_digit=True)
+        return sta_from_delta(self.sigma, states, 2, delta, finals,
+                              tapes=[self.advice_letters, self.element_letters])
+
+    def _eq_automaton(self) -> SparseTreeAutomaton:
+        delta, states, finals = self._shape_delta(
+            lambda sym: sym[1] in self._digitset and sym[1] == sym[2])
+        return sta_from_delta(self.sigma, states, 3, delta, finals,
+                              tapes=[self.advice_letters] +
+                                    [self.element_letters] * 2)
+
+    def _multiplication_automaton(self) -> SparseTreeAutomaton:
+        """M(advice, x, y, z): z = x·y via the shared `_m_step` transition
+        (the factored streaming cocycle, streamed entry by entry with
+        accumulators in factored letter mode)."""
+        k, r, q = self.k, self.r, self.q
+        states = ['dead']
+        vecs_r = list(it.product(range(q), repeat=r))
+        zk, zr = (0,) * k, (0,) * r
+        for s in it.product(range(q), repeat=k):
+            for wx in vecs_r:
+                for wy in vecs_r:
+                    states.append(('t', s, wx, wy))
+        if self.factored:
+            for ph in range(self.n_entries['a']):
+                for ax in vecs_r:
+                    for ay in vecs_r:
+                        states.append(('f', 'a', ph, zk, zr, zr, zr, zr,
+                                       ax, ay))
+            for ph in range(self.n_entries['b']):
+                for s in it.product(range(q), repeat=k):
+                    for wx in vecs_r:
+                        for wy in vecs_r:
+                            for ax in vecs_r:
+                                for ay in vecs_r:
+                                    states.append(('f', 'b', ph, s, wx, wy,
+                                                   zr, zr, ax, ay))
+            for ph in range(self.n_entries['d']):
+                for s in it.product(range(q), repeat=k):
+                    for ws in it.product(vecs_r, repeat=4):
+                        for ax in vecs_r:
+                            for ay in vecs_r:
+                                states.append(('f', 'd', ph, s) + ws
+                                              + (ax, ay))
+        for j in range(1, k + 1):
+            for rest in it.product(range(q), repeat=k - j):
+                states.append(('c', j, (0,) * j + rest))
+        finals = {('c', k, (0,) * k)}
+
+        def delta(lq, rq, sym):
+            a, x, y, z = sym
+            return self._m_step(a, x, y, z, lq, rq)
+
+        return sta_from_delta(self.sigma, states, 4, delta, finals,
+                              tapes=[self.advice_letters] +
+                                    [self.element_letters] * 3)
+
+    # ---------------- layouts, forms and the advice compiler ----------------
+
+    @staticmethod
+    def spine(n: int) -> Tree:
+        """The word layout: a left chain, post-order = bottom-up."""
+        if n < 1:
+            raise ValueError("need at least one generator")
+        node = Tree(SHAPE)
+        for _ in range(n - 1):
+            node = Tree(SHAPE, node, None)
+        return node
+
+    @staticmethod
+    def balanced(n: int) -> Tree:
+        """A balanced binary layout with n nodes."""
+        if n < 1:
+            raise ValueError("need at least one generator")
+
+        def build(m):
+            if m == 0:
+                return None
+            left = (m - 1 + 1) // 2
+            return Tree(SHAPE, build(left), build(m - 1 - left))
+        return build(n)
+
+    @staticmethod
+    def _layout(shape: Tree):
+        """Post-order sequence, 1-based positions and subtree sizes."""
+        seq = []
+        stack = [(shape, False)]
+        while stack:
+            node, done = stack.pop()
+            if node is None:
+                continue
+            if done:
+                seq.append(node)
+                continue
+            stack.append((node, True))
+            stack.append((node.right, False))
+            stack.append((node.left, False))
+        pos = {id(node): i + 1 for i, node in enumerate(seq)}
+        size = {}
+        for node in seq:
+            size[id(node)] = 1 + sum(size[id(c)] for c in (node.left, node.right)
+                                     if c is not None)
+        return seq, pos, size
+
+    def _check_form(self, n: int, form: Dict[Tuple[int, int], Sequence[int]]):
+        for (j, i), label in form.items():
+            if not 1 <= i < j <= n:
+                raise ValueError(f"label position {(j, i)} needs 1 <= i < j <= {n}")
+            if len(label) != self.k:
+                raise ValueError(f"label {label} at {(j, i)} must have length k={self.k}")
+
+    def _crossing(self, n: int, form: Dict, lo: int, hi: int) -> np.ndarray:
+        """Crossing block of the post-order interval [lo, hi]: one row per
+        (outside position, center coordinate), unoriented pair labels."""
+        outside = {j: idx for idx, j in enumerate(
+            [j for j in range(1, n + 1) if j < lo or j > hi])}
+        M = np.zeros((len(outside) * self.k, hi - lo + 1), dtype=np.int64)
+        for (j, i), label in form.items():
+            i_in, j_in = lo <= i <= hi, lo <= j <= hi
+            if i_in == j_in:
+                continue
+            inner, outer = (i, j) if i_in else (j, i)
+            for l in range(self.k):
+                M[outside[outer] * self.k + l, inner - lo] = label[l] % self.q
+        return M
+
+    def _pair_rows(self, form: Dict, t: int, lo: int, hi: int) -> np.ndarray:
+        """The read-off rows at node t: labels of the pairs {t, i} for i in
+        [lo, hi] (all below t in post-order), as a k x (hi-lo+1) matrix."""
+        B = np.zeros((self.k, hi - lo + 1), dtype=np.int64)
+        for i in range(lo, hi + 1):
+            label = form.get((t, i))
+            if label:
+                B[:, i - lo] = [c % self.q for c in label]
+        return B
+
+    def tree_cut_rank(self, shape: Tree, form: Dict) -> int:
+        """The width the given tree layout needs: the maximal module cut-rank
+        over R = Z/p^d of the crossing blocks of its subtrees (the free rank of
+        the saturated interface; the ordinary F_p rank when d = 1)."""
+        seq, pos, size = self._layout(shape)
+        n = len(seq)
+        self._check_form(n, form)
+        best = 0
+        for node in seq:
+            t, sz = pos[id(node)], size[id(node)]
+            if sz < n:
+                rank = cr.module_cut_rank(self._crossing(n, form, t - sz + 1, t),
+                                          self.p, self.d)
+                best = max(best, rank)
+        return best
+
+    def advice(self, shape: Tree, form: Dict[Tuple[int, int], Sequence[int]]) -> Tree:
+        """Compile a layout and a form into the advice tree; raises if some
+        subtree's crossing block exceeds rank r. In factored mode each node
+        becomes its bare marker with the ring entries chained above it."""
+        p, k, r, d, q = self.p, self.k, self.r, self.d, self.q
+        seq, pos, size = self._layout(shape)
+        n = len(seq)
+        self._check_form(n, form)
+        flat = lambda A: [int(e) % q for e in np.asarray(A).flatten()]
+        digs = lambda ent: ''.join(
+            str(dig) for e in ent for dig in cr.to_digits(e, p, d))
+        V: Dict[int, np.ndarray] = {}
+        built: Dict[int, Tree] = {}
+        for node in seq:
+            t, sz = pos[id(node)], size[id(node)]
+            lo = t - sz + 1
+            Vt = np.zeros((r, sz), dtype=np.int64)
+            if sz < n:
+                # carry a minimal GENERATING set of the crossing block's row
+                # module (Smith with the p-power factors kept). Restricting a
+                # crossing row of a subtree to a child block gives a crossing
+                # row of the child, so row modules restrict into row modules
+                # and every fold and read-off below solves. A saturated basis
+                # would not: pure closures are non-unique over Z/p^d and need
+                # not nest under restriction. The valuations this keeps in
+                # the interface are exactly why the sibling merge needs a
+                # pairing table over the ring (below) instead of a Q matrix.
+                basis, exps = cr.saturate(self._crossing(n, form, lo, t), p, d)
+                if basis.shape[0] > r:
+                    raise ValueError(
+                        f"subtree at position {t} has module cut-rank "
+                        f"{basis.shape[0]} > r = {r}; this layout needs width "
+                        f"{self.tree_cut_rank(shape, form)}")
+                for row, e in enumerate(exps):
+                    Vt[row] = (basis[row] * p ** e) % q
+            L, R = node.left, node.right
+            if L is None and R is None:
+                kind, entries = 'a', flat(Vt[:, 0])
+            elif L is None or R is None:
+                child = L if L is not None else R
+                cp, csz = pos[id(child)], size[id(child)]
+                T = cr.solve_left(V[cp], Vt[:, :csz], p, d)
+                Rm = cr.solve_left(V[cp], self._pair_rows(form, t, lo, t - 1), p, d)
+                kind, entries = 'b', flat(T) + flat(Vt[:, -1]) + flat(Rm)
+            else:
+                lp, rp = pos[id(L)], pos[id(R)]
+                lsz, rsz = size[id(L)], size[id(R)]
+                VL, VR = V[lp], V[rp]
+                TL = cr.solve_left(VL, Vt[:, :lsz], p, d)
+                TR = cr.solve_left(VR, Vt[:, lsz:sz - 1], p, d)
+                RL = cr.solve_left(VL, self._pair_rows(form, t, lo, lp), p, d)
+                RR = cr.solve_left(VR, self._pair_rows(form, t, lp + 1, t - 1), p, d)
+                kind = 'd'
+                entries = (flat(TL) + flat(TR) + flat(Vt[:, -1])
+                           + flat(RL) + flat(RR))
+                for l in range(k):
+                    # sibling block X[j, i] = B[j, i][l], i in L, j in R.
+                    X = np.zeros((rsz, lsz), dtype=np.int64)
+                    for jj in range(lp + 1, t):
+                        for ii in range(lo, lp + 1):
+                            label = form.get((jj, ii))
+                            if label:
+                                X[jj - lp - 1, ii - lo] = label[l] % q
+                    if d == 1:
+                        # over the field the block factors as V_R^T Q_l V_L
+                        Ql = cr.factor_two_sided(X, VL, VR, p, d)
+                        entries += flat(Ql)
+                    else:
+                        # over the ring the contribution a_R^T X a_L is a
+                        # well-defined bilinear function of the two register
+                        # values (rows of X are crossing rows of L, columns
+                        # crossing rows of R -- the membership solves below
+                        # certify it), but need not be a matrix in them: the
+                        # letter carries the full pairing table instead.
+                        cr.solve_left(VL, X, p, d)          # rows in rowsp(VL)
+                        cr.solve_left(VR, X.T, p, d)        # cols in rowsp(VR)
+                        entries += self._pairing_table(X, VL, VR)
+            V[t] = Vt
+            sub = Tree(kind if self.factored else kind + digs(entries),
+                       built.get(id(L)) if L is not None else None,
+                       built.get(id(R)) if R is not None else None)
+            if self.factored:
+                for e in entries:
+                    sub = Tree(self._letter_name('e', (e,)), sub, None)
+            built[id(node)] = sub
+        root = built[id(seq[-1])]
+        for _ in range(k):
+            root = Tree(CMARK, root, None)
+        return root
+
+    def _column_span(self, V: np.ndarray) -> Dict[Tuple[int, ...], np.ndarray]:
+        """The image of a ↦ V a with one preimage per image vector: closure
+        of the column span under adding columns (at most q^r image vectors)."""
+        q = self.q
+        cols = V.shape[1]
+        span = {(0,) * V.shape[0]: np.zeros(cols, dtype=np.int64)}
+        frontier = list(span)
+        while frontier:
+            nxt = []
+            for w in frontier:
+                a = span[w]
+                for i in range(cols):
+                    w2 = tuple((wv + int(V[s, i])) % q
+                               for s, wv in enumerate(w))
+                    if w2 not in span:
+                        a2 = a.copy()
+                        a2[i] = (a2[i] + 1) % q
+                        span[w2] = a2
+                        nxt.append(w2)
+            frontier = nxt
+        return span
+
+    def _pairing_table(self, X: np.ndarray, VL: np.ndarray,
+                       VR: np.ndarray) -> list:
+        """The merge pairing as a table over the register space: entry
+        (w1, w2) -- in the fixed enumeration order of R^r x R^r -- is
+        a_R^T X a_L for preimages V_R a_R = w1, V_L a_L = w2 (well-defined
+        by the membership certificates); pairs outside the images are 0."""
+        q = self.q
+        spanL = self._column_span(VL)
+        spanR = self._column_span(VR)
+        table = []
+        for w1 in self._vecs:
+            aR = spanR.get(w1)
+            for w2 in self._vecs:
+                aL = spanL.get(w2)
+                if aR is None or aL is None:
+                    table.append(0)
+                else:
+                    table.append(int(aR @ X @ aL) % q)
+        return table
+
+    def clique_form(self, n: int, label: Sequence[int] = None) -> Dict:
+        """Nothing commutes; every crossing block is all-ones — cut-rank 1
+        on every layout."""
+        label = tuple(label) if label is not None else (1,) + (0,) * (self.k - 1)
+        return {(j, i): label for j in range(2, n + 1) for i in range(1, j)}
+
+    def matching_form(self, n: int) -> Dict:
+        """Disjoint commutator pairs of post-order neighbours: the
+        extraspecial layout."""
+        e1 = (1,) + (0,) * (self.k - 1)
+        return {(2 * t, 2 * t - 1): e1 for t in range(1, n // 2 + 1)}
+
+    # ---------------- encodings and class operations ----------------
+
+    def multiply(self, n: int, form: Dict, g, h):
+        """Reference implementation of the group law over R = Z/p^d (identical
+        to the word class: the group depends on the form, not the layout)."""
+        (b1, a1), (b2, a2) = g, h
+        b = [(u + v) % self.q for u, v in zip(b1, b2)]
+        for (j, i), label in form.items():
+            c = a1[j - 1] * a2[i - 1]
+            for l in range(self.k):
+                b[l] = (b[l] + label[l] * c) % self.q
+        return tuple(b), tuple((u + v) % self.q for u, v in zip(a1, a2))
+
+    def identity(self, n: int):
+        return (0,) * self.k, (0,) * n
+
+    def simulate(self, advice: Tree, gx, gy, gz) -> bool:
+        """Run the multiplication automaton directly over the convolved trees:
+        True iff the advice accepts gx * gy = gz. A bottom-up pass of the shared
+        `_m_step` transition, without building the product tree automaton, so the
+        saturated tree merge can be checked against the reference law for any ring
+        alphabet. gx, gy, gz are (b, a) elements over the advice shape."""
+        tx, ty, tz = (self.encode(g, advice) for g in (gx, gy, gz))
+
+        def rec(an, xn, yn, zn):
+            left = (rec(an.left, xn.left, yn.left, zn.left)
+                    if an.left is not None else None)
+            right = (rec(an.right, xn.right, yn.right, zn.right)
+                     if an.right is not None else None)
+            return self._m_step(an.label, xn.label, yn.label, zn.label,
+                                left, right)
+
+        return self._m_accepting(rec(advice, tx, ty, tz))
+
+    # ---------------- the multiplication transition (shared) ----------------
+
+    def _m_accepting(self, state) -> bool:
+        return state == ('c', self.k, (0,) * self.k)
+
+    def _m_step(self, a, x, y, z, left, right):
+        """One bottom-up step of the tree multiplication automaton over
+        R = Z/p^d, shared by `simulate` and the implicit M atom. `a` is the
+        advice label; `x, y, z` the element labels; `left`/`right` the child
+        states (None for a missing child, 'dead' once any child died)."""
+        k, r, q = self.k, self.r, self.q
+        if left == 'dead' or right == 'dead':
+            return 'dead'
+        if not (x in self._digitset and y in self._digitset and z in self._digitset):
+            return 'dead'
+        xi, yi, zi = int(x), int(y), int(z)
+
+        def dot(M, w):
+            return tuple(sum(row[j] * w[j] for j in range(r)) % q for row in M)
+
+        if a == CMARK:
+            child = left if right is None else (right if left is None else None)
+            if child is None or not isinstance(child, tuple):
+                return 'dead'
+            if child[0] == 't':
+                j, s = 0, child[1]
+            elif child[0] == 'c':
+                j, s = child[1], child[2]
+            else:
+                return 'dead'
+            if j >= k or (zi - xi - yi) % q != s[j]:
+                return 'dead'
+            return ('c', j + 1, s[:j] + (0,) + s[j + 1:])
+        if (xi + yi - zi) % q:
+            return 'dead'
+        if self.factored:
+            return self._m_step_factored(a, xi, yi, left, right)
+        if a in self.leaf_letters:
+            if left is not None or right is not None:
+                return 'dead'
+            v = self.leaf_letters[a]
+            return ('t', (0,) * k,
+                    tuple(v[i] * xi % q for i in range(r)),
+                    tuple(v[i] * yi % q for i in range(r)))
+        if a in self.unary_letters:
+            child = left if right is None else (right if left is None else None)
+            if child is None or child[0] != 't':
+                return 'dead'
+            T, v, R = self.unary_letters[a]
+            s, wx, wy = child[1], child[2], child[3]
+            s = tuple((s[l] + xi * dot(R, wy)[l]) % q for l in range(k))
+            Twx, Twy = dot(T, wx), dot(T, wy)
+            return ('t', s,
+                    tuple((Twx[i] + v[i] * xi) % q for i in range(r)),
+                    tuple((Twy[i] + v[i] * yi) % q for i in range(r)))
+        if a in self.binary_letters:
+            if left is None or right is None \
+                    or left[0] != 't' or right[0] != 't':
+                return 'dead'
+            TL, TR, v, RL, RR, Q = self.binary_letters[a]
+            sL, wxL, wyL = left[1], left[2], left[3]
+            sR, wxR, wyR = right[1], right[2], right[3]
+            readL, readR = dot(RL, wyL), dot(RR, wyR)
+            s = tuple((sL[l] + sR[l] + xi * (readL[l] + readR[l])
+                       + sum(Q[l][u][t] * wxR[u] * wyL[t]
+                             for u in range(r) for t in range(r))) % q
+                      for l in range(k))
+            TwxL, TwxR = dot(TL, wxL), dot(TR, wxR)
+            TwyL, TwyR = dot(TL, wyL), dot(TR, wyR)
+            return ('t', s,
+                    tuple((TwxL[i] + TwxR[i] + v[i] * xi) % q for i in range(r)),
+                    tuple((TwyL[i] + TwyR[i] + v[i] * yi) % q for i in range(r)))
+        return 'dead'
+
+    def _m_step_factored(self, a, xi, yi, left, right):
+        """Marker/entry steps of the factored multiplication automaton. A
+        marker folds the committed child states into a streaming frame
+        ('f', kind, phase, s, w1x, w1y, w2x, w2y, accx, accy); each entry
+        letter applies one ring entry (in the flat letters' entry order) and
+        the last one commits the accumulators into ('t', s, wx, wy)."""
+        k, r, q = self.k, self.r, self.q
+        zk, zr = (0,) * k, (0,) * r
+        child = left if right is None else (right if left is None else None)
+        if a == 'a':
+            if left is not None or right is not None:
+                return 'dead'
+            return ('f', 'a', 0, zk, zr, zr, zr, zr, zr, zr)
+        if a == 'b':
+            if child is None or child[0] != 't':
+                return 'dead'
+            return ('f', 'b', 0, child[1], child[2], child[3], zr, zr, zr, zr)
+        if a == 'd':
+            if left is None or right is None \
+                    or left[0] != 't' or right[0] != 't':
+                return 'dead'
+            s = tuple((left[1][l] + right[1][l]) % q for l in range(k))
+            return ('f', 'd', 0, s, left[2], left[3], right[2], right[3],
+                    zr, zr)
+        val = self.entry_letters.get(a)
+        if val is None or child is None or child[0] != 'f':
+            return 'dead'
+        kind, ph, s, w1x, w1y, w2x, w2y, ax, ay = child[1:]
+
+        def bump(vec, i, delta):
+            return vec[:i] + ((vec[i] + delta) % q,) + vec[i + 1:]
+
+        if kind == 'a':                      # v entries only
+            ax, ay = bump(ax, ph, val * xi), bump(ay, ph, val * yi)
+        elif kind == 'b':                    # T, v, R
+            if ph < r * r:
+                i, j = divmod(ph, r)
+                ax, ay = bump(ax, i, val * w1x[j]), bump(ay, i, val * w1y[j])
+            elif ph < r * r + r:
+                i = ph - r * r
+                ax, ay = bump(ax, i, val * xi), bump(ay, i, val * yi)
+            else:
+                l, u = divmod(ph - r * r - r, r)
+                s = bump(s, l, xi * val * w1y[u])
+        else:                                # TL, TR, v, RL, RR, Q
+            r2 = r * r
+            if ph < r2:
+                i, j = divmod(ph, r)
+                ax, ay = bump(ax, i, val * w1x[j]), bump(ay, i, val * w1y[j])
+            elif ph < 2 * r2:
+                i, j = divmod(ph - r2, r)
+                ax, ay = bump(ax, i, val * w2x[j]), bump(ay, i, val * w2y[j])
+            elif ph < 2 * r2 + r:
+                i = ph - 2 * r2
+                ax, ay = bump(ax, i, val * xi), bump(ay, i, val * yi)
+            elif ph < 2 * r2 + r + k * r:
+                l, u = divmod(ph - 2 * r2 - r, r)
+                s = bump(s, l, xi * val * w1y[u])
+            elif ph < 2 * r2 + r + 2 * k * r:
+                l, u = divmod(ph - 2 * r2 - r - k * r, r)
+                s = bump(s, l, xi * val * w2y[u])
+            elif self.d == 1:
+                # field: the k bilinear forms Q of the sibling block
+                l, rem = divmod(ph - 2 * r2 - r - 2 * k * r, r2)
+                u, t = divmod(rem, r)
+                s = bump(s, l, val * w2x[u] * w1y[t])
+            else:
+                # ring: the k pairing tables -- the entry indexed by the
+                # current register pair (right child's x, left child's y)
+                # is the sibling contribution; all other entries pass by
+                nv = len(self._vecs)
+                l, rem = divmod(ph - 2 * r2 - r - 2 * k * r, nv * nv)
+                i1, i2 = divmod(rem, nv)
+                if self._vecs[i1] == w2x and self._vecs[i2] == w1y:
+                    s = bump(s, l, val)
+        if ph + 1 == self.n_entries[kind]:
+            return ('t', s, ax, ay)
+        return ('f', kind, ph + 1, s, w1x, w1y, w2x, w2y, ax, ay)
+
+    def _strip_center(self, tree: Tree) -> Tree:
+        node = tree
+        for _ in range(self.k):
+            if node is None or node.label != CMARK or node.right is not None:
+                raise ValueError("expected a chain of k center nodes on top")
+            node = node.left
+        return node
+
+    def encode(self, element, shape: Tree) -> Tree:
+        """Encode (b, a) over a layout shape (an advice tree is accepted
+        too — its center chain is stripped). a is indexed by post-order. In
+        factored mode each node's digit is repeated along its entry stretch
+        (so the element tree has the advice's exact shape)."""
+        if shape.label == CMARK:
+            shape = self._strip_center(shape)
+        if self.factored and (shape.label in self.entry_letters
+                              or shape.label in self.MARKERS):
+            shape = self._layout_of_advice(shape)
+        b, a = element
+        seq, pos, size = self._layout(shape)
+        if len(b) != self.k or len(a) != len(seq):
+            raise ValueError(f"element must be (R^{self.k}, R^{len(seq)}), R = Z/{self.q}")
+        if not all(0 <= x < self.q for x in tuple(b) + tuple(a)):
+            raise ValueError(f"components must lie in Z/{self.q}")
+        built = {}
+        for node in seq:
+            digit = str(a[pos[id(node)] - 1])
+            sub = Tree(
+                digit,
+                built.get(id(node.left)) if node.left is not None else None,
+                built.get(id(node.right)) if node.right is not None else None)
+            if self.factored:
+                kind = ('a' if node.left is None and node.right is None else
+                        'd' if node.left is not None and node.right is not None
+                        else 'b')
+                for _ in range(self.n_entries[kind]):
+                    sub = Tree(digit, sub, None)
+            built[id(node)] = sub
+        root = built[id(seq[-1])]
+        for j in range(self.k):
+            root = Tree(str(b[j]), root, None)
+        return root
+
+    def _layout_of_advice(self, advice: Tree) -> Tree:
+        """Recover the bare layout shape from a factored advice tree (strip
+        the entry chains above each marker)."""
+        def rec(node):
+            while node is not None and node.label in self.entry_letters:
+                node = node.left if node.left is not None else node.right
+            if node is None:
+                return None
+            return Tree(SHAPE, rec(node.left), rec(node.right))
+        return rec(advice)
+
+    def evaluate(self, phi):
+        return self.cls.evaluate(phi)
+
+    def check(self, phi, advice: Tree, **elements) -> bool:
+        """Model check against the member presented by the advice; free
+        variables can be assigned elements as (b, a) tuples."""
+        trees = {name: self.encode(el, advice) for name, el in elements.items()}
+        return self.cls.check(phi, advice, **trees)
+
+    def _implicit_atoms(self) -> Dict:
+        """Functional bottom-up base automata (Dom, Adv, M, Eq) from the tree
+        deltas -- no explicit product, so this works for the large-q members
+        whose `cls` cannot be built. Each entry is a builder ``args -> ImplicitTA``."""
+        from autstr.implicit import ImplicitTA
+        k = self.k
+        digitset = self._digitset
+
+        def shape(args, q_of, tracked=None):
+            adv = args[0]
+
+            def step(sym, left, right):
+                if left == 'dead' or right == 'dead' or not q_of(sym):
+                    return 'dead'
+                return self._shape_core(
+                    sym[adv], sym[tracked] if tracked is not None else None,
+                    left, right)
+            return ImplicitTA(args, step, lambda st: st == ('c', k))
+
+        def Dom(args):
+            return shape(args, lambda sym: sym[args[1]] in digitset,
+                         tracked=args[1])
+
+        def Adv(args):
+            return shape(args, lambda sym: True)
+
+        def Eq(args):
+            return shape(args, lambda sym: sym[args[1]] in digitset
+                         and sym[args[1]] == sym[args[2]])
+
+        def M(args):
+            adv, xv, yv, zv = args
+            return ImplicitTA(
+                args,
+                lambda sym, left, right: self._m_step(
+                    sym[adv], sym[xv], sym[yv], sym[zv], left, right),
+                self._m_accepting)
+
+        return {'Dom': Dom, 'Adv': Adv, 'M': M, 'Eq': Eq}
+
+    def decode(self, tree: Tree, advice: Tree):
+        """Inverse of `encode` over the member's advice: an element tree back
+        to its (b, a) tuple (a indexed by post-order layout positions)."""
+        b = []
+        anode, enode = advice, tree
+        for _ in range(self.k):
+            if anode is None or anode.label != CMARK:
+                raise ValueError("advice must start with the k center marks")
+            b.append(int(enode.label))
+            anode, enode = anode.left, enode.left
+        a = []
+
+        def rec(an, en):
+            if self.factored:
+                while an.label in self.entry_letters:
+                    an, en = ((an.left, en.left) if an.left is not None
+                              else (an.right, en.right))
+            if an.left is not None:
+                rec(an.left, en.left)
+            if an.right is not None:
+                rec(an.right, en.right)
+            a.append(int(en.label))
+
+        rec(anode, enode)
+        return tuple(b), tuple(a)
+
+    @property
+    def implicit_cls(self):
+        """The fully implicit presentation of this class (functional atoms
+        only, nothing compiled): an `autstr.implicit.ImplicitTreeClass` over
+        raw element trees. `check_implicit`/`evaluate_implicit` add the
+        (b, a)-tuple encoding on top of it."""
+        from autstr.implicit import ImplicitTreeClass
+        return ImplicitTreeClass(self._implicit_atoms(), list(self.digits))
+
+    def check_implicit(self, phi, advice: Tree, **elements) -> bool:
+        """Like `check`, but evaluated implicitly (no query or base tree
+        automaton) -- the only viable model checker for the large-alphabet ring
+        members whose `cls` cannot be built. See `autstr.implicit`."""
+        trees = {name: self.encode(el, advice) for name, el in elements.items()}
+        return self.implicit_cls.check(phi, advice, **trees)
+
+    def evaluate_implicit(self, phi, advice: Tree, **elements):
+        """The satisfying set of phi on the member presented by the advice,
+        computed implicitly: unassigned free variables stay open and are
+        solved for. Yields assignments {var: (b, a)}; `len` is the exact
+        solution count without enumeration. Works for members whose automata
+        cannot be built."""
+        from autstr.implicit import MappedSolutions
+        trees = {name: self.encode(el, advice) for name, el in elements.items()}
+        sols = self.implicit_cls.evaluate(phi, advice, **trees)
+        return MappedSolutions(sols, lambda t: self.decode(t, advice))
+
+    def get_structure(self, advice: Tree) -> TreeAutomaticPresentation:
+        return self.cls.get_structure(advice)

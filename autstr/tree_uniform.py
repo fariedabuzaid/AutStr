@@ -184,6 +184,35 @@ class UniformlyTreeAutomaticClass(UniformlyAutomaticClass):
         return sta.accepts(tree_to_arrays(conv, sta.base_alphabet_frozen,
                                           sta.symbol_arity))
 
+    def check_implicit(self, phi, advice: Tree, **assignments) -> bool:
+        """Model check a formula against the member S_advice without compiling a
+        query tree automaton: the formula is evaluated bottom-up on the fly over
+        the base tree automata. Scales to classes whose query automaton is
+        infeasible. See `autstr.implicit`.
+
+        Unlike `check`, the on-the-fly evaluator is synchronous: it walks the
+        advice tree and every assigned element tree in lockstep and does not
+        convolve or pad mismatched shapes, so the assigned trees must already be
+        padded to the advice's shape."""
+        from autstr import implicit
+        return implicit.check_class_tree(
+            phi, advice, assignments, dict(self.presentation.automata),
+            self._implicit_element_alphabet(),
+            self._relativize, self._variable_names)
+
+    def evaluate_implicit(self, phi, advice: Tree, **assignments):
+        """The satisfying set of phi on the member S_advice, computed
+        implicitly (no query tree automaton): unassigned free variables stay
+        open and are solved for over the fixed advice. Returns a
+        `TreeSolutionSet` of `{var: tree}` assignments (trees of the
+        advice's shape) — its `len` is the exact solution count, iterating
+        lazily yields the assignments. See `autstr.implicit`."""
+        from autstr import implicit
+        return implicit.evaluate_class_tree(
+            phi, advice, assignments, dict(self.presentation.automata),
+            self._implicit_element_alphabet(),
+            self._relativize, self._variable_names)
+
     def define(self, name: str, phi: Union[str, logic.Expression]
                ) -> SparseTreeAutomaton:
         """Define a new class relation by a first-order formula over the

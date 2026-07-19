@@ -239,9 +239,10 @@ Built-in classes include:
 |---------|---------|-----------|
 | `autstr.graphs`  | bounded **tree-depth**, bounded **pathwidth** | full MSO over vertex sets (`Sing`, `Subset`, `E`) |
 | `autstr.algebra` | finite **Boolean algebras**, **ℤ[1/p]** | `Meet`/`Join`/`Compl`/`Leq`/`Atom`; `+` |
-| `autstr.groups`  | finite **abelian** groups, **index-≤2 cyclic** groups (dihedral, quaternion, semidihedral, modular), **extraspecial** p-groups | `+`; multiplication `M` |
-| `autstr.tree_graphs` | bounded **tree-width**, bounded **clique-width** | full MSO over vertex sets (`Sing`, `Subset`, `E`) |
-| `autstr.tree_groups` | **tree-indexed extraspecial** p-groups | multiplication `M` |
+| `autstr.groups`  | finite **abelian** groups, **index-≤2 cyclic** groups (dihedral, quaternion, semidihedral, modular), **extraspecial** p-groups, class-2 groups of bounded **linear rank-width** (over F_p or ℤ/pᵈ) | `+`; multiplication `M` |
+| `autstr.tree_graphs` | bounded **tree-width**, bounded **clique-width**, bounded **rank-width** | full MSO over vertex sets (`Sing`, `Subset`, `E`) |
+| `autstr.tree_groups` | **tree-indexed extraspecial** p-groups, class-2 groups of bounded **rank-width** (tree layouts, over F_p or ℤ/pᵈ) | multiplication `M` |
+| `autstr.cocycle_groups` | **distributed-center** class-2 groups of tensor cut-rank 1 (claim-and-verify microcode) | multiplication `M` |
 
 The generic machinery in [`autstr.uniform`](autstr/uniform.py) turns *any*
 advice-indexed family of automata into a class with relativized query evaluation,
@@ -260,7 +261,9 @@ where a number is the tree of its prime exponents.
 
 The showcase notebooks in [`notebooks/`](notebooks/) walk through all of it;
 [`tree_classes.ipynb`](notebooks/tree_classes.ipynb) is the tour of the
-tree-automatic side.
+tree-automatic side. The notebooks are stored output-free and executed as part
+of the [documentation build](https://fariedabuzaid.github.io/AutStr/), where
+they appear fully rendered.
 
 ---
 
@@ -322,6 +325,94 @@ construction applied to the cyclic groups, and it predates the module.
 
 [`notebooks/composition.ipynb`](notebooks/composition.ipynb) walks through all
 five operations.
+
+---
+
+## 📐 Bounded rank-width: groups and graphs from one linear algebra
+
+The width notions above bound how much *combinatorial* structure crosses a cut.
+Rank-width bounds the **linear-algebraic rank** of what crosses, and one body of
+machinery — saturated interface bases, streamed basis changes, a two-sided
+factorization of the sibling block ([`autstr.chain_ring`](autstr/chain_ring.py))
+— presents both groups and graphs of bounded rank-width uniformly.
+
+**Class-2 groups** ([`autstr.groups.CutRankGroups`](autstr/groups.py),
+[`autstr.tree_groups.CutRankTreeGroups`](autstr/tree_groups.py)): a member is a
+central extension of (ℤ/pᵈ)ⁿ by (ℤ/pᵈ)ᵏ given by commutator labels; the advice spells
+out, cut by cut, a rank-≤r factorization of the crossing block of the commutation
+form, and the multiplication automaton carries r linear functionals instead of
+the digits it has read. With `d = 1` this is the field F_p; with `d > 1` the
+center has exponent pᵈ and the width is measured over the *chain ring* ℤ/pᵈ,
+where the interfaces must be saturated (a valuation-carrying coefficient like 2
+over ℤ/4 still contributes rank). Bounded pathwidth, bounded vertex cover, the
+extraspecial matching and the complete graph are all special layouts; the tree
+class recovers the word class on spine layouts.
+[`autstr.cocycle_groups.CocycleRankWidthGroups`](autstr/cocycle_groups.py)
+generalizes further to *distributed* centers — central generators scattered
+through the layout — via a seven-register claim-and-verify automaton whose
+advice is microcode.
+
+When a flat advice alphabet would be astronomical (it grows like
+q^(r²+r+kr)), the classes switch to **factored letters**: one letter per ring
+entry of the factorization, streamed through an accumulator — the advice
+alphabet drops to q+1 letters, and width r ≥ 2 over ℤ/4 went from
+unrepresentable to an explicitly buildable automaton this way.
+
+**Graphs** ([`autstr.tree_graphs.RankWidthClass`](autstr/tree_graphs.py)): the
+advice is a rank decomposition annotated with the GF(2) factorization of its
+cuts; adjacency of two vertices is a bilinear form applied to their r-bit
+interface vectors at the node where their subtrees meet. Rank-width
+lower-bounds clique-width and stays bounded on dense graphs (cliques have
+rank-width 1), and the class answers MSO queries like every other graph class:
+
+```python
+from autstr.tree_graphs import RankWidthClass, RankWidthGraph
+
+rw = RankWidthClass(1)
+two_col = ('exists a.(all x.(all y.((not E(x,y)) or '
+           '((Subset(x,a) and (not Subset(y,a))) or '
+           '(Subset(y,a) and (not Subset(x,a)))))))')
+rw.check(two_col, RankWidthGraph.complete_bipartite(2, 3))   # True  (rank-width 1)
+rw.check(two_col, RankWidthGraph.clique(3))                  # False (odd cycle)
+```
+
+---
+
+## ♾️ Implicit evaluation: members whose automata cannot be built
+
+For the heavy ring members the *base* multiplication automaton is already
+infeasible to construct — an O(|Σ|⁴) product over a huge advice alphabet. The
+[`autstr.implicit`](autstr/implicit.py) layer decides first-order formulas on
+such members anyway, by never building anything: Boolean connectives keep
+composite states and step the base automata on the fly, EXISTS is an
+on-the-fly powerset over the (tiny) element alphabet, NOT flips acceptance.
+Because the advice is fixed input, the cost is driven by quantifier
+alternation, not by alphabet size.
+
+```python
+from autstr.groups import CutRankGroups
+
+G = CutRankGroups(2, d=3)         # commutation forms over Z/8 — automata unbuildable
+advice = G.advice(3, G.clique_form(3))
+x = ((5,), (3, 1, 6))
+
+# model checking, implicitly:
+G.check_implicit('exists y.(M(x,y,u))', advice, x=x, u=G.identity(3))   # True
+
+# the satisfying SET, implicitly: exact count without enumeration, lazy iteration
+inv = G.evaluate_implicit('M(x,y,u)', advice, x=x, u=G.identity(3))
+len(inv)                          # 1 — the unique inverse
+next(iter(inv))['y']              # ... and here it is, as a (b, a) tuple
+```
+
+Every uniform class offers `check_implicit` (model checking) and
+`evaluate_implicit` (the satisfying assignments of a formula with open free
+variables, with the exact solution count computed by dynamic programming —
+no enumeration — and lazy iteration). `ImplicitClass` / `ImplicitTreeClass`
+package functional atoms and an element alphabet as a first-class *fully
+implicit* presentation: a uniformly automatic class given purely by
+transition functions, for members where even the presentation is too big to
+write down.
 
 ---
 
@@ -448,6 +539,34 @@ mathematical direction and review kept firmly human.
     Composed, they present every finite direct product of index-≤2 cyclic groups
     and extraspecial p-groups, drawn from either family — and decide that such a
     product is abelian exactly when all of its factors are.
+
+- **v3.1 (July 2026) — Claude, Fable 5.** The rank-width release: new
+  mathematics on top of the v3 engines, in the same human-directed protocol.
+  - **class-2 groups of bounded rank-width.** `CutRankGroups` (linear layouts),
+    `CutRankTreeGroups` (tree layouts) and `CocycleRankWidthGroups`
+    (distributed centers, microcode advice) — the advice spells out rank-≤r
+    factorizations of the commutation form's crossing blocks, cut by cut.
+  - **the chain-ring extension.** Everything generalizes from F_p to
+    R = ℤ/pᵈ (`autstr.chain_ring`: Smith normal form, saturated interfaces,
+    the two-sided factorization lemma) — centers of exponent pᵈ, widths
+    measured as module cut-rank, byte-identical at d = 1.
+  - **factored advice letters.** Beyond ~20000 flat letters the cut-rank
+    classes stream one ring entry per letter through accumulator states,
+    making width r ≥ 2 over the ring representable (q+1 advice letters).
+  - **implicit evaluation.** `check_implicit` / `evaluate_implicit` on every
+    class: first-order model checking and satisfying-set computation that
+    never build a query — or even a base — automaton, reaching members (ℤ/8
+    and ℤ/9 words, ℤ/4 trees, the distributed-center protocol) whose
+    automata are infeasible; `ImplicitClass` / `ImplicitTreeClass` are
+    presentations given purely by transition functions.
+  - **graphs of bounded rank-width.** `RankWidthClass` — rank decompositions
+    as advice, adjacency as a bilinear form on r-bit interface vectors,
+    full MSO; the graph face of the same linear algebra.
+  - Docs are built by CI with all notebooks **executed during the build**
+    (the repository keeps them output-free).
+  - One behavior change to a 3.0 API: `show_diagram` no longer opens an
+    external image viewer by default (headless builds must not spawn one);
+    pass `view=True` for the old behavior.
 
 ---
 

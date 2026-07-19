@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "autstr"
-version = "3.0.0"
+version = "3.1.0"
 description = "Library for working with finitely presentable infinite structures"
 readme = "README.md"
 authors = [
@@ -44,8 +44,10 @@ graphs = ["networkx>=3.0"]
 benchmarks = ["matplotlib>=3.5"]
 # everything the test suite needs (networkx for the graph classes)
 test = ["pytest>=7.4", "networkx>=3.0"]
-# building the API documentation from the docstrings
-docs = ["sphinx>=7.2", "furo>=2024.1", "sphinx-autodoc-typehints>=1.25", "networkx>=3.0"]
+# building the documentation: API reference from the docstrings plus the
+# showcase notebooks, executed during the build (myst-nb needs a kernel)
+docs = ["sphinx>=7.2", "furo>=2024.1", "sphinx-autodoc-typehints>=1.25",
+        "networkx>=3.0", "myst-nb>=1.1", "ipykernel>=6.29"]
 
 [dependency-groups]
 dev = [
@@ -56,7 +58,7 @@ dev = [
     "networkx>=3.0",
     "jupyter>=1.1.1,<2.0.0",
     "ipykernel>=6.29.5",
-    "sphinx-autodoc-typehints~=1.19.2",
+    "sphinx-autodoc-typehints>=1.25",
     "black~=23.9.1",
     "isort~=5.12.0",
     "mypy~=1.11.0",
