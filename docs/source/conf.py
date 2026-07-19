@@ -37,8 +37,8 @@ extensions = [
 ]
 
 # -- Notebooks ----------------------------------------------------------------
-# Copy the repository's notebooks into the source tree (docnames must be
-# ASCII, so `büchi` becomes `buechi`) and execute them all during the build.
+# Copy the repository's notebooks into the source tree and execute them all
+# during the build.
 
 _here = Path(__file__).parent
 _nb_dst = _here / 'notebooks'
@@ -47,15 +47,17 @@ _nb_dst = _here / 'notebooks'
 if _nb_dst.exists():
     shutil.rmtree(_nb_dst)
 _nb_dst.mkdir(exist_ok=True)
-for _old in _nb_dst.glob('*.ipynb'):
-    _old.unlink()
 for _nb in sorted((_here.parent.parent / 'notebooks').glob('*.ipynb')):
-    shutil.copyfile(_nb, _nb_dst / _nb.name.replace('ü', 'ue'))
+    shutil.copyfile(_nb, _nb_dst / _nb.name)
 
 nb_execution_mode = 'force'
 nb_execution_timeout = 900
 nb_execution_raise_on_error = True
 nb_merge_streams = True
+
+# MyST: render $...$ / $$...$$ and amsmath environments in the markdown cells
+# (without dollarmath the notebooks' inline LaTeX is shown verbatim).
+myst_enable_extensions = ['dollarmath', 'amsmath']
 
 templates_path = ['_templates']
 exclude_patterns = []
@@ -76,6 +78,17 @@ intersphinx_mapping = {
 
 # -- Options for HTML output -------------------------------------------------
 
-html_theme = 'furo'
+html_theme = 'sphinx_book_theme'
 html_static_path = []
 html_title = f'AutStr {release}'
+html_theme_options = {
+    'repository_url': 'https://github.com/fariedabuzaid/AutStr',
+    'repository_branch': 'main',
+    'path_to_docs': 'docs/source',
+    'use_repository_button': True,
+    'use_issues_button': True,
+    'use_download_button': True,
+    'home_page_in_toc': True,
+    'show_toc_level': 2,
+    'show_navbar_depth': 1,
+}

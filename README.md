@@ -259,11 +259,14 @@ k-expression (bounded clique-width), and Skolem arithmetic (ℕ, ·) in
 [`autstr.buildin.tree_presentations`](autstr/buildin/tree_presentations.py),
 where a number is the tree of its prime exponents.
 
-The showcase notebooks in [`notebooks/`](notebooks/) walk through all of it;
-[`tree_classes.ipynb`](notebooks/tree_classes.ipynb) is the tour of the
-tree-automatic side. The notebooks are stored output-free and executed as part
-of the [documentation build](https://fariedabuzaid.github.io/AutStr/), where
-they appear fully rendered.
+The showcase notebooks in [`notebooks/`](notebooks/) walk through all of it, one
+per area — [`arithmetic_and_algebra.ipynb`](notebooks/arithmetic_and_algebra.ipynb),
+[`graphs.ipynb`](notebooks/graphs.ipynb), [`groups.ipynb`](notebooks/groups.ipynb),
+[`composition.ipynb`](notebooks/composition.ipynb) and
+[`implicit_evaluation.ipynb`](notebooks/implicit_evaluation.ipynb). They are stored
+output-free and executed as part of the
+[documentation build](https://fariedabuzaid.github.io/AutStr/), where they appear
+fully rendered.
 
 ---
 

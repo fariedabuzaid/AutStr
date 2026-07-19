@@ -11,15 +11,11 @@ notebooks — executed freshly on every documentation build.
    :maxdepth: 1
    :caption: Notebooks
 
-   notebooks/arithmetic
-   notebooks/buechi
-   notebooks/mso0
-   notebooks/treedepth_graphs
-   notebooks/algebra_showcase
-   notebooks/groups_showcase
+   notebooks/arithmetic_and_algebra
+   notebooks/graphs
+   notebooks/groups
    notebooks/composition
-   notebooks/tree_classes
-   notebooks/automata_sparsity_benchmarks
+   notebooks/implicit_evaluation
 
 .. toctree::
    :maxdepth: 2
