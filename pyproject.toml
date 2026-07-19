@@ -46,8 +46,9 @@ benchmarks = ["matplotlib>=3.5"]
 test = ["pytest>=7.4", "networkx>=3.0"]
 # building the documentation: API reference from the docstrings plus the
 # showcase notebooks, executed during the build (myst-nb needs a kernel)
-docs = ["sphinx>=7.2", "furo>=2024.1", "sphinx-autodoc-typehints>=1.25",
-        "networkx>=3.0", "myst-nb>=1.1", "ipykernel>=6.29"]
+docs = ["sphinx>=7.2", "sphinx-book-theme>=1.1", "sphinx-autodoc-typehints>=1.25",
+        "networkx>=3.0", "matplotlib>=3.7", "pydot>=2.0", "myst-nb>=1.1",
+        "ipykernel>=6.29"]
 
 [dependency-groups]
 dev = [

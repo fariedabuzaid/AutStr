@@ -81,6 +81,17 @@ powers_of_two = x | x       # { 2^n : n >= 0 }
 (3,) in powers_of_two       # False
 ```
 
+Under the hood every relation *is* a finite automaton. Sieving the multiples of
+2 and 3 out of the integers > 1 — a couple of steps of the [infinite Sieve of
+Eratosthenes](notebooks/arithmetic_and_algebra.ipynb) — leaves this 9-state
+recognizer (accepting states are doubled; the full 2·3·5·7 sieve automaton needs
+157 states):
+
+<p align="center">
+  <img src="docs/media/sieve_automaton.png" width="720"
+       alt="A 9-state automaton recognizing the integers greater than 1 that are divisible by neither 2 nor 3">
+</p>
+
 ---
 
 ## ⚙️ Highlight: synthesizing linear-time algorithms
@@ -259,11 +270,14 @@ k-expression (bounded clique-width), and Skolem arithmetic (ℕ, ·) in
 [`autstr.buildin.tree_presentations`](autstr/buildin/tree_presentations.py),
 where a number is the tree of its prime exponents.
 
-The showcase notebooks in [`notebooks/`](notebooks/) walk through all of it;
-[`tree_classes.ipynb`](notebooks/tree_classes.ipynb) is the tour of the
-tree-automatic side. The notebooks are stored output-free and executed as part
-of the [documentation build](https://fariedabuzaid.github.io/AutStr/), where
-they appear fully rendered.
+The showcase notebooks in [`notebooks/`](notebooks/) walk through all of it, one
+per area — [`arithmetic_and_algebra.ipynb`](notebooks/arithmetic_and_algebra.ipynb),
+[`graphs.ipynb`](notebooks/graphs.ipynb), [`groups.ipynb`](notebooks/groups.ipynb),
+[`composition.ipynb`](notebooks/composition.ipynb) and
+[`implicit_evaluation.ipynb`](notebooks/implicit_evaluation.ipynb). They are stored
+output-free and executed as part of the
+[documentation build](https://fariedabuzaid.github.io/AutStr/), where they appear
+fully rendered.
 
 ---
 
@@ -492,6 +506,11 @@ structures its author had studied during his PhD in algorithmic model theory.
 Since then, each major release has doubled as a **snapshot of what a frontier AI
 coding system can do on hard, verifiable algorithmic work**, with the
 mathematical direction and review kept firmly human.
+
+<p align="center">
+  <img src="docs/media/history.gif" width="720"
+       alt="Gource animation of the AutStr commit history, showing the file tree growing across the human, DeepSeek and Claude phases">
+</p>
 
 - **v1.0 (2022) — human.** The original library and arithmetic front-end.
 - **v1.x (July 2025) — DeepSeek.** A vibe-coding session (with extensive human
