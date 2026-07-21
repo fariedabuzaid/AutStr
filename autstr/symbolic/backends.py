@@ -10,14 +10,16 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Sequence
 
 from autstr.buildin.automata import k_longer_automaton
-from autstr.sparse_tree_automata import convolve_trees, tree_to_arrays
+from autstr.sparse_tree_automata import Tree, convolve_trees, tree_to_arrays
 from autstr.utils.tree_automata_tools import (
-    canonical as tree_canonical, tree_automaton,
+    canonical as tree_canonical, iterate_trees, k_deeper_automaton,
+    tree_automaton,
 )
 from autstr.utils.automata_tools import (
     canonical, iterate_language, word_automaton,
 )
 from autstr.utils.logic import get_free_elementary_vars
+from autstr.utils.misc import decode_symbol
 
 
 class Backend:
@@ -145,6 +147,23 @@ class StructureBackend(Backend):
         return f"structure with relations {sorted(self.relation_symbols())}"
 
 
+def _project_tape(tree, tape: int, arity: int, alphabet, padding_symbol):
+    """The single-tape tree carried by tape `tape` of a convolution.
+
+    A tree's domain is closed under parents, so the positions a tape occupies
+    are exactly those where its component is not padding -- dropping a padded
+    node drops its whole subtree on that tape.
+    """
+    if tree is None:
+        return None
+    label = decode_symbol(tree.label, arity, alphabet)[tape]
+    if label == padding_symbol:
+        return None
+    return Tree(label,
+                _project_tape(tree.left, tape, arity, alphabet, padding_symbol),
+                _project_tape(tree.right, tape, arity, alphabet, padding_symbol))
+
+
 class TreeStructureBackend(Backend):
     """Queries answered by a `TreeAutomaticPresentation`.
 
@@ -152,8 +171,9 @@ class TreeStructureBackend(Backend):
     Python values to `Tree`s; everything above this module is unchanged, since
     the codec's output is only ever handed back to the backend.
 
-    The tree engine has no counterpart yet for enumeration, which raises with
-    the reason rather than quietly answering a different question.
+    Every operation of the string backends is available; the ones whose string
+    formulation counts word positions -- enumeration order and `exinf` -- are
+    restated in terms of node count and path depth.
     """
 
     def __init__(self, presentation):
@@ -183,8 +203,12 @@ class TreeStructureBackend(Backend):
         return tree_automaton(tree, self.presentation.base_alphabet)
 
     def longer_witness_automaton(self, k, references):
-        raise NotImplementedError(
-            "exinf counts word positions and has no tree analogue yet")
+        # "k letters longer" becomes "k nodes deeper": pumping in a tree
+        # automaton happens along a root-to-leaf path, so that is where the
+        # pigeonhole has to bite.
+        return k_deeper_automaton(k, references,
+                                  self.presentation.base_alphabet,
+                                  self.presentation.padding_symbol)
 
     def accepts(self, sta, values, codec):
         trees = values if codec is None else [codec.encode(v) for v in values]
@@ -196,10 +220,18 @@ class TreeStructureBackend(Backend):
                                           sta.symbol_arity))
 
     def iterate(self, sta, codec, arity):
-        raise NotImplementedError(
-            "the tree engine has no language enumeration: `iterate_language` "
-            "walks word positions, and enumerating a tree language in a "
-            "well-defined order is a separate construction")
+        padding = self.presentation.padding_symbol
+        alphabet = sta.base_alphabet_frozen
+        # Canonical first: the saturated automaton spells each tuple in
+        # infinitely many ways, so enumerating it directly would repeat one
+        # tuple forever and never reach the second.
+        for tree in iterate_trees(tree_canonical(sta, padding)):
+            tapes = tuple(_project_tape(tree, i, arity, alphabet, padding)
+                          for i in range(arity))
+            if codec is None:
+                yield tapes
+            else:
+                yield tuple(codec.decode(t) for t in tapes)
 
     def is_finite(self, sta):
         # As on the string side, the tuple set is finite iff the canonical

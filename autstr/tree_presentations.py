@@ -90,8 +90,8 @@ class TreeAutomaticPresentation:
         operators instead of formula strings.
 
         Elements are trees, so a signature's codec encodes Python values to
-        `Tree`s. Enumeration and finiteness are not available over the tree
-        engine yet and raise with the reason.
+        `Tree`s. Enumeration is shortlex by node count, which orders by
+        encoding size rather than by any notion of value.
 
         :param signature: declared functions, operators and element codec.
         :return: a `autstr.symbolic.SymbolicContext`.

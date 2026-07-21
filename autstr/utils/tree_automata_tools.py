@@ -49,7 +49,7 @@ from typing import Dict, FrozenSet, List, Optional, Set, Tuple
 import numpy as np
 
 from autstr.mtbdd import NONE, ComputedTable, bits_of, var_tables
-from autstr.sparse_tree_automata import SparseTreeAutomaton
+from autstr.sparse_tree_automata import SparseTreeAutomaton, Tree
 from autstr.utils.misc import encode_symbol
 
 
@@ -378,6 +378,179 @@ def canonical(sta: SparseTreeAutomaton, padding_symbol) -> SparseTreeAutomaton:
         symbol_arity=k, base_alphabet=sta.base_alphabet,
         pair_keys=keys, pair_nodes=nodes)
     return minimize(sta.intersection(no_padding))
+
+
+def k_deeper_automaton(k: int, references: int, base_alphabet,
+                       padding_symbol) -> SparseTreeAutomaton:
+    """Convolutions whose last tape runs at least `k` nodes below every
+    reference tape: some root-to-leaf path carries `k` nodes at which all
+    `references` reference tapes are padding and the last tape is not.
+
+    The tree counterpart of `buildin.automata.k_longer_automaton`, and it
+    supports exists-infinity for the same pumping reason. A tree's domain is
+    closed under parents, so the nodes outside every reference's domain form a
+    suffix of each root-to-leaf path; `k` of them make a body automaton with
+    fewer than `k` states repeat along that path, and the context between the
+    two occurrences pumps without ever touching the references.
+
+    Requiring the last tape to be present is what keeps this sound under
+    `attach_padding`, which hangs all-padding regions below a tree: those
+    nodes have every reference padded too, so counting them would manufacture
+    depth that carries no witness.
+    """
+    alphabet = frozenset(base_alphabet)
+    arity = references + 1
+    num_states = k + 1                 # state s = run length so far, capped
+    BOT = num_states
+
+    # symbols with every reference padded and a real letter on the witness
+    deepening = [
+        encode_symbol((padding_symbol,) * references + (letter,), alphabet)
+        for letter in sorted(alphabet) if letter != padding_symbol
+    ]
+
+    exc_left, exc_right, exc_symbol, exc_target = [], [], [], []
+    pd_left, pd_right, pd_target = [], [], []
+    for left in list(range(num_states)) + [BOT]:
+        for right in list(range(num_states)) + [BOT]:
+            lv = 0 if left == BOT else left
+            rv = 0 if right == BOT else right
+            if lv == k or rv == k:     # already achieved below: absorbing
+                pd_left.append(left)
+                pd_right.append(right)
+                pd_target.append(k)
+                continue
+            target = min(1 + max(lv, rv), k)
+            for symbol in deepening:
+                exc_left.append(left)
+                exc_right.append(right)
+                exc_symbol.append(symbol)
+                exc_target.append(target)
+
+    return SparseTreeAutomaton(
+        num_states=num_states, default_state=0,
+        exc_left=exc_left, exc_right=exc_right,
+        exc_symbol=exc_symbol, exc_target=exc_target,
+        is_accepting=[s == k for s in range(num_states)],
+        symbol_arity=arity, base_alphabet=alphabet,
+        pd_left=pd_left, pd_right=pd_right, pd_target=pd_target)
+
+
+def _shortlex_key(tree) -> tuple:
+    """Canonical key ordering trees of equal size: labels in pre-order, with
+    the absent child ordering before any present one."""
+    if tree is None:
+        return ()
+    return (tree.label, _shortlex_key(tree.left), _shortlex_key(tree.right))
+
+
+def _max_tree_size(sta: SparseTreeAutomaton, delta, live) -> int:
+    """The node count of the largest accepted tree, for a finite language.
+
+    Finite means the "child of" graph is acyclic, so the longest tree reaching
+    each state is well defined: one plus the longest trees of the best child
+    pair. Relaxing to a fixpoint settles in at most one round per state.
+    """
+    bot = sta.BOT
+    longest = {bot: 0}                            # the absent child has no nodes
+    for _ in range(sta.num_states + 1):
+        changed = False
+        for left in list(longest):
+            for right in list(longest):
+                row = delta[left, right]
+                for target in live:
+                    if not (row == target).any():
+                        continue
+                    candidate = 1 + longest[left] + longest[right]
+                    if candidate > longest.get(target, -1):
+                        longest[target] = candidate
+                        changed = True
+        if not changed:
+            break
+    sizes = [longest[q] for q in live
+             if q in longest and sta.is_accepting[q]]
+    return max(sizes, default=0)
+
+
+def iterate_trees(sta: SparseTreeAutomaton, max_entries: int = 10 ** 7):
+    """Generate the accepted trees in shortlex order: by node count, then by
+    `_shortlex_key`.
+
+    Size is the tree's own node count, which is the faithful analogue of the
+    string engine's length-lexicographic order -- and, like it, says nothing
+    about what the encoded *values* are. For Büchi arithmetic word length is
+    ceil(log2|n|), so shortlex happens to enumerate integers by increasing
+    absolute value; for Skolem arithmetic the tree size is instead the prime
+    index plus the exponents' bit lengths, so 128 arrives before 7. Any
+    value-ordering belongs to the codec, not here: for Skolem the magnitude
+    order is not even recognizable, since `(N, *, <)` is undecidable while
+    every tree-automatic structure has a decidable theory.
+
+    Trees of every size below the one being yielded are retained, since they
+    are the subtrees of the larger ones -- enumeration of an infinite language
+    grows without bound by nature.
+    """
+    delta = sta.dense_delta(max_entries)
+    bot = sta.BOT
+    accepting = sta.is_accepting
+
+    # Only states that can occur in an accepting run are worth building trees
+    # for: a tree at a dead state can never become a witness, and enumerating
+    # them dominates the cost.
+    reachable = sta.reachable_states()
+    usable = reachable & sta.co_reachable_states(reachable)
+    live = {int(q) for q in np.flatnonzero(usable)}
+
+    # A finite language has an acyclic "child of" graph, so the largest
+    # accepted tree has a computable size; without this the generator would
+    # climb sizes forever after having yielded everything.
+    bound = _max_tree_size(sta, delta, live) if sta.is_finite() else None
+
+    # by_size[s][q] = the trees of exactly s nodes whose root state is q
+    by_size: List[Dict[int, List]] = [{}]        # index 0 unused: no 0-node tree
+
+    size = 0
+    while bound is None or size < bound:
+        size += 1
+        level: Dict[int, List] = {}
+
+        if size == 1:
+            for symbol in range(sta.num_symbols):
+                target = int(delta[bot, bot, symbol])
+                if target in live:
+                    level.setdefault(target, []).append(Tree(symbol))
+        else:
+            for left_size in range(0, size):
+                right_size = size - 1 - left_size
+                lefts = ({bot: [None]} if left_size == 0
+                         else by_size[left_size])
+                rights = ({bot: [None]} if right_size == 0
+                          else by_size[right_size])
+                for left_state, left_trees in lefts.items():
+                    for right_state, right_trees in rights.items():
+                        row = delta[left_state, right_state]
+                        for target in live:
+                            symbols = np.flatnonzero(row == target)
+                            if not len(symbols):
+                                continue
+                            bucket = level.setdefault(target, [])
+                            for symbol in symbols.tolist():
+                                for left in left_trees:
+                                    for right in right_trees:
+                                        bucket.append(
+                                            Tree(symbol, left, right))
+
+        for trees in level.values():
+            trees.sort(key=_shortlex_key)
+        by_size.append(level)
+
+        # One sorted run per size: grouping by state first would order the
+        # trees by their root state rather than shortlex.
+        accepted = [tree for state, trees in level.items()
+                    if state < sta.num_states and accepting[state]
+                    for tree in trees]
+        accepted.sort(key=_shortlex_key)
+        yield from accepted
 
 
 def tree_automaton(tree, base_alphabet, symbol_arity: int = 1

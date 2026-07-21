@@ -4,13 +4,18 @@ Skolem arithmetic (N_{>0}, ·) is the oracle: every query has an obvious
 reference answer in Python, so the compiled tree automaton can be checked
 against it directly.
 """
+from itertools import islice
+
 import pytest
 
 from autstr.buildin.tree_presentations import SkolemArithmetic
-from autstr.utils.tree_automata_tools import canonical
+from autstr.sparse_tree_automata import convolve_trees
 from autstr.symbolic import (
     CompileError, FunctionCodec, Signature, SymbolicSymbolError,
 )
+from autstr.utils.tree_automata_tools import canonical
+
+enc = SkolemArithmetic.encode
 
 
 @pytest.fixture(scope="module")
@@ -112,15 +117,68 @@ class TestFiniteness:
         assert canonical(sta, '*').is_finite()          # finitely many tuples
 
 
-class TestUnsupportedOperations:
-    """The tree engine has no counterpart for these yet; each must say so
-    rather than answer a different question."""
+class TestEnumeration:
+    """Shortlex on the convolution: by node count, then by labels. That is the
+    faithful analogue of the string engine's length-lexicographic order, but
+    it orders by *encoding size*, which for Skolem is factorization complexity
+    rather than magnitude."""
 
-    def test_enumeration_explains_itself(self, S):
+    def test_enumerates_exactly_the_divisor_pairs(self, S):
+        x, y = S.vars('x y')
+        got = list((x * y).eq(S.const(12)).evaluate())
+        assert sorted(got) == sorted((a, 12 // a)
+                                     for a in range(1, 13) if 12 % a == 0)
+        assert len(got) == len(set(got))          # no tuple twice
+
+    def test_sizes_are_non_decreasing(self, S):
+        x, y = S.vars('x y')
+        sizes = [convolve_trees([enc(a), enc(b)], S.backend.presentation
+                                .base_alphabet, '*').size()
+                 for a, b in (x * y).eq(S.const(12)).evaluate()]
+        assert sizes == sorted(sizes)
+
+    def test_an_infinite_relation_streams(self, S):
         x, y, z = S.vars('x y z')
-        relation = (x * y).eq(z).evaluate()
-        with pytest.raises(NotImplementedError, match="enumeration"):
-            next(iter(relation))
+        got = list(islice(iter((x * y).eq(z).evaluate()), 8))
+        assert len(got) == 8
+        for a, b, c in got:
+            assert a * b == c, (a, b, c)
+
+    def test_complexity_order_is_not_magnitude_order(self, S):
+        """128 = 2^7 encodes smaller than the prime 7, because exponents are
+        stored in binary while primes cost spine length. So the enumeration is
+        by factorization complexity, not by magnitude -- which is why
+        `iterate` stays structural and value order is left to the codec."""
+        x, y = S.vars('x y')
+        elements = [a for a, _ in islice(
+            iter((x * S.const(1)).eq(y).evaluate()), 60)]
+        assert 128 in elements and 7 in elements
+        assert elements.index(128) < elements.index(7)
+
+
+class TestExistsInfinitely:
+    """`exinf` rewrites to "some witness runs k nodes deeper than every
+    reference" -- the tree form of the string engine's "k letters longer",
+    with k the body's state count, so the pigeonhole bites along a path."""
+
+    def test_every_element_has_infinitely_many_multiples(self, S):
+        x, y, z = S.vars('x y z')
+        divides = (x * z).eq(y).drop('z')
+        relation = divides.exinf('y').evaluate()
+        for n in (1, 2, 5, 12):
+            assert relation.contains(x=n), n
+
+    def test_no_element_has_infinitely_many_divisors(self, S):
+        x, y, z = S.vars('x y z')
+        divides = (x * z).eq(y).drop('z')
+        assert not divides.exinf('x').check()
+
+    def test_agrees_with_finiteness_of_the_fibre(self, S):
+        """The two answers must line up: the divisors of 12 are a finite
+        fibre, so no y has infinitely many x with x * y = 12."""
+        x, y = S.vars('x y')
+        assert (x * y).eq(S.const(12)).evaluate().is_finite()
+        assert not (x * y).eq(S.const(12)).exinf('x').check()
 
 
 class TestConstants:

@@ -4,6 +4,7 @@ import random
 import numpy as np
 import pytest
 
+from autstr.utils.tree_automata_tools import _shortlex_key, iterate_trees
 from autstr.sparse_tree_automata import (
     SparseTreeAutomaton, Tree, convolve_trees, tree_to_arrays,
 )
@@ -368,3 +369,65 @@ class TestFiniteness:
         sta = SparseTreeAutomaton(1, 0, is_accepting=[True], symbol_arity=1,
                                   base_alphabet={0, 1})
         assert not sta.is_finite()
+
+
+# ====================================================================
+# Enumeration against an exhaustive oracle
+# ====================================================================
+
+def _trees_up_to_size(m: int, max_size: int):
+    """All trees of each size up to `max_size` over `m` labels."""
+    by_size = {0: [None]}
+    for size in range(1, max_size + 1):
+        by_size[size] = [
+            Tree(label, left, right)
+            for left_size in range(size)
+            for label in range(m)
+            for left in by_size[left_size]
+            for right in by_size[size - 1 - left_size]
+        ]
+    return by_size
+
+
+class TestEnumeration:
+    def test_matches_brute_force(self):
+        rng = random.Random(4242)
+        limit = 4
+        for _ in range(25):
+            sta = random_sta(rng, max_states=3, max_symbols=2,
+                             max_exc=8, max_pd=4)
+            m = len(sta.base_alphabet)
+            by_size = _trees_up_to_size(m, limit)
+            expected = [t for size in range(1, limit + 1)
+                        for t in by_size[size] if sta.accepts(t)]
+
+            got = []
+            for tree in iterate_trees(sta):
+                if tree.size() > limit:
+                    break
+                got.append(tree)
+
+            assert (sorted(map(_shortlex_key, got))
+                    == sorted(map(_shortlex_key, expected))), sta
+
+    def test_yields_sizes_in_order(self):
+        rng = random.Random(99)
+        for _ in range(10):
+            sta = random_sta(rng, max_states=3, max_symbols=2,
+                             max_exc=8, max_pd=4)
+            sizes = []
+            for tree in iterate_trees(sta):
+                sizes.append(tree.size())
+                if len(sizes) > 30:
+                    break
+            assert sizes == sorted(sizes), sta
+
+    def test_finite_language_terminates(self):
+        """Only the single leaf labelled 0 is accepted, so the generator must
+        stop rather than climb sizes forever looking for more."""
+        BOT = 2                                   # = num_states
+        sta = SparseTreeAutomaton(
+            2, 1,
+            exc_left=[BOT], exc_right=[BOT], exc_symbol=[0], exc_target=[0],
+            is_accepting=[True, False], symbol_arity=1, base_alphabet={0, 1})
+        assert [t.label for t in iterate_trees(sta)] == [0]

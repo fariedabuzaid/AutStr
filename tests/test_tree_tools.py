@@ -3,6 +3,7 @@ import random
 import numpy as np
 import pytest
 
+from autstr.utils.tree_automata_tools import k_deeper_automaton
 from autstr.sparse_tree_automata import SparseTreeAutomaton, Tree, tree_to_arrays
 from autstr.utils.misc import encode_symbol
 from autstr.utils.tree_automata_tools import (
@@ -354,3 +355,41 @@ class TestMinimizeSoundness:
             sta = random_sta_arity(rng, 1, 2, max_states=n,
                                    max_exc=2 * (n + 1) ** 2, max_pd=6)
             assert equivalent(sta, minimize(sta)), trial
+
+
+class TestKDeeperAutomaton:
+    """`k_deeper_automaton` underwrites exists-infinity: it must certify that
+    the witness itself runs k nodes below every reference."""
+
+    ALPHA = {'*', 'a'}
+
+    def _automaton(self, k=3, references=1):
+        return k_deeper_automaton(k, references, self.ALPHA, '*')
+
+    def test_accepts_a_genuinely_deeper_witness(self):
+        deep = Tree(('a', 'a'),
+                    Tree(('*', 'a'), Tree(('*', 'a'), Tree(('*', 'a')))))
+        assert self._automaton().accepts(deep)
+
+    def test_rejects_a_shallow_witness(self):
+        assert not self._automaton().accepts(Tree(('a', 'a')))
+
+    def test_padding_alone_does_not_make_depth(self):
+        """`attach_padding` hangs all-padding regions below every tree. Those
+        nodes have the reference padded too, so counting them would invent
+        depth that carries no witness and make exists-infinity true for finite
+        fibres."""
+        padded = Tree(('a', 'a'),
+                      Tree(('*', '*'), Tree(('*', '*'), Tree(('*', '*')))))
+        assert not self._automaton().accepts(padded)
+
+    def test_depth_must_be_on_one_path(self):
+        """Two short branches do not add up: pumping needs the repeated state
+        on a single root-to-leaf path. The root carries the reference, so each
+        branch contributes a run of 2 -- four qualifying nodes in total, but
+        no path with more than two."""
+        forked = Tree(('a', 'a'),
+                      Tree(('*', 'a'), Tree(('*', 'a'))),
+                      Tree(('*', 'a'), Tree(('*', 'a'))))
+        assert self._automaton(k=2).accepts(forked)
+        assert not self._automaton(k=3).accepts(forked)
