@@ -3,6 +3,7 @@ import random
 import pytest
 
 from autstr.sparse_tree_automata import SparseTreeAutomaton, Tree
+from autstr.symbolic import FunctionCodec, Signature
 from autstr.tree_uniform import UniformlyTreeAutomaticClass
 from autstr.uniform import UniformlyAutomaticClass, dfa_from_delta
 from autstr.utils.misc import encode_symbol
@@ -312,3 +313,89 @@ class TestLinearOrderCrossValidation:
                 want = truth(n)
                 assert Ss.check(phi) == want, (phi, n)
                 assert St.check(phi) == want, (phi, n)
+
+
+# ====================================================================
+# The symbolic interface over a uniformly tree-automatic class
+# ====================================================================
+
+class TestSymbolicInterface:
+    """`UniformlyTreeAutomaticClass.symbolic()` needs no tree-specific
+    backend: `ClassBackend` only touches members that the tree class inherits
+    or provides itself, so the string class backend serves both engines. These
+    tests are what says so -- they pin the behaviour against the string class
+    rather than against an implementation."""
+
+    def test_signature_is_read_from_the_class(self, engines):
+        _, tc = engines
+        K = tc.symbolic()
+        assert 'U' not in K.backend.relation_symbols()
+        # the advice tape is not part of the relation's arity
+        assert K.backend.arity('Lt') == 2
+
+    def test_agrees_with_the_string_class_backend(self, engines):
+        sc, tc = engines
+        SK, TK = sc.symbolic(), tc.symbolic()
+        for K, cls in ((SK, sc), (TK, tc)):
+            x, y = K.vars('x y')
+            assert K.backend.arity('Lt') == 2
+            assert K.atom('Lt', [x, y]).evaluate().variables == \
+                ['x', 'y', 'advice']
+
+    def test_member_checking_matches_the_formula_api(self, engines):
+        sc, tc = engines
+        K = tc.symbolic()
+        x, y = K.vars('x y')
+        minimum = (~K.atom('Lt', [y, x])).all('y').drop('x')
+        for n in range(1, 6):
+            advice = string_chain('1' * n)
+            assert K.check_member(minimum, advice) == \
+                tc.check('exists x.(all y.(not Lt(y,x)))', advice), n
+
+    def test_pointwise_order_agrees_with_ground_truth(self, engines):
+        _, tc = engines
+        K = tc.symbolic()
+        x, y = K.vars('x y')
+        lt = K.atom('Lt', [x, y])
+        n = 4
+        for i in range(1, n + 1):
+            for j in range(1, n + 1):
+                got = K.check_member(lt, string_chain('1' * n),
+                                     x=string_chain('1' * i),
+                                     y=string_chain('1' * j))
+                assert got == (i < j), (i, j)
+
+    def test_get_structure_hands_back_a_tree_structure_context(self, engines):
+        _, tc = engines
+        K = tc.symbolic()
+        member = K.get_structure(string_chain('1' * 3))
+        S = member.symbolic()
+        assert S.backend.arity('Lt') == 2          # no advice tape any more
+        a, b = S.vars('a b')
+        relation = S.atom('Lt', [a, b]).evaluate()
+        assert relation.variables == ['a', 'b']
+
+    def test_class_level_operations_need_a_member(self, engines):
+        """Enumeration, finiteness and constants have no advice-free meaning;
+        each must say so rather than answer for some arbitrary member."""
+        _, tc = engines
+        K = tc.symbolic()
+        x, y = K.vars('x y')
+        relation = K.atom('Lt', [x, y]).evaluate()
+        with pytest.raises(NotImplementedError, match="advice"):
+            next(iter(relation))
+        with pytest.raises(NotImplementedError, match="member"):
+            relation.is_finite()
+
+    def test_constants_have_no_advice_free_meaning(self, engines):
+        """A class element's encoding depends on the advice, so even with a
+        codec supplied there is nothing for a constant to denote."""
+        _, tc = engines
+        signature = Signature(
+            codec=FunctionCodec(lambda n: string_chain('1' * n)))
+        K = tc.symbolic(signature)
+        x, = K.vars('x')
+        # the term is built lazily; the guard fires when it is compiled
+        with pytest.raises(NotImplementedError, match="advice"):
+            K.check_member(K.atom('Lt', [x, K.const(3)]),
+                           string_chain('111'))
