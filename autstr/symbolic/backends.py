@@ -99,7 +99,9 @@ class StructureBackend(Backend):
         return [s for s in self.presentation.get_relation_symbols() if s != 'U']
 
     def arity(self, symbol):
-        dfa = self.presentation.automata.get(symbol)
+        # `relation` rather than the dict: equality and other definable
+        # relations are registered and built on first use.
+        dfa = self.presentation.relation(symbol)
         return None if dfa is None else dfa.symbol_arity
 
     def arity_of(self, dfa):
@@ -183,7 +185,7 @@ class TreeStructureBackend(Backend):
         return [s for s in self.presentation.get_relation_symbols() if s != 'U']
 
     def arity(self, symbol):
-        sta = self.presentation.automata.get(symbol)
+        sta = self.presentation.relation(symbol)
         return None if sta is None else sta.symbol_arity
 
     def arity_of(self, sta):
@@ -262,7 +264,7 @@ class ClassBackend(Backend):
         return [s for s in self.klass.get_relation_symbols() if s != 'U']
 
     def arity(self, symbol):
-        dfa = self.klass.class_automata.get(symbol)
+        dfa = self.klass.relation(symbol)
         # Tape 0 carries the advice, so the relation arity is one less.
         return None if dfa is None else dfa.symbol_arity - 1
 

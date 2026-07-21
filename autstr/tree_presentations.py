@@ -15,6 +15,7 @@ from typing import Dict, Optional, Union
 
 from nltk.sem import logic
 
+from autstr.presentations import DeferredRelations
 from autstr.sparse_tree_automata import SparseTreeAutomaton
 from autstr.utils.logic import get_free_elementary_vars, optimize_query
 from autstr.utils.tree_automata_tools import (
@@ -34,7 +35,7 @@ def tree_zero(symbol_arity: int = 1, base_alphabet=None) -> SparseTreeAutomaton:
                                symbol_arity, base_alphabet or {0})
 
 
-class TreeAutomaticPresentation:
+class TreeAutomaticPresentation(DeferredRelations):
     """A presentation of a structure by tree automata.
 
     :param automata: 'U' is the domain automaton (symbol arity 1); every other
@@ -81,8 +82,9 @@ class TreeAutomaticPresentation:
                 minimize(expand(self.automata['U'], arity, [i]))))
         return domain
 
-    def get_relation_symbols(self):
-        return list(self.automata.keys())
+    def _install_relation(self, name, definition):
+        self.update(**{name: definition() if callable(definition)
+                       else definition})
 
     def symbolic(self, signature=None):
         """A symbolic interface to this structure: variables, relation and
@@ -127,6 +129,7 @@ class TreeAutomaticPresentation:
         if isinstance(phi, str):
             phi = logic.Expression.fromstring(phi)
         phi = phi.simplify()
+        self._materialize_for(phi)
         return not self._build_automaton(phi).is_empty()
 
     def evaluate(self, phi, updates: Optional[Dict[str, Union[
@@ -144,6 +147,7 @@ class TreeAutomaticPresentation:
         if isinstance(phi, str):
             phi = logic.Expression.fromstring(phi)
         phi = optimize_query(phi)
+        self._materialize_for(phi)
         if not updates:
             return self._build_automaton(phi)
 

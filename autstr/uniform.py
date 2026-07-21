@@ -17,7 +17,7 @@ from typing import Dict, List, Optional, Tuple, Union
 
 from nltk.sem import logic
 
-from autstr.presentations import AutomaticPresentation
+from autstr.presentations import AutomaticPresentation, DeferredRelations
 from autstr.sparse_automata import SparseDFA
 from autstr.buildin.automata import one
 from autstr.buildin.presentations import create_sparse_dfa, encode_symbol
@@ -109,10 +109,27 @@ class SymbolicClassWrapper:
     #: the Python operator it binds to
     OPERATOR = '*'
 
+    #: how equality is defined when the class does not ship it, as a formula
+    #: over the existing signature; None if the class already has one
+    EQUALITY = None
+
+    def _declare_equality(self, eager: bool = False) -> None:
+        """Register the family's equality relation, built on first use."""
+        if self.EQUALITY is not None:
+            self.cls._declare_deferred({'Eq': self.EQUALITY}, eager=eager)
+
     def default_signature(self):
-        from autstr.symbolic import operation_signature
-        return operation_signature(self.cls.get_relation_symbols(),
-                                   graph=self.GRAPH, operator=self.OPERATOR)
+        from autstr.symbolic import Signature, operation_signature
+        relations = self.cls.get_relation_symbols()
+        if self.GRAPH is None:
+            # lattices and graph classes have no single binary operation; their
+            # vocabulary is methods, but equality is still worth binding
+            signature = Signature()
+            if 'Eq' in relations:
+                signature.operator('eq', 'Eq')
+            return signature
+        return operation_signature(relations, graph=self.GRAPH,
+                                   operator=self.OPERATOR)
 
     def symbolic(self, signature=None):
         """A symbolic interface to this family; see
@@ -125,7 +142,7 @@ class SymbolicClassWrapper:
         return self.cls.symbolic(signature)
 
 
-class UniformlyAutomaticClass:
+class UniformlyAutomaticClass(DeferredRelations):
     """A uniformly automatic presentation of a class of structures.
 
     :param automata: dictionary of SparseDFAs. 'U' is reserved for the domain
@@ -160,9 +177,14 @@ class UniformlyAutomaticClass:
             wrapped, padding_symbol=padding_symbol, enforce_consistency=False
         )
 
-    def get_relation_symbols(self) -> List[str]:
-        """All relation symbols of the class signature ('U' is the domain)."""
-        return list(self.class_automata.keys())
+    @property
+    def _relations(self) -> dict:
+        """Deferred relations live alongside the class signature ('U' is the
+        domain); see `DeferredRelations`."""
+        return self.class_automata
+
+    def _install_relation(self, name, definition) -> None:
+        self.define(name, definition() if callable(definition) else definition)
 
     def symbolic(self, signature=None):
         """A symbolic interface to this class. Expressions are written over
@@ -255,6 +277,7 @@ class UniformlyAutomaticClass:
         if isinstance(phi, str):
             phi = logic.Expression.fromstring(phi)
         phi = phi.simplify()
+        self._materialize_for(phi)
 
         free_vars = get_free_elementary_vars(phi)
         all_vars = sorted(self._variable_names(phi) | set(free_vars)) or ['p']

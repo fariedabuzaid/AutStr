@@ -7,6 +7,7 @@ from autstr.buildin.automata import zero, one
 from autstr.utils.logic import get_free_elementary_vars, optimize_query
 
 import json
+import re
 import struct
 import zlib
 from typing import Dict
@@ -112,7 +113,72 @@ class AutomaticPresentationSerializer:
             enforce_consistency=False
         )
 
-class AutomaticPresentation:
+class DeferredRelations:
+    """Relations declared up front and built on first use.
+
+    Equality is definable in most presentations here -- from ``Leq`` in a
+    lattice, from ``Subset`` on set-valued elements, from the operation in a
+    group -- but defining it costs an automaton construction that most queries
+    never need, and for the wider graph classes that construction is
+    expensive. So such a relation is *registered* rather than built, and
+    materializes when something asks for it.
+
+    `materialize()` forces the construction, which is what you want before
+    pickling or otherwise reusing a structure, and every constructor that
+    registers deferred relations takes an ``eager`` flag for the same purpose.
+
+    Subclasses say where their relations live (`_relations`) and how to install
+    one (`_install_relation`). A definition is either a formula string over the
+    existing signature or a callable returning an automaton.
+    """
+
+    def _declare_deferred(self, definitions: Dict[str, object],
+                          eager: bool = False) -> None:
+        self._deferred = dict(definitions)
+        if eager:
+            self.materialize()
+
+    @property
+    def _relations(self) -> dict:
+        return self.automata
+
+    def _install_relation(self, name: str, definition) -> None:
+        raise NotImplementedError
+
+    def get_relation_symbols(self) -> List[str]:
+        """All relation symbols, including any not yet built."""
+        names = list(self._relations.keys())
+        names += [n for n in getattr(self, '_deferred', ())
+                  if n not in self._relations]
+        return names
+
+    def relation(self, name: str):
+        """The automaton for `name`, building it if it was deferred."""
+        deferred = getattr(self, '_deferred', {})
+        if name not in self._relations and name in deferred:
+            self._install_relation(name, deferred[name])
+        return self._relations.get(name)
+
+    def materialize(self, *names: str):
+        """Build the named deferred relations now, or all of them. Returns
+        self, so it chains onto a constructor."""
+        for name in (names or tuple(getattr(self, '_deferred', ()))):
+            self.relation(name)
+        return self
+
+    def _materialize_for(self, phi) -> None:
+        """Build any deferred relation the formula mentions."""
+        deferred = getattr(self, '_deferred', None)
+        if not deferred:
+            return
+        text = str(phi)
+        for name in list(deferred):
+            if name not in self._relations and re.search(
+                    rf'\b{re.escape(name)}\b', text):
+                self.relation(name)
+
+
+class AutomaticPresentation(DeferredRelations):
     """
     A presentation of a possibly infinite structure by finite state machines.
     """
@@ -143,13 +209,11 @@ class AutomaticPresentation:
     def automatic_presentation_from_file(cls, filename: str):
         return AutomaticPresentationSerializer.deserialize(filename)
 
-    def get_relation_symbols(self) -> List[str]:
-        """
-        Returns list of all defined relation symbols. The symbol 'U' must always be defined and denotes the Universe.
-
-        :return: list of all defined relation symbols.
-        """
-        return list(self.automata.keys())
+    def _install_relation(self, name, definition):
+        """Build a deferred relation: a formula over the current signature, or
+        a callable returning an automaton."""
+        self.update(**{name: definition() if callable(definition)
+                       else definition})
 
     def symbolic(self, signature=None):
         """A symbolic interface to this structure: variables, relation and
@@ -213,6 +277,7 @@ class AutomaticPresentation:
         if isinstance(phi, str):
             phi = logic.Expression.fromstring(phi)
         phi = phi.simplify()
+        self._materialize_for(phi)
         return not self._build_automaton(phi).is_empty()
 
     def evaluate(self, phi: Union[str, logic.Expression],
@@ -232,6 +297,7 @@ class AutomaticPresentation:
         if isinstance(phi, str):
             phi = logic.Expression.fromstring(phi)
         phi = optimize_query(phi)
+        self._materialize_for(phi)
         if prepared_updates:
             updates = dict(updates or {})
             for key, dfa in prepared_updates.items():
