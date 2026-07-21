@@ -590,13 +590,17 @@ class FiniteAbelianGroups(SymbolicClassWrapper):
     #: construction, and the class presents the operation as A(x, y, z).
     GRAPH = 'A'
     OPERATOR = '+'
+    #: the identity is the unique idempotent, and x + 0 = y exactly when x = y.
+    #: The witness may not be called e0: nltk reads e-names as event variables.
+    EQUALITY = 'exists z0.(A(z0,z0,z0) and A(x,z0,y))'
 
-    def __init__(self):
+    def __init__(self, eager_equality: bool = False):
         self.sigma = {PAD, '0', '1', SEP}
         self.cls = UniformlyAutomaticClass({
             'U': self._universe_automaton(),
             'A': self._addition_automaton(),
         }, padding_symbol=PAD)
+        self._declare_equality(eager_equality)
         self.cls.element_alphabet = ['0', '1', SEP]
 
     def _universe_automaton(self) -> SparseDFA:

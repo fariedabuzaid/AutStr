@@ -26,7 +26,7 @@ from nltk.sem import logic
 
 from autstr.presentations import AutomaticPresentation
 from autstr.sparse_automata import SparseDFA
-from autstr.uniform import UniformlyAutomaticClass, dfa_from_delta
+from autstr.uniform import SymbolicClassWrapper, UniformlyAutomaticClass, dfa_from_delta
 from autstr.utils.logic import get_free_elementary_vars
 
 PAD = '*'
@@ -338,12 +338,18 @@ def z1p_localization(p: int) -> Z1pLocalization:
 # Finite boolean algebras
 # ====================================================================
 
-class FiniteBooleanAlgebras:
+class FiniteBooleanAlgebras(SymbolicClassWrapper):
     """The uniformly automatic class of all finite boolean algebras. The
     member with n atoms has advice 1^n; its elements are the subsets of
     {0, ..., n-1}, encoded as bitvectors of length exactly n."""
 
-    def __init__(self):
+    #: no single binary operation: meet and join are both there, so the
+    #: vocabulary stays methods and only equality is bound
+    GRAPH = None
+    #: antisymmetry of the order is equality
+    EQUALITY = 'Leq(x,y) and Leq(y,x)'
+
+    def __init__(self, eager_equality: bool = False):
         self.sigma = {PAD, '0', '1'}
         self.cls = UniformlyAutomaticClass({
             'U': self._universe_automaton(),
@@ -353,6 +359,7 @@ class FiniteBooleanAlgebras:
             'Compl': self._pointwise_automaton(2, lambda x, y: y == 1 - x),
             'Atom': self._atom_automaton(),
         }, padding_symbol=PAD)
+        self._declare_equality(eager_equality)
 
     def _universe_automaton(self) -> SparseDFA:
         """U(p, x): p in 1* and x a {0,1}-word of exactly the same length

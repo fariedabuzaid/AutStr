@@ -65,10 +65,12 @@ class TreeExtraspecialGroups(SymbolicClassWrapper):
         self.advice_letters = {SHAPE}
         self.element_letters = set(self.inner_letters) | set(self.leaf_letters)
 
+        equality = self._equality_automaton()
+        # 'Eq' is the standard name; 'E' stays as an alias.
         self.cls = UniformlyTreeAutomaticClass({
             'U': self._universe_automaton(),
             'M': self._multiplication_automaton(),
-            'E': self._equality_automaton(),
+            'Eq': equality, 'E': equality,
         }, padding_symbol=PAD, max_states=max_states)
         self.cls.element_alphabet = list(self.element_letters)
 

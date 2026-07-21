@@ -36,7 +36,9 @@ def S(skolem):
 class TestSignature:
     def test_relation_symbols_exclude_the_domain(self, S):
         assert 'U' not in S.backend.relation_symbols()
-        assert set(S.backend.relation_symbols()) == {'M', 'E'}
+        # 'Eq' is the standard name for equality across the library; Skolem
+        # keeps 'E' as an alias so older formulas still parse.
+        assert set(S.backend.relation_symbols()) == {'M', 'Eq', 'E'}
 
     def test_arities_come_from_the_automata(self, S):
         assert S.backend.arity('M') == 3

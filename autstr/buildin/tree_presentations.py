@@ -52,9 +52,12 @@ class SkolemArithmetic(TreeAutomaticPresentation):
     PAD = '*'
 
     def __init__(self, max_states: Optional[int] = None):
+        equality = self._equality()
+        # 'Eq' is the standard name across the library; 'E' is kept as an
+        # alias so formulas written against the old signature keep working.
         super().__init__(
             {'U': self._universe(), 'M': self._multiplication(),
-             'E': self._equality()},
+             'Eq': equality, 'E': equality},
             padding_symbol=self.PAD, max_states=max_states)
 
     def default_signature(self):

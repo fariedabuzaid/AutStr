@@ -40,20 +40,26 @@ class Function:
         return inputs, out
 
 
-#: Names structures in this library use for their equality relation.
-EQUALITY_SYMBOLS = ('Eq', 'E')
+#: The standard name for a structure's equality relation. Some structures
+#: also answer to 'E', but 'E' is the *edge* relation in every graph class, so
+#: equality is always named explicitly rather than guessed from the symbols.
+EQUALITY_SYMBOL = 'Eq'
 
 
 def operation_signature(relations, graph: str, operator: str,
+                        equality: str = EQUALITY_SYMBOL,
                         codec=None) -> 'Signature':
     """The signature of a structure whose binary operation is presented by the
     ternary graph relation `graph`, bound to `operator`.
 
-    Equality is bound to ``.eq`` when the structure declares it, under either
-    name in `EQUALITY_SYMBOLS`. A structure without an equality relation gets
-    the operator anyway, but terms cannot then be turned into formulas --
-    ``(x + y).eq(z)`` is the only way to state what a term denotes -- so such
-    a structure is better served through its relation symbols directly.
+    Equality is bound to ``.eq`` when the structure declares `equality`. The
+    name is passed in rather than guessed: 'E' means equality in Skolem
+    arithmetic but the *edge* relation in every graph class, so guessing would
+    silently answer "are these adjacent?" for "are these equal?".
+
+    A structure without an equality relation still gets the operator, but its
+    terms cannot become formulas -- ``(x + y).eq(z)`` is the only way to say
+    what a term denotes.
 
     :param relations: the structure's relation symbols.
     :param graph: the ternary relation R(x, y, z) meaning ``x op y = z``.
@@ -64,10 +70,8 @@ def operation_signature(relations, graph: str, operator: str,
     signature = Signature(codec=codec)
     signature.function(operator, graph=graph, out=2)
     signature.operator(operator, operator)
-    for name in EQUALITY_SYMBOLS:
-        if name in relations:
-            signature.operator('eq', name)
-            break
+    if equality in relations:
+        signature.operator('eq', equality)
     return signature
 
 

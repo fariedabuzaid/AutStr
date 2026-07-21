@@ -28,13 +28,13 @@ from autstr.symbolic.context import (
 from autstr.symbolic.compiler import CompileError
 from autstr.symbolic.expr import Formula, Term, Var
 from autstr.symbolic.signature import (
-    ElementCodec, EQUALITY_SYMBOLS, Function, FunctionCodec, Signature,
+    ElementCodec, EQUALITY_SYMBOL, Function, FunctionCodec, Signature,
     operation_signature,
 )
 
 __all__ = [
     'Backend', 'ClassBackend', 'CompileError', 'ElementCodec',
-    'EQUALITY_SYMBOLS', 'Formula',
+    'EQUALITY_SYMBOL', 'Formula',
     'Function', 'FunctionCodec', 'FunctionSymbol', 'Relation',
     'RelationSymbol', 'Signature', 'StructureBackend', 'SymbolicContext',
     'SymbolicSymbolError', 'Term', 'Var', 'operation_signature',

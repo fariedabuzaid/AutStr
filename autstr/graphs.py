@@ -29,7 +29,7 @@ import graphviz
 
 from autstr.presentations import AutomaticPresentation
 from autstr.sparse_automata import SparseDFA
-from autstr.uniform import UniformlyAutomaticClass, dfa_from_delta
+from autstr.uniform import SymbolicClassWrapper, UniformlyAutomaticClass, dfa_from_delta
 
 PAD = '*'
 
@@ -480,11 +480,18 @@ def _subset_automaton(sigma, letter_symbols) -> SparseDFA:
     return dfa_from_delta(sigma, states, 3, delta, 'ok', {'ok', 'pad'})
 
 
-class _SetGraphClass:
+class _SetGraphClass(SymbolicClassWrapper):
     """Shared class-level operations of the set-signature graph classes."""
 
-    def __init__(self, automata: Dict[str, SparseDFA]):
+    #: elements are vertex *sets* and E is the edge relation, not equality
+    GRAPH = None
+    #: extensional equality of sets
+    EQUALITY = 'Subset(x,y) and Subset(y,x)'
+
+    def __init__(self, automata: Dict[str, SparseDFA],
+                 eager_equality: bool = False):
         self.cls = UniformlyAutomaticClass(automata, padding_symbol=PAD)
+        self._declare_equality(eager_equality)
 
     def advice(self, graph) -> List[str]:
         raise NotImplementedError
