@@ -130,6 +130,21 @@ class UniformlyAutomaticClass:
         """All relation symbols of the class signature ('U' is the domain)."""
         return list(self.class_automata.keys())
 
+    def symbolic(self, signature=None):
+        """A symbolic interface to this class. Expressions are written over
+        the class signature exactly as for a single structure; the advice tape
+        is added and quantifiers relativized to the member domain during
+        compilation, and results carry the advice under the tape name
+        ``'advice'``.
+
+        :param signature: declared functions and operators. An element codec
+            has no advice-free meaning here and is not used.
+        :return: a `autstr.symbolic.SymbolicContext`.
+        """
+        from autstr.symbolic.backends import ClassBackend
+        from autstr.symbolic.context import SymbolicContext
+        return SymbolicContext(ClassBackend(self), signature)
+
     @staticmethod
     def _variable_names(phi: logic.Expression) -> set:
         """All variable names occurring in phi (free and bound)."""

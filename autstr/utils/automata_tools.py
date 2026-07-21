@@ -109,6 +109,39 @@ def unpad(dfa: SparseDFA, padding_symbol: int = -1) -> SparseDFA:
         start_state=dfa.start_state, symbol_arity=arity,
         base_alphabet=base_alphabet, nodes=dfa.nodes).minimize()
 
+def canonical(dfa: SparseDFA, padding_symbol: int = -1) -> SparseDFA:
+    """Keep only the canonical convolution of each tuple: words in which no
+    position is padding on *every* tape.
+
+    `pad` and `unpad` deliberately leave the all-padding self-loops in place,
+    so a relation automaton accepts every tuple in infinitely many spellings --
+    the convolution followed by any number of all-padding columns. That is
+    invisible to membership and to enumeration (`iterate_language` skips the
+    all-padding symbol), but it makes every non-empty relation look infinite to
+    a word-level cycle test. Restricting to canonical words first is what makes
+    finiteness and counting questions about *tuples* rather than about words.
+    """
+    arity = dfa.symbol_arity
+    base_alphabet = dfa.base_alphabet
+    if padding_symbol == -1:
+        padding_symbol = sorted(base_alphabet)[0]
+    pad_enc = encode_symbol((padding_symbol,) * arity, base_alphabet)
+
+    # State 0 accepts anything until the all-padding symbol drops it into the
+    # non-accepting sink 1.
+    no_padding = SparseDFA(
+        num_states=2,
+        default_states=np.array([0, 1], dtype=np.int64),
+        exception_symbols=np.array([[pad_enc], [-1]], dtype=np.int64),
+        exception_states=np.array([[1], [-1]], dtype=np.int64),
+        is_accepting=np.array([True, False], dtype=bool),
+        start_state=0,
+        symbol_arity=arity,
+        base_alphabet=base_alphabet,
+    )
+    return dfa.intersection(no_padding).minimize()
+
+
 def product(dfa: SparseDFA, n: int) -> SparseDFA:
     """Create the n-fold Cartesian product of the automaton's language."""
     if n == 0:

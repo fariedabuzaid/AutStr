@@ -494,6 +494,11 @@ class _SetGraphClass:
         UniformlyAutomaticClass.evaluate. Variables range over vertex sets."""
         return self.cls.evaluate(phi)
 
+    def symbolic(self, signature=None):
+        """A symbolic interface to this class; see
+        UniformlyAutomaticClass.symbolic."""
+        return self.cls.symbolic(signature)
+
     def check(self, phi, graph, **sets) -> bool:
         """Model check a query against a single graph.
 

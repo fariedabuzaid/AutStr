@@ -151,6 +151,20 @@ class AutomaticPresentation:
         """
         return list(self.automata.keys())
 
+    def symbolic(self, signature=None):
+        """A symbolic interface to this structure: variables, relation and
+        function symbols that build first-order expressions with Python
+        operators instead of formula strings.
+
+        :param signature: declared functions, operators and element codec.
+            Relation arities are read from the automata, so a structure with
+            no functions needs no signature at all.
+        :return: a `autstr.symbolic.SymbolicContext`.
+        """
+        from autstr.symbolic.backends import StructureBackend
+        from autstr.symbolic.context import SymbolicContext
+        return SymbolicContext(StructureBackend(self), signature)
+
     def update(self, **kwargs) -> None:
         for key in kwargs:
             if isinstance(kwargs[key], SparseDFA):
@@ -192,19 +206,34 @@ class AutomaticPresentation:
         phi = phi.simplify()
         return not self._build_automaton(phi).is_empty()
 
-    def evaluate(self, phi: Union[str, logic.Expression], updates: Optional[Dict[str, Union[SparseDFA, str]]] = None) -> SparseDFA:
+    def evaluate(self, phi: Union[str, logic.Expression],
+                 updates: Optional[Dict[str, Union[SparseDFA, str]]] = None,
+                 prepared_updates: Optional[Dict[str, SparseDFA]] = None) -> SparseDFA:
         """Evaluates a given first-order query on the presented structure. Returns a presentation of the set of all
         satisfying assignments.
 
         :param phi: the first order formula.
         :param updates: Temporarily update the relations for the evaluation
+        :param prepared_updates: like `updates`, for automata already known to
+            be restricted to the universe -- results this presentation produced
+            itself. They are only re-padded, skipping the domain intersection
+            that `_prepare_automaton` would otherwise redo on every tape.
         :returns: The truth value of the formula, if the formula where all free variables are existentially quantified.
         """
         if isinstance(phi, str):
             phi = logic.Expression.fromstring(phi)
         phi = optimize_query(phi)
+        if prepared_updates:
+            updates = dict(updates or {})
+            for key, dfa in prepared_updates.items():
+                updates[key] = pad(dfa, self.padding_symbol).minimize()
+            prepared = set(prepared_updates)
+        else:
+            prepared = set()
         if updates is not None:
             for key in updates:
+                if key in prepared:
+                    continue
                 if isinstance(updates[key], str):
                     query = optimize_query(logic.Expression.fromstring(updates[key]))
                     updates[key] = self._prepare_automaton(self._build_automaton(query))
