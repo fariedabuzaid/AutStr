@@ -20,6 +20,7 @@ combinations are pairwise `apply` on the diagrams, complementation relabels
 acceptance and touches no diagram at all, and hash-consing makes two states
 with the same transition function share one node.
 """
+from collections import defaultdict, deque
 from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 import numpy as np
@@ -530,6 +531,85 @@ class SparseTreeAutomaton:
     def is_empty(self) -> bool:
         reach = self.reachable_states()
         return not bool((reach & self.is_accepting).any())
+
+    def _transitions(self, available: np.ndarray):
+        """Yield ``(left, right, targets)`` for every child pair both of whose
+        children are available, ``BOT`` included. Unlisted pairs fall to the
+        global default, so they are enumerated too -- which is why this is
+        quadratic in the number of available states and reserved for the
+        analyses below rather than the hot pipeline."""
+        base = self.num_states + 1
+        listed = {int(k): int(n) for k, n in
+                  zip(self.pair_keys, self.pair_nodes)}
+        usable = [int(s) for s in np.flatnonzero(available)] + [self.BOT]
+        for left in usable:
+            for right in usable:
+                node = listed.get(left * base + right)
+                if node is None:
+                    yield left, right, (self.default_state,)
+                else:
+                    yield left, right, self.store.terminals(node)
+
+    def co_reachable_states(self, available: Optional[np.ndarray] = None
+                            ) -> np.ndarray:
+        """Boolean mask of states that can occur in an accepting run: a state
+        is co-reachable if it is accepting (as the root) or it is a child in
+        some transition whose target is co-reachable and whose sibling subtree
+        exists. The top-down companion to `reachable_states`."""
+        if available is None:
+            available = self.reachable_states()
+        co = self.is_accepting.copy()
+        transitions = list(self._transitions(available))
+        while True:
+            new = False
+            for left, right, targets in transitions:
+                if not any(t < self.num_states and co[t] for t in targets):
+                    continue
+                for child in (left, right):
+                    if child < self.num_states and not co[child]:
+                        co[child] = True
+                        new = True
+            if not new:
+                return co
+
+    def is_finite(self) -> bool:
+        """Whether the automaton accepts finitely many trees.
+
+        A state that can occur strictly below itself pumps: the context
+        between the two occurrences can be repeated without bound. So the
+        language is infinite exactly when the "child of" graph, restricted to
+        states that are both reachable and co-reachable, has a cycle.
+        """
+        available = self.reachable_states()
+        usable = available & self.co_reachable_states(available)
+        if not usable.any():
+            return True                          # empty language
+
+        successors = defaultdict(set)
+        indegree = defaultdict(int)
+        nodes = set(int(s) for s in np.flatnonzero(usable))
+        for left, right, targets in self._transitions(available):
+            for target in targets:
+                if target >= self.num_states or not usable[target]:
+                    continue
+                for child in (left, right):
+                    if child >= self.num_states or not usable[child]:
+                        continue
+                    if target not in successors[child]:
+                        successors[child].add(target)
+                        indegree[target] += 1
+
+        # Kahn's algorithm: anything left over sits on a cycle.
+        queue = deque(n for n in nodes if indegree[n] == 0)
+        removed = 0
+        while queue:
+            node = queue.popleft()
+            removed += 1
+            for target in successors[node]:
+                indegree[target] -= 1
+                if indegree[target] == 0:
+                    queue.append(target)
+        return removed == len(nodes)
 
     def __repr__(self):
         return (f"SparseTreeAutomaton({self.num_states} states, "

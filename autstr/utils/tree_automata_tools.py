@@ -342,6 +342,44 @@ def attach_padding(sta: SparseTreeAutomaton, padding_symbol,
 # Single-tree and string-language automata
 # ====================================================================
 
+def canonical(sta: SparseTreeAutomaton, padding_symbol) -> SparseTreeAutomaton:
+    """Keep only the canonical convolution of each tuple: trees in which no
+    node is padding on *every* tape.
+
+    `attach_padding` deliberately accepts each tuple with arbitrary
+    all-padding regions hanging below it, so the *tree* language of a
+    saturated relation automaton is infinite as soon as the relation is
+    non-empty. Restricting to canonical trees first is what makes finiteness
+    and counting questions be about tuples rather than about trees -- the tree
+    analog of `automata_tools.canonical`.
+    """
+    store = sta.store
+    k, m, bits = sta.symbol_arity, sta.m, sta.bits
+    CLEAN, DEAD, BOT = 0, 1, 2
+    base = 3
+
+    pad_assignment = _symbol_assignment(
+        encode_symbol((padding_symbol,) * k, sta.base_alphabet_frozen),
+        k, m, bits)
+
+    # Stay clean on every symbol but the all-padding one; once dead, dead.
+    clean = store.set_path(store.const(CLEAN, k, m, bits),
+                           pad_assignment, DEAD)
+    dead = store.const(DEAD, k, m, bits)
+
+    keys, nodes = [], []
+    for left in (CLEAN, DEAD, BOT):
+        for right in (CLEAN, DEAD, BOT):
+            keys.append(left * base + right)
+            nodes.append(dead if DEAD in (left, right) else clean)
+
+    no_padding = SparseTreeAutomaton(
+        num_states=2, default_state=DEAD, is_accepting=[True, False],
+        symbol_arity=k, base_alphabet=sta.base_alphabet,
+        pair_keys=keys, pair_nodes=nodes)
+    return minimize(sta.intersection(no_padding))
+
+
 def tree_automaton(tree, base_alphabet, symbol_arity: int = 1
                    ) -> SparseTreeAutomaton:
     """Automaton accepting exactly the given tree. Subtrees are hash-consed

@@ -11,6 +11,9 @@ from typing import Dict, List, Optional, Sequence
 
 from autstr.buildin.automata import k_longer_automaton
 from autstr.sparse_tree_automata import convolve_trees, tree_to_arrays
+from autstr.utils.tree_automata_tools import (
+    canonical as tree_canonical, tree_automaton,
+)
 from autstr.utils.automata_tools import (
     canonical, iterate_language, word_automaton,
 )
@@ -149,9 +152,8 @@ class TreeStructureBackend(Backend):
     Python values to `Tree`s; everything above this module is unchanged, since
     the codec's output is only ever handed back to the backend.
 
-    The tree engine has no counterpart yet for enumeration, finiteness, or
-    splicing an automaton into a query. Those operations raise with the reason
-    rather than quietly answering a different question.
+    The tree engine has no counterpart yet for enumeration, which raises with
+    the reason rather than quietly answering a different question.
     """
 
     def __init__(self, presentation):
@@ -168,19 +170,17 @@ class TreeStructureBackend(Backend):
         return sta.symbol_arity
 
     def evaluate(self, expression, updates, prepared):
-        if updates or prepared:
-            raise NotImplementedError(
-                "TreeAutomaticPresentation.evaluate accepts no relation "
-                "updates, so constants and spliced automata cannot be injected "
-                "into a tree query yet")
-        sta = self.presentation.evaluate(expression)
+        # The tree presentation has no `prepared_updates` fast path: it would
+        # skip the domain restriction, and there is no tree `unpad` producing
+        # the already-restricted automata that shortcut relies on.
+        combined = dict(updates or {})
+        combined.update(prepared or {})
+        sta = self.presentation.evaluate(
+            expression, updates=combined or None)
         return sta, get_free_elementary_vars(expression)
 
     def constant_automaton(self, tree):
-        raise NotImplementedError(
-            "a constant is spliced into the query as a temporary relation, "
-            "which the tree presentation does not yet accept; pass the value "
-            "as an assignment to a free variable instead")
+        return tree_automaton(tree, self.presentation.base_alphabet)
 
     def longer_witness_automaton(self, k, references):
         raise NotImplementedError(
@@ -202,11 +202,10 @@ class TreeStructureBackend(Backend):
             "well-defined order is a separate construction")
 
     def is_finite(self, sta):
-        raise NotImplementedError(
-            "finiteness needs the tree analogue of `automata_tools.canonical`: "
-            "padding-saturated automata accept every tuple in infinitely many "
-            "spellings, so a cycle test would answer a question about trees "
-            "rather than about tuples")
+        # As on the string side, the tuple set is finite iff the canonical
+        # convolutions are; the saturated automaton's own tree language never
+        # is, thanks to the attached all-padding regions.
+        return tree_canonical(sta, self.presentation.padding_symbol).is_finite()
 
     def describe(self):
         return (f"tree structure with relations "

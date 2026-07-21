@@ -11,7 +11,7 @@ saturation; complements are re-intersected with the domain product; and
 `project` — which produces the canonical (trimmed) language — is followed by
 re-saturation, the tree analog of the string pipeline's pad/unpad dance.
 """
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 from nltk.sem import logic
 
@@ -90,8 +90,8 @@ class TreeAutomaticPresentation:
         operators instead of formula strings.
 
         Elements are trees, so a signature's codec encodes Python values to
-        `Tree`s. Enumeration, finiteness and constants are not available over
-        the tree engine yet and raise with the reason.
+        `Tree`s. Enumeration and finiteness are not available over the tree
+        engine yet and raise with the reason.
 
         :param signature: declared functions, operators and element codec.
         :return: a `autstr.symbolic.SymbolicContext`.
@@ -121,12 +121,43 @@ class TreeAutomaticPresentation:
         phi = phi.simplify()
         return not self._build_automaton(phi).is_empty()
 
-    def evaluate(self, phi) -> SparseTreeAutomaton:
+    def evaluate(self, phi, updates: Optional[Dict[str, Union[
+            SparseTreeAutomaton, str]]] = None) -> SparseTreeAutomaton:
         """Automaton of all satisfying assignments (tapes = sorted free
-        variables; padding-saturated form)."""
+        variables; padding-saturated form).
+
+        :param phi: the first-order formula.
+        :param updates: relations to install for this evaluation only. Values
+            may be automata or formula strings over the current signature, and
+            are prepared exactly as at construction time -- so a spliced
+            automaton is padding-saturated and domain-restricted before any
+            projection sees it.
+        """
         if isinstance(phi, str):
             phi = logic.Expression.fromstring(phi)
-        return self._build_automaton(optimize_query(phi))
+        phi = optimize_query(phi)
+        if not updates:
+            return self._build_automaton(phi)
+
+        prepared = {}
+        for name, value in updates.items():
+            if name == 'U':
+                raise ValueError("cannot replace the domain automaton")
+            if isinstance(value, SparseTreeAutomaton):
+                prepared[name] = self._prepare_automaton(value)
+            else:
+                query = optimize_query(logic.Expression.fromstring(value))
+                prepared[name] = self._prepare_automaton(
+                    self._build_automaton(query))
+
+        backup = self.automata
+        self.automata = dict(self.automata, **prepared)
+        try:
+            return self._build_automaton(phi)
+        finally:
+            # Restore even if the build raises; otherwise a failed query would
+            # leave the temporary relations installed on the presentation.
+            self.automata = backup
 
     def _build_automaton(self, phi) -> SparseTreeAutomaton:
         if isinstance(phi, str):

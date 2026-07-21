@@ -305,3 +305,66 @@ class TestConvolution:
         # post-order: children indices precede parents
         for i, (l, r) in enumerate(zip(lefts, rights)):
             assert l < i and r < i
+
+
+# ====================================================================
+# Finiteness against an exhaustive oracle
+# ====================================================================
+
+def _trees_up_to_height(m: int, height: int):
+    """Every tree of height <= `height` over `m` labels, where the height is
+    the number of nodes on the longest root-to-leaf path. `None` (the absent
+    tree) is included so it can serve as a child."""
+    level = [None]
+    for _ in range(height):
+        level = [None] + [Tree(label, left, right)
+                          for label in range(m)
+                          for left in level
+                          for right in level]
+    return level
+
+
+def _height(tree) -> int:
+    if tree is None:
+        return 0
+    best, stack = 0, [(tree, 1)]
+    while stack:
+        node, depth = stack.pop()
+        best = max(best, depth)
+        for child in (node.left, node.right):
+            if child is not None:
+                stack.append((child, depth + 1))
+    return best
+
+
+def _accepts_a_tall_tree(sta: SparseTreeAutomaton, m: int) -> bool:
+    """Whether some accepted tree is taller than the state count.
+
+    Such a tree repeats a state along one root-to-leaf path, so the context
+    between the two occurrences pumps and the language is infinite.
+    Conversely an infinite language has trees of unbounded size, and a binary
+    tree's size is bounded by its height -- so this is exact, not a heuristic.
+    """
+    n = sta.num_states
+    return any(tree is not None and _height(tree) > n and sta.accepts(tree)
+               for tree in _trees_up_to_height(m, n + 1))
+
+
+class TestFiniteness:
+    def test_matches_the_exhaustive_oracle(self):
+        rng = random.Random(20260721)
+        for _ in range(60):
+            sta = random_sta(rng, max_states=2, max_symbols=2,
+                             max_exc=8, max_pd=4)
+            m = len(sta.base_alphabet)
+            assert sta.is_finite() is not _accepts_a_tall_tree(sta, m), sta
+
+    def test_empty_language_is_finite(self):
+        sta = SparseTreeAutomaton(1, 0, is_accepting=[False], symbol_arity=1,
+                                  base_alphabet={0, 1})
+        assert sta.is_finite()
+
+    def test_every_tree_is_infinite(self):
+        sta = SparseTreeAutomaton(1, 0, is_accepting=[True], symbol_arity=1,
+                                  base_alphabet={0, 1})
+        assert not sta.is_finite()
