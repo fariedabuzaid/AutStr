@@ -1,8 +1,7 @@
 """Distributed-center class-2 groups: cocycle tensors on site trees.
 
-Validation layer for the tensor cut-rank generalisation of the bounded
-rank-width group classes (the companion paper's master theorem). A *site
-tree* is a
+The tensor cut-rank generalisation of the bounded rank-width group classes.
+A *site tree* is a
 binary tree whose nodes are generators: 'x' sites and central 'z' sites.
 The commutator data is a tensor T[j, i, v] over the chain ring R = Z/p^d
 (i < j x-positions in post-order, v a z-position), presenting the central
@@ -22,8 +21,8 @@ bottom-up automaton must carry -- upward digit functionals (F_y, F_x),
 upward pair-sums (F_m), inward claims (F_g), and the mixed exports whose
 products flow back into inside checks (F_py, F_px); reshaping changes rank,
 so the width is their maximum -- and `CocycleRankWidthGroups`, the
-uniformly tree-automatic presentation realising the master theorem's
-six-register protocol at any width r and depth d. The classes
+uniformly tree-automatic presentation of these groups at any width r and
+depth d. The classes
 `CutRankTreeGroups` (all z-sites on a chain above the root) and
 `TreeExtraspecialGroups` (z-sites at the leaves, laminar targets, width 1)
 are corner cases.
@@ -318,9 +317,8 @@ def scattered_sites(p: int, m: int, d: int = 1) -> Tuple[CocycleSites, Dict]:
 
 class CocycleRankWidthGroups:
     """The uniformly tree-automatic class of distributed-center class-2
-    groups of tensor cut-rank <= r over R = Z/p^d -- the implementation of
-    the master theorem (paper: thm:master). The bottom-up automaton's
-    state is six R^r registers (plus three scratch slots)::
+    groups of tensor cut-rank <= r over R = Z/p^d. The bottom-up
+    automaton's state is six R^r registers (plus three scratch slots)::
 
         wy, wx : upward digit functionals   (column modules of F_y, F_x)
         qy, hx : mixed exports for inside targets       (F_py, F_px)
@@ -332,20 +330,19 @@ class CocycleRankWidthGroups:
     The advice is a *table-driven instruction stream*: each site expands
     into its marker letter followed by a chain of operations, each either
     linear -- a streamed matrix or injection column, the folds and
-    read-off coefficients of the restriction calculus (paper
-    lem:restrict) -- or a streamed *table* keyed on register values and
-    the residual digit: the pairing tables of lem:tables and the claim
-    extensions and joins of lem:claims. Over the ring these functions are
-    well-defined and bilinear on the interface images but need not be
-    matrices. Merges are one-step: the binary marker consumes both
+    read-off coefficients of the restriction calculus -- or a streamed
+    *table* keyed on register values and the residual digit: the sibling
+    pairing tables and the claim extensions and joins. Over the ring these
+    functions are well-defined and bilinear on the interface images but
+    need not be matrices. Merges are one-step: the binary marker consumes both
     children's raw registers and the stretch above it folds directly to
     the parent cut; no joint-interval interfaces exist.
 
     `advice(sites, T)` compiles a tensor of module cut-width <= r; every
     linear coefficient and every table entry is derived through
-    `chain_ring` solves whose solvability instantiates a lemma of the
-    paper, guarded by an assertion -- a compilation that succeeds is a
-    machine-checked certificate for that instance. Interfaces are minimal
+    `chain_ring` solves, each guarded by an assertion that the required
+    membership or factorisation actually holds, so a compilation that
+    succeeds has verified its own structural hypotheses. Interfaces are minimal
     generating sets of the flattening modules (Smith normal form with the
     p-power factors kept); at d = 1 they are ordinary bases and every
     table is semantically a matrix, though the letter format is uniform
@@ -614,12 +611,12 @@ class CocycleRankWidthGroups:
         return tuple(rep)
 
     def _coeffs(self, gens, vec, ctx, width=None):
-        """`vec` as an R-combination of the generators (a restriction-lemma
+        """`vec` as an R-combination of the generators (a membership
         certificate); AssertionError if it is not one."""
         rep = self._canon(gens, vec, width=width)
         if rep is None:
-            raise AssertionError(f"lemma failure ({ctx}): vector outside "
-                                 f"the generated module")
+            raise AssertionError(f"structural check failed ({ctx}): vector "
+                                 f"outside the generated module")
         return rep
 
     def _span_preimages(self, gens):
@@ -725,7 +722,7 @@ class CocycleRankWidthGroups:
     def _fold_ops(self, out, banks_S, banks_C, in_prefix, lo_c, hi_c, t,
                   inject_kind):
         """Fold the four functional registers from a child cut into the
-        parent registers (paper lem:restrict(1)); at an x-site, inject the
+        parent registers; at an x-site, inject the
         parent's own digit column once (`inject_kind` gates it so a binary
         node injects during one child pass only)."""
         table = (('Vy', 'wy', None, '31'), ('Vx', 'wx', None, '30'),
@@ -767,14 +764,13 @@ class CocycleRankWidthGroups:
                     if keep(k)}
             out = self._canon(gens_to, elem)
             if out is None:
-                raise AssertionError(f"lemma failure ({ctx})")
+                raise AssertionError(f"structural check failed ({ctx})")
             return out
         return fn
 
     def _pairing_certify(self, block, gens_R, gens_L, ctx):
-        """Membership certificates of a target-keyed sibling block
-        (paper lem:tables): i-vectors in the L-module, j-vectors in the
-        R-module."""
+        """Membership certificates of a target-keyed sibling block:
+        i-vectors in the L-module, j-vectors in the R-module."""
         rows, cols = {}, {}
         for v, b in block.items():
             for (j, i), c in b.items():
@@ -805,7 +801,7 @@ class CocycleRankWidthGroups:
                     elem[v] = s % self.q
             rep = self._canon(gens_out, elem)
             if rep is None:
-                raise AssertionError(f"lemma failure ({ctx})")
+                raise AssertionError(f"structural check failed ({ctx})")
             return rep
         return fn
 
@@ -829,8 +825,8 @@ class CocycleRankWidthGroups:
         """The read-off table: the x digit and one child register value
         determine the represented target element. Register values outside
         the interface image cannot occur in a live run and get don't-care
-        entries; for values in the image the membership is a lemma
-        instance."""
+        entries; for values in the image the target is guaranteed to lie in
+        the output module."""
         lams = {v: self._coeffs(gens_in, b, ctx) for v, b in blocks.items()}
         image = set(self._span_preimages(gens_in))
 
@@ -841,14 +837,14 @@ class CocycleRankWidthGroups:
                     for v, lam in lams.items()}
             rep = self._canon(gens_out, elem)
             if rep is None:
-                raise AssertionError(f"lemma failure ({ctx})")
+                raise AssertionError(f"structural check failed ({ctx})")
             return rep
         return fn
 
     def advice(self, sites: CocycleSites, T: Dict) -> Tree:
         """Compile a tensor of module cut-width <= r into the instruction
-        stream; ValueError beyond the width, AssertionError on any failed
-        lemma instance."""
+        stream; ValueError beyond the width, AssertionError if any
+        structural check fails."""
         if sites.p != self.p or sites.d != self.d:
             raise ValueError("sites and class must share p and d")
         sites.check_tensor(T)

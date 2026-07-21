@@ -10,18 +10,19 @@ a local principal ideal ring whose ideals are the chain
 
 every element being u * p^s with u a unit and s = v(.) its valuation.
 
-The one place the field proofs break is the *two-sided factorisation lemma*
-(``factor_two_sided``): false over R as stated, because a minimal generating set
-of a row module may have spent its valuation budget (e.g. the row (2,0) over
-Z/4 generates 2R, not a direct summand). The fix is to carry a **free basis of
-the saturation** of the module -- ``saturate`` below, Lemma "lem:sat" -- letting
-the valuation live in the middle factor Q rather than the interface (Lemma
-"lem:ring" / Corollary "cor:merge"). Everything here reduces to the field case
-at d = 1, so the later linear/tree automata (field and ring) can share one
+Over a field every module has a basis and every submodule is a direct summand;
+over R neither holds, which is what separates the routines here from ordinary
+linear algebra. A minimal generating set of a row module may consist of
+non-unit rows -- the row (2, 0) over Z/4 generates 2R, not a direct summand --
+so a two-sided factorisation cannot be read off such a set directly. The
+routines therefore work with a free basis of the *saturation* of a module
+(``saturate``), which keeps the outer interfaces of ``factor_two_sided`` free
+and confines the valuation to its middle factor Q.
+
+At d = 1 the ring is the field F_p, a module is its own saturation, and every
+routine reduces to the familiar field case, so field and ring callers share one
 ``saturate`` / ``factor_two_sided`` interface.
 
-The field fast path ``autstr.groups._rref_mod`` (reduced row echelon over F_p)
-is the d = 1 specialisation of ``saturate``; unifying the two is a later pass.
 This module is a leaf (nothing in ``autstr`` is imported here) so that the group
 constructions can build on it without an import cycle; the small mod-p echelon
 helper ``_rref_mod_p`` below mirrors ``groups._rref_mod`` for locating unit
@@ -211,7 +212,7 @@ def saturate(M: np.ndarray, p: int, d: int) -> Tuple[np.ndarray, List[int]]:
     ``exps`` the valuations with ``rowsp(M) == rowsp(diag(p^exps) @ basis)``.
     The free rank ``rho = len(basis) = dim_{F_p}(M / pM)`` is the *module
     cut-rank* -- the number of invariant factors -- and equals the ordinary
-    F_p rank when d = 1 (Lemma "lem:sat").
+    F_p rank when d = 1.
     """
     exps, Winv = smith_normal_form(M, p, d)
     basis = Winv[:len(exps), :].copy() % (p ** d)
@@ -228,7 +229,8 @@ def module_cut_rank(M: np.ndarray, p: int, d: int) -> int:
 def right_invertible(V: np.ndarray, p: int, d: int) -> bool:
     """True iff the rows of V are a free basis of a direct summand of R^n,
     equivalently V has full row rank mod p, equivalently some r x r minor is a
-    unit -- the "saturated interface" hypothesis of the factorisation lemma."""
+    unit. This is the "saturated interface" hypothesis required by
+    ``factor_two_sided``."""
     V = np.asarray(V, dtype=np.int64)
     r = V.shape[0]
     _, pivots = _rref_mod_p(V, p)
@@ -332,7 +334,7 @@ def solve_left(V: np.ndarray, B: np.ndarray, p: int, d: int) -> np.ndarray:
 
 def factor_two_sided(X: np.ndarray, Vbar: np.ndarray, Wbar: np.ndarray,
                      p: int, d: int) -> np.ndarray:
-    """The two-sided factorisation over R = Z/p^d (Corollary "cor:merge").
+    """The two-sided factorisation over R = Z/p^d.
 
     Given ``X`` (m x m'), a saturated ``Vbar`` (r x m') and a saturated
     ``Wbar`` (r' x m) such that every row of X lies in ``rowsp(Vbar)`` and every

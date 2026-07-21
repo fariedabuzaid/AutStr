@@ -358,7 +358,7 @@ class TestCutRankTreeGroups:
 class TestCutRankTreeGroupsChainRing:
     """The exponent-p^d ("Idea 2") tree layout: the saturated tree merge over
     the chain ring R = Z/p^d, whose crux is the two-sided sibling factorisation
-    (chain_ring.factor_two_sided, Cor. cor:merge)."""
+    (chain_ring.factor_two_sided)."""
 
     def elements(self, crt, shape):
         seq, _, _ = crt._layout(shape)

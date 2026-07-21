@@ -205,11 +205,10 @@ class CutRankTreeGroups:
     commutation form admits a *tree* layout of module cut-rank <= r (bounded
     rank-width over R) — the tree analog of `autstr.groups.CutRankGroups`, which
     is recovered exactly on spine layouts. With d = 1 (the default) R is the
-    field F_p and this is the original construction; d > 1 is the exponent-p^d
-    ("Idea 2") case. The tree merge is the one step the field proof genuinely
-    uses a field: the sibling block factorises as V_R^T Q V_L, which is false
-    over R with a naive interface but holds once the carried bases are the
-    SATURATED free interfaces (chain_ring.factor_two_sided, Cor. cor:merge).
+    field F_p; d > 1 gives an exponent-p^d center. The tree merge is the step
+    where the ring case genuinely differs from the field one: it needs the
+    sibling block to factorise as V_R^T Q V_L, which requires the carried bases
+    to be *saturated* free interfaces (`chain_ring.factor_two_sided`).
 
     Generators are the post-order positions 1..n of a binary layout tree;
     the form is a dict {(j, i): label in Z_p^k, i < j} presenting
