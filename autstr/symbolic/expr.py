@@ -239,16 +239,33 @@ class Formula(Node):
         return (~self | other) & (~other | self)
 
     # -- quantification -----------------------------------------------
+    def _quantified(self, variables, what: str) -> List[str]:
+        """The names to bind, refusing any that is not free in the body.
+
+        Binding a variable that does not occur is logically harmless but is
+        almost always a typo, and it fails silently: the intended variables
+        stay free and are existentially closed by `check`.
+        """
+        from autstr.symbolic.context import SymbolicSymbolError
+        names = _names(variables)
+        free = set(self.variables())
+        missing = [n for n in names if n not in free]
+        if missing:
+            raise SymbolicSymbolError(
+                f"cannot {what} {missing}: not free in the body, whose free "
+                f"variables are {sorted(free)}")
+        return names
+
     def drop(self, variables) -> 'Formula':
         """Project the relation away from ``variables`` -- equivalently,
         existentially quantify them."""
-        return Exists(self.ctx, _names(variables), self)
+        return Exists(self.ctx, self._quantified(variables, 'drop'), self)
 
     ex = drop
 
     def all(self, variables) -> 'Formula':
         """Universally quantify ``variables``."""
-        return Forall(self.ctx, _names(variables), self)
+        return Forall(self.ctx, self._quantified(variables, 'quantify'), self)
 
     def exinf(self, variable) -> 'Formula':
         """:math:`\\exists^\\infty` -- the tuples extended by infinitely many
@@ -492,9 +509,19 @@ def _formula(ctx, x) -> Formula:
 
 
 def _names(variables) -> List[str]:
-    """Accept a variable, a name, or an iterable of either."""
-    if isinstance(variables, (str, Var)):
+    """Accept a variable, a name, a whitespace-separated string of names, or
+    an iterable of either.
+
+    Splitting a string matches `SymbolicContext.vars`, which is where these
+    names come from. Without it ``.all('x y z')`` bound one variable literally
+    called ``'x y z'``, which occurs nowhere -- so x, y and z stayed free and
+    were existentially closed, turning a universal into an existential with no
+    error anywhere.
+    """
+    if isinstance(variables, Var):
         variables = [variables]
+    elif isinstance(variables, str):
+        variables = variables.split()
     names = []
     for v in variables:
         if isinstance(v, Var):

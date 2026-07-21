@@ -398,7 +398,10 @@ def test_substitution_avoids_capture_by_inner_binders(S):
     """The fresh binder has to dodge names bound deeper in the body, not just
     the free ones."""
     x, y, z = S.vars('x y z')
-    inner = ((x + y).eq(z) & (x + z).eq(y).drop('_v0'))
+    v0 = S.var('_v0')
+    # `v0.eq(v0)` is trivially true, so the conjunct means exactly what it did
+    # before; it is there so that '_v0' occurs and can be bound.
+    inner = ((x + y).eq(z) & ((x + z).eq(y) & v0.eq(v0)).drop('_v0'))
     formula = inner.drop(y).substitute(x='y')
     assert formula.variables() == ['y', 'z']
     assert not formula.evaluate().is_empty()
@@ -425,3 +428,25 @@ def test_class_implicit_and_explicit_checking_agree(depth2):
         advice = depth2.advice(TreeDepthGraph.from_networkx(graph))
         assert (K.check_member(formula, advice, implicit=True)
                 == K.check_member(formula, advice))
+
+
+def test_whitespace_variable_names_are_split(S):
+    """`.all('x y')` must bind both, the way `vars('x y')` does.
+
+    Binding one variable literally named 'x y' left x and y free, and free
+    variables are existentially closed by `check` -- so a universal silently
+    became an existential and the query answered a different question.
+    """
+    x, y = S.vars('x y')
+    # x + y = y holds exactly when x = 0, so the universal is false and the
+    # existential is true; a mis-bound quantifier makes both come out true.
+    assert not (x + y).eq(y).all('x y').check()
+    assert (x + y).eq(y).drop('x y').check()
+
+
+def test_quantifying_a_variable_that_is_not_free_is_an_error(S):
+    x, y = S.vars('x y')
+    with pytest.raises(SymbolicSymbolError, match='not free'):
+        (x + y).eq(y).all('w')
+    with pytest.raises(SymbolicSymbolError, match='not free'):
+        (x + y).eq(y).drop(['x', 'w'])
