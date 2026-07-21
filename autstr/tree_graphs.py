@@ -1136,8 +1136,8 @@ class RankWidthClass:
     width <= r into the annotated advice (`chain_ring.saturate` /
     `solve_left` / `factor_two_sided` at p = 2, d = 1); `check_implicit` and
     `evaluate_implicit` run over the functional atoms without building any
-    automaton. The flat letter alphabet caps r at 2 (2^{3r^2} binary
-    letters); factored letters as in the group classes are future work.
+    automaton. The flat letter alphabet caps r at 2: it grows as 2^{3r^2}
+    binary letters, unlike the factored letters used by the group classes.
     """
 
     def __init__(self, r: int, max_states: Optional[int] = None):
@@ -1147,7 +1147,7 @@ class RankWidthClass:
         if n_letters > 20000:
             raise ValueError(
                 f"the advice alphabet would have {n_letters} letters; "
-                f"r <= 2 is supported (factored letters are future work)")
+                f"only r <= 2 is supported")
         self.r = r
         self.max_states = max_states
         vecs = list(it.product((0, 1), repeat=r))

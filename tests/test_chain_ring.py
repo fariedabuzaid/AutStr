@@ -1,6 +1,6 @@
 """Linear algebra over the chain ring R = Z/p^d (autstr.chain_ring).
 
-Reproduces the exhaustive validation of paper/scratch-chainring.tex: the naive
+Exhaustive validation that the naive
 two-sided factorisation is false over R (counterexample at r=1 over Z/4), but
 the saturated form holds on every admissible block. Also checks the saturation
 (Smith-normal-form) primitive and that everything reduces to the field case at
@@ -69,7 +69,7 @@ class TestScalars:
 
 class TestNaiveFails:
     def test_prop_fail_witness_z4(self):
-        """The explicit Proposition (prop:fail) counterexample over Z/4:
+        """The explicit counterexample over Z/4:
         V = W = (2,0), X = [[2,0],[0,0]] -- rows/cols in the spans, yet no
         scalar q gives X = W^T q V, because 4 = 0."""
         V = np.array([[2, 0]]); W = np.array([[2, 0]])
@@ -140,7 +140,8 @@ class TestSaturatedHolds:
     @pytest.mark.parametrize("n,r", [(4, 1), (4, 2), (8, 2), (9, 2)])
     def test_no_counterexample_among_free_bases(self, n, r):
         """With right-invertible (saturated) V, W the factorisation succeeds on
-        every admissible X -- Lemma (lem:ring) holds on all cases tested."""
+        every admissible X -- the saturated factorisation holds on all cases
+        tested."""
         p = 2 if n % 2 == 0 else 3
         d = {4: 2, 8: 3, 9: 2}[n]
         cols = max(r, 2)
