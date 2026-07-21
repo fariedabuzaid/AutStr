@@ -84,6 +84,22 @@ class TreeAutomaticPresentation:
     def get_relation_symbols(self):
         return list(self.automata.keys())
 
+    def symbolic(self, signature=None):
+        """A symbolic interface to this structure: variables, relation and
+        function symbols that build first-order expressions with Python
+        operators instead of formula strings.
+
+        Elements are trees, so a signature's codec encodes Python values to
+        `Tree`s. Enumeration, finiteness and constants are not available over
+        the tree engine yet and raise with the reason.
+
+        :param signature: declared functions, operators and element codec.
+        :return: a `autstr.symbolic.SymbolicContext`.
+        """
+        from autstr.symbolic.backends import TreeStructureBackend
+        from autstr.symbolic.context import SymbolicContext
+        return SymbolicContext(TreeStructureBackend(self), signature)
+
     def update(self, **automata) -> None:
         """Install or replace relations. Values may be automata (saturated
         and domain-restricted like at construction time) or formula strings

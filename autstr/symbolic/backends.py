@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Sequence
 
 from autstr.buildin.automata import k_longer_automaton
+from autstr.sparse_tree_automata import convolve_trees, tree_to_arrays
 from autstr.utils.automata_tools import (
     canonical, iterate_language, word_automaton,
 )
@@ -139,6 +140,77 @@ class StructureBackend(Backend):
 
     def describe(self):
         return f"structure with relations {sorted(self.relation_symbols())}"
+
+
+class TreeStructureBackend(Backend):
+    """Queries answered by a `TreeAutomaticPresentation`.
+
+    Elements are trees rather than words, so a signature's codec encodes
+    Python values to `Tree`s; everything above this module is unchanged, since
+    the codec's output is only ever handed back to the backend.
+
+    The tree engine has no counterpart yet for enumeration, finiteness, or
+    splicing an automaton into a query. Those operations raise with the reason
+    rather than quietly answering a different question.
+    """
+
+    def __init__(self, presentation):
+        self.presentation = presentation
+
+    def relation_symbols(self):
+        return [s for s in self.presentation.get_relation_symbols() if s != 'U']
+
+    def arity(self, symbol):
+        sta = self.presentation.automata.get(symbol)
+        return None if sta is None else sta.symbol_arity
+
+    def arity_of(self, sta):
+        return sta.symbol_arity
+
+    def evaluate(self, expression, updates, prepared):
+        if updates or prepared:
+            raise NotImplementedError(
+                "TreeAutomaticPresentation.evaluate accepts no relation "
+                "updates, so constants and spliced automata cannot be injected "
+                "into a tree query yet")
+        sta = self.presentation.evaluate(expression)
+        return sta, get_free_elementary_vars(expression)
+
+    def constant_automaton(self, tree):
+        raise NotImplementedError(
+            "a constant is spliced into the query as a temporary relation, "
+            "which the tree presentation does not yet accept; pass the value "
+            "as an assignment to a free variable instead")
+
+    def longer_witness_automaton(self, k, references):
+        raise NotImplementedError(
+            "exinf counts word positions and has no tree analogue yet")
+
+    def accepts(self, sta, values, codec):
+        trees = values if codec is None else [codec.encode(v) for v in values]
+        # `SparseTreeAutomaton.accepts` convolves with sorted(alphabet)[0] as
+        # the pad, which is the padding symbol only by luck of the ordering.
+        conv = convolve_trees(trees, sta.base_alphabet_frozen,
+                              self.presentation.padding_symbol)
+        return sta.accepts(tree_to_arrays(conv, sta.base_alphabet_frozen,
+                                          sta.symbol_arity))
+
+    def iterate(self, sta, codec, arity):
+        raise NotImplementedError(
+            "the tree engine has no language enumeration: `iterate_language` "
+            "walks word positions, and enumerating a tree language in a "
+            "well-defined order is a separate construction")
+
+    def is_finite(self, sta):
+        raise NotImplementedError(
+            "finiteness needs the tree analogue of `automata_tools.canonical`: "
+            "padding-saturated automata accept every tuple in infinitely many "
+            "spellings, so a cycle test would answer a question about trees "
+            "rather than about tuples")
+
+    def describe(self):
+        return (f"tree structure with relations "
+                f"{sorted(self.relation_symbols())}")
 
 
 class ClassBackend(Backend):
