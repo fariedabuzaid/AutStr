@@ -43,27 +43,33 @@ class Function:
 class ElementCodec:
     """Translation between Python values and element encodings.
 
-    An encoding is a list of base-alphabet symbols, in the order the automata
-    read them. Supplying a codec is optional: without one the symbolic layer
-    still works, but constants cannot be written as Python values and solutions
-    are yielded as raw words.
+    What an encoding *is* belongs to the backend: a list of base-alphabet
+    symbols in the order the automata read them for the string engines, a
+    `Tree` for the tree engine. The codec's output is only ever handed back to
+    the backend that asked for it, so this layer does not interpret it.
+
+    Supplying a codec is optional: without one the symbolic layer still works,
+    but constants cannot be written as Python values and solutions are yielded
+    in their raw encoded form.
     """
 
-    def encode(self, value: Any) -> List:
+    def encode(self, value: Any) -> Any:
         raise NotImplementedError
 
-    def decode(self, word: Sequence) -> Any:
+    def decode(self, encoded: Any) -> Any:
         raise NotImplementedError
 
 
 @dataclass(frozen=True)
 class FunctionCodec(ElementCodec):
     """A codec built from two plain functions."""
-    encoder: Callable[[Any], List]
-    decoder: Optional[Callable[[Sequence], Any]] = None
+    encoder: Callable[[Any], Any]
+    decoder: Optional[Callable[[Any], Any]] = None
 
     def encode(self, value):
-        return list(self.encoder(value))
+        # Returned as the encoder produced it: coercing to a list here would
+        # bake in the word-shaped engines and break tree encodings.
+        return self.encoder(value)
 
     def decode(self, word):
         if self.decoder is None:
