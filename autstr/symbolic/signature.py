@@ -40,6 +40,37 @@ class Function:
         return inputs, out
 
 
+#: Names structures in this library use for their equality relation.
+EQUALITY_SYMBOLS = ('Eq', 'E')
+
+
+def operation_signature(relations, graph: str, operator: str,
+                        codec=None) -> 'Signature':
+    """The signature of a structure whose binary operation is presented by the
+    ternary graph relation `graph`, bound to `operator`.
+
+    Equality is bound to ``.eq`` when the structure declares it, under either
+    name in `EQUALITY_SYMBOLS`. A structure without an equality relation gets
+    the operator anyway, but terms cannot then be turned into formulas --
+    ``(x + y).eq(z)`` is the only way to state what a term denotes -- so such
+    a structure is better served through its relation symbols directly.
+
+    :param relations: the structure's relation symbols.
+    :param graph: the ternary relation R(x, y, z) meaning ``x op y = z``.
+    :param operator: the Python operator to bind, ``'*'`` or ``'+'``.
+    :param codec: optional element codec; unused over a uniformly automatic
+        class, where an element's encoding depends on the advice.
+    """
+    signature = Signature(codec=codec)
+    signature.function(operator, graph=graph, out=2)
+    signature.operator(operator, operator)
+    for name in EQUALITY_SYMBOLS:
+        if name in relations:
+            signature.operator('eq', name)
+            break
+    return signature
+
+
 class ElementCodec:
     """Translation between Python values and element encodings.
 

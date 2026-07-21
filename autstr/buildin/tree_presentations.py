@@ -57,6 +57,14 @@ class SkolemArithmetic(TreeAutomaticPresentation):
              'E': self._equality()},
             padding_symbol=self.PAD, max_states=max_states)
 
+    def default_signature(self):
+        """Multiplication as ``*``, equality as ``.eq``, and positive integers
+        as elements -- so ``(x * y).eq(12)`` says what it reads as."""
+        from autstr.symbolic import FunctionCodec, operation_signature
+        return operation_signature(
+            self.get_relation_symbols(), graph='M', operator='*',
+            codec=FunctionCodec(self.encode, self.decode))
+
     # ---------------- encoding elements ----------------
 
     @classmethod

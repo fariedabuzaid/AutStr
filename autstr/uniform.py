@@ -91,6 +91,40 @@ def dfa_from_delta(sigma, states, arity, delta, initial, finals,
     ).minimize()
 
 
+class SymbolicClassWrapper:
+    """Mixin for the family wrappers that present a class through ``.cls``.
+
+    The wrappers (the group and algebra families) hold their uniformly
+    automatic class in ``.cls`` and otherwise offer a domain-specific API. This
+    forwards the symbolic interface to that class and supplies the family's
+    operator vocabulary, so `ExtraspecialGroups(3).symbolic()` works directly
+    instead of reaching into ``.cls``.
+
+    Subclasses set `GRAPH` and `OPERATOR`; the default is a multiplicative
+    group, since that is what most of these families are.
+    """
+
+    #: the ternary relation R(x, y, z) meaning ``x op y = z``
+    GRAPH = 'M'
+    #: the Python operator it binds to
+    OPERATOR = '*'
+
+    def default_signature(self):
+        from autstr.symbolic import operation_signature
+        return operation_signature(self.cls.get_relation_symbols(),
+                                   graph=self.GRAPH, operator=self.OPERATOR)
+
+    def symbolic(self, signature=None):
+        """A symbolic interface to this family; see
+        `UniformlyAutomaticClass.symbolic`. Element codecs are not used over a
+        class -- an element's encoding depends on the advice -- so constants
+        and decoded solutions come from ``get_structure(advice).symbolic()``.
+        """
+        if signature is None:
+            signature = self.default_signature()
+        return self.cls.symbolic(signature)
+
+
 class UniformlyAutomaticClass:
     """A uniformly automatic presentation of a class of structures.
 
@@ -143,7 +177,15 @@ class UniformlyAutomaticClass:
         """
         from autstr.symbolic.backends import ClassBackend
         from autstr.symbolic.context import SymbolicContext
+        if signature is None:
+            signature = self.default_signature()
         return SymbolicContext(ClassBackend(self), signature)
+
+    def default_signature(self):
+        """The signature `symbolic()` uses when none is given, or None for a
+        class addressed through its relation symbols. See
+        `autstr.symbolic.operation_signature`."""
+        return None
 
     @staticmethod
     def _variable_names(phi: logic.Expression) -> set:

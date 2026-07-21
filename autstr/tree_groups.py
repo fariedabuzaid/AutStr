@@ -42,13 +42,14 @@ from autstr import chain_ring as cr
 from autstr.sparse_tree_automata import SparseTreeAutomaton, Tree
 from autstr.tree_presentations import TreeAutomaticPresentation
 from autstr.tree_uniform import UniformlyTreeAutomaticClass, sta_from_delta
+from autstr.uniform import SymbolicClassWrapper
 
 PAD = '*'
 SHAPE = 's'
 CMARK = 'c'
 
 
-class TreeExtraspecialGroups:
+class TreeExtraspecialGroups(SymbolicClassWrapper):
     """The uniformly tree-automatic class of tree-indexed extraspecial
     p-groups (advice = shape tree, elements = coordinate labellings)."""
 
@@ -199,7 +200,7 @@ class TreeExtraspecialGroups:
 # Class-2 groups of bounded rank-width (tree layouts of bounded cut-rank)
 # ====================================================================
 
-class CutRankTreeGroups:
+class CutRankTreeGroups(SymbolicClassWrapper):
     """For a fixed prime p, center dimension k, width r and ring depth d, the
     uniformly tree-automatic class of class-2 groups over R = Z/p^d whose
     commutation form admits a *tree* layout of module cut-rank <= r (bounded

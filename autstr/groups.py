@@ -59,7 +59,9 @@ import numpy as np
 from autstr import chain_ring as cr
 from autstr.presentations import AutomaticPresentation
 from autstr.sparse_automata import SparseDFA
-from autstr.uniform import UniformlyAutomaticClass, dfa_from_delta
+from autstr.uniform import (
+    SymbolicClassWrapper, UniformlyAutomaticClass, dfa_from_delta,
+)
 
 PAD = '*'
 SEP = '#'
@@ -74,7 +76,7 @@ def _lsbf_bits(n: int) -> List[str]:
 # Groups with a cyclic subgroup of index <= 2
 # ====================================================================
 
-class IndexTwoCyclicGroups:
+class IndexTwoCyclicGroups(SymbolicClassWrapper):
     """The uniformly automatic class of finite groups with a cyclic subgroup
     of index <= 2, in one advice format. Signature: M(x,y,z) [z = x*y],
     T(x) [x is a twisted element r^a s], Eq(x,y), plus the primitives the
@@ -439,7 +441,7 @@ class IndexTwoCyclicGroups:
 # Extraspecial p-groups (fixed p, growing rank)
 # ====================================================================
 
-class ExtraspecialGroups:
+class ExtraspecialGroups(SymbolicClassWrapper):
     """For a fixed prime p, the uniformly automatic class of Heisenberg-type
     groups of order p^(1+2n): elements (c, a, b) with c in Z_p and
     a, b in Z_p^n, multiplied as (c,a,b)(c',a',b') =
@@ -579,10 +581,15 @@ class ExtraspecialGroups:
 # Finite abelian groups
 # ====================================================================
 
-class FiniteAbelianGroups:
+class FiniteAbelianGroups(SymbolicClassWrapper):
     """The uniformly automatic class of all finite abelian groups, presented
     by their cyclic decompositions: the group Z_{n_1} ⊕ ... ⊕ Z_{n_k} has
     advice bin(n_1)# ... bin(n_k)# (LSB-first binary per block)."""
+
+    #: addition, not multiplication -- these members are abelian by
+    #: construction, and the class presents the operation as A(x, y, z).
+    GRAPH = 'A'
+    OPERATOR = '+'
 
     def __init__(self):
         self.sigma = {PAD, '0', '1', SEP}
@@ -749,7 +756,7 @@ def _solve_xa_eq_b(A: np.ndarray, B: np.ndarray, p: int) -> np.ndarray:
     return X
 
 
-class CutRankGroups:
+class CutRankGroups(SymbolicClassWrapper):
     """For a fixed prime p, center dimension k, width r and ring depth d, the
     uniformly automatic class of class-2 groups over R = Z/p^d whose commutation
     form admits a linear layout of module cut-rank <= r (bounded *linear

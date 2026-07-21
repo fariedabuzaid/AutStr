@@ -98,7 +98,15 @@ class TreeAutomaticPresentation:
         """
         from autstr.symbolic.backends import TreeStructureBackend
         from autstr.symbolic.context import SymbolicContext
+        if signature is None:
+            signature = self.default_signature()
         return SymbolicContext(TreeStructureBackend(self), signature)
+
+    def default_signature(self):
+        """The signature `symbolic()` uses when none is given, or None for a
+        structure addressed through its relation symbols. See
+        `autstr.symbolic.operation_signature`."""
+        return None
 
     def update(self, **automata) -> None:
         """Install or replace relations. Values may be automata (saturated
