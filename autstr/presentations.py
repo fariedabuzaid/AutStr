@@ -316,13 +316,18 @@ class AutomaticPresentation(DeferredRelations):
             automata_backup = self.automata
             self.automata = dict(self.automata, **updates)
 
-        if len(get_free_elementary_vars(phi)) > 0:
-            dfa_phi = unpad(self._build_automaton(phi), self.padding_symbol).minimize()
-        else:   
-            dfa_phi = self._build_automaton(phi)
-
-        if updates is not None:
-            self.automata = automata_backup
+        try:
+            if len(get_free_elementary_vars(phi)) > 0:
+                dfa_phi = unpad(self._build_automaton(phi),
+                                self.padding_symbol).minimize()
+            else:
+                dfa_phi = self._build_automaton(phi)
+        finally:
+            # Restore even if the build raises: otherwise a failed query would
+            # leave the spliced relations installed, and every later
+            # evaluation would silently answer against them.
+            if updates is not None:
+                self.automata = automata_backup
 
         return dfa_phi
 

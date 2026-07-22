@@ -450,3 +450,19 @@ def test_quantifying_a_variable_that_is_not_free_is_an_error(S):
         (x + y).eq(y).all('w')
     with pytest.raises(SymbolicSymbolError, match='not free'):
         (x + y).eq(y).drop(['x', 'w'])
+
+
+def test_failed_evaluation_does_not_leave_spliced_relations_installed(S):
+    """`evaluate(updates=...)` installs relations for one query only. If the
+    build raises, the restore still has to happen -- otherwise every later
+    evaluation silently answers against the temporaries.
+    """
+    presentation = S.backend.presentation
+    before = dict(presentation.automata)
+
+    unit = presentation.automata['Eq']
+    with pytest.raises(Exception):
+        presentation.evaluate('NoSuchRelation(x,y)', updates={'Spliced': unit})
+
+    assert dict(presentation.automata) == before
+    assert 'Spliced' not in presentation.automata
