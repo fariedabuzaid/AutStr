@@ -116,6 +116,8 @@ class Term(Node):
             f"by an integer is available as .times(n)")
 
     def __rmul__(self, other):
+        if '*' in self.ctx.signature.operators:
+            return self._binop('*', other, swap=True)
         return self.__mul__(other)
 
     def times(self, n: int) -> 'Term':
