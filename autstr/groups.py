@@ -59,7 +59,9 @@ import numpy as np
 from autstr import chain_ring as cr
 from autstr.presentations import AutomaticPresentation
 from autstr.sparse_automata import SparseDFA
-from autstr.uniform import UniformlyAutomaticClass, dfa_from_delta
+from autstr.uniform import (
+    SymbolicClassWrapper, UniformlyAutomaticClass, dfa_from_delta,
+)
 
 PAD = '*'
 SEP = '#'
@@ -74,7 +76,7 @@ def _lsbf_bits(n: int) -> List[str]:
 # Groups with a cyclic subgroup of index <= 2
 # ====================================================================
 
-class IndexTwoCyclicGroups:
+class IndexTwoCyclicGroups(SymbolicClassWrapper):
     """The uniformly automatic class of finite groups with a cyclic subgroup
     of index <= 2, in one advice format. Signature: M(x,y,z) [z = x*y],
     T(x) [x is a twisted element r^a s], Eq(x,y), plus the primitives the
@@ -439,7 +441,7 @@ class IndexTwoCyclicGroups:
 # Extraspecial p-groups (fixed p, growing rank)
 # ====================================================================
 
-class ExtraspecialGroups:
+class ExtraspecialGroups(SymbolicClassWrapper):
     """For a fixed prime p, the uniformly automatic class of Heisenberg-type
     groups of order p^(1+2n): elements (c, a, b) with c in Z_p and
     a, b in Z_p^n, multiplied as (c,a,b)(c',a',b') =
@@ -579,17 +581,26 @@ class ExtraspecialGroups:
 # Finite abelian groups
 # ====================================================================
 
-class FiniteAbelianGroups:
+class FiniteAbelianGroups(SymbolicClassWrapper):
     """The uniformly automatic class of all finite abelian groups, presented
     by their cyclic decompositions: the group Z_{n_1} ⊕ ... ⊕ Z_{n_k} has
     advice bin(n_1)# ... bin(n_k)# (LSB-first binary per block)."""
 
-    def __init__(self):
+    #: addition, not multiplication -- these members are abelian by
+    #: construction, and the class presents the operation as A(x, y, z).
+    GRAPH = 'A'
+    OPERATOR = '+'
+    #: the identity is the unique idempotent, and x + 0 = y exactly when x = y.
+    #: The witness may not be called e0: nltk reads e-names as event variables.
+    EQUALITY = 'exists z0.(A(z0,z0,z0) and A(x,z0,y))'
+
+    def __init__(self, eager_equality: bool = False):
         self.sigma = {PAD, '0', '1', SEP}
         self.cls = UniformlyAutomaticClass({
             'U': self._universe_automaton(),
             'A': self._addition_automaton(),
         }, padding_symbol=PAD)
+        self._declare_equality(eager_equality)
         self.cls.element_alphabet = ['0', '1', SEP]
 
     def _universe_automaton(self) -> SparseDFA:
@@ -749,7 +760,7 @@ def _solve_xa_eq_b(A: np.ndarray, B: np.ndarray, p: int) -> np.ndarray:
     return X
 
 
-class CutRankGroups:
+class CutRankGroups(SymbolicClassWrapper):
     """For a fixed prime p, center dimension k, width r and ring depth d, the
     uniformly automatic class of class-2 groups over R = Z/p^d whose commutation
     form admits a linear layout of module cut-rank <= r (bounded *linear
@@ -1270,3 +1281,139 @@ class CutRankGroups:
 
     def get_structure(self, advice: Sequence[str]) -> AutomaticPresentation:
         return self.cls.get_structure(advice)
+
+
+class InfiniteExtraspecialGroup:
+    """The infinite extraspecial p-group: finitely supported vectors over
+    F_p with a one-digit centre.
+
+    An element is a triple (a, b, c) with a, b finitely supported sequences
+    over F_p and c in F_p, multiplied by
+
+        (a, b, c) * (a', b', c') = (a + a', b + b', c + c' + <a, b'>),
+
+    the central extension of F_p^(w) + F_p^(w) by F_p along the standard
+    symplectic form. It is non-abelian -- the commutator of (a, b, c) and
+    (a', b', c') is <a, b'> - <a', b> -- and unlike `ExtraspecialGroups` it is
+    a single infinite structure rather than a class of finite ones, so its
+    elements have an advice-free encoding and can be written as constants.
+
+    Encoding: the first letter carries the centre, and letter i + 1 carries
+    the pair (a_i, b_i); trailing (0, 0) pairs are trimmed, so encodings are
+    unique and equality is the diagonal.
+    """
+
+    PAD = '*'
+
+    def __init__(self, p: int = 3):
+        if not 2 <= p <= 9:
+            raise ValueError("p must be a single digit prime power base")
+        self.p = p
+        self.centre_letters = [f'c{d}' for d in range(p)]
+        self.pair_letters = [f'{i}{j}' for i in range(p) for j in range(p)]
+        self.sigma = {self.PAD, *self.centre_letters, *self.pair_letters}
+        self.presentation = AutomaticPresentation(
+            {'U': self._universe(), 'M': self._multiplication(),
+             'Eq': self._equality()},
+            padding_symbol=self.PAD)
+
+    # ---------------- encoding ----------------
+
+    def encode(self, element) -> List[str]:
+        """(a, b, c) -> word. `a` and `b` are sequences of digits."""
+        a, b, c = element
+        a, b = list(a), list(b)
+        n = max(len(a), len(b))
+        a += [0] * (n - len(a))
+        b += [0] * (n - len(b))
+        while a and a[-1] % self.p == 0 and b[-1] % self.p == 0:
+            a.pop()
+            b.pop()
+        return [f'c{c % self.p}'] + [f'{a[i] % self.p}{b[i] % self.p}'
+                                     for i in range(len(a))]
+
+    def decode(self, word):
+        letters = [s for s in word if s != self.PAD]
+        centre = int(letters[0][1:])
+        a = tuple(int(s[0]) for s in letters[1:])
+        b = tuple(int(s[1]) for s in letters[1:])
+        return a, b, centre
+
+    # ---------------- automata ----------------
+
+    def _digits(self, letter):
+        """The (a, b) digits a letter contributes; padding contributes zeros."""
+        return (0, 0) if letter == self.PAD else (int(letter[0]),
+                                                 int(letter[1]))
+
+    def _universe(self) -> SparseDFA:
+        states = ['i', 'ok', 'z', 'd']
+
+        def delta(q, sym):
+            (letter,) = sym
+            if q == 'i':
+                return 'ok' if letter in self.centre_letters else 'd'
+            if q in ('ok', 'z'):
+                if letter == self.PAD:
+                    return q                      # trailing padding only
+                if letter in self.pair_letters:
+                    return 'z' if letter == '00' else 'ok'
+            return 'd'
+
+        return dfa_from_delta(self.sigma, states, 1, delta, 'i', {'ok'})
+
+    def _multiplication(self) -> SparseDFA:
+        p = self.p
+        states = ['i', 'd'] + [f'm{r}{s}' for r in range(p) for s in range(p)]
+
+        def delta(q, sym):
+            lx, ly, lz = sym
+            if q == 'i':
+                if not all(l in self.centre_letters for l in (lx, ly, lz)):
+                    return 'd'
+                cx, cy, cz = (int(l[1:]) for l in (lx, ly, lz))
+                return f'm{(cz - cx - cy) % p}0'   # required carry, sum so far
+            if q == 'd':
+                return 'd'
+            if any(l in self.centre_letters for l in (lx, ly, lz)):
+                return 'd'
+            required, running = int(q[1]), int(q[2])
+            ax, bx = self._digits(lx)
+            ay, by = self._digits(ly)
+            az, bz = self._digits(lz)
+            if az != (ax + ay) % p or bz != (bx + by) % p:
+                return 'd'
+            return f'm{required}{(running + ax * by) % p}'
+
+        finals = {f'm{r}{r}' for r in range(p)}
+        return dfa_from_delta(self.sigma, states, 3, delta, 'i', finals)
+
+    def _equality(self) -> SparseDFA:
+        """Encodings are unique, so equality is the diagonal."""
+        def delta(q, sym):
+            return 'ok' if q == 'ok' and sym[0] == sym[1] else 'd'
+
+        return dfa_from_delta(self.sigma, ['ok', 'd'], 2, delta, 'ok', {'ok'})
+
+    # ---------------- interface ----------------
+
+    def multiply(self, x, y):
+        """The reference product, for checking the automaton against."""
+        (ax, bx, cx), (ay, by, cy) = x, y
+        n = max(len(ax), len(bx), len(ay), len(by))
+        pad = lambda v: list(v) + [0] * (n - len(v))
+        ax, bx, ay, by = map(pad, (ax, bx, ay, by))
+        pairing = sum(ax[i] * by[i] for i in range(n)) % self.p
+        return (tuple((ax[i] + ay[i]) % self.p for i in range(n)),
+                tuple((bx[i] + by[i]) % self.p for i in range(n)),
+                (cx + cy + pairing) % self.p)
+
+    def default_signature(self):
+        from autstr.symbolic import FunctionCodec, operation_signature
+        return operation_signature(
+            self.presentation.get_relation_symbols(), graph='M', operator='*',
+            codec=FunctionCodec(self.encode, self.decode))
+
+    def symbolic(self, signature=None):
+        """A symbolic interface with ``*`` bound to the group product."""
+        return self.presentation.symbolic(signature or self.default_signature())

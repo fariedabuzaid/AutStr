@@ -32,6 +32,63 @@ automaton of *all* satisfying assignments, which you can enumerate or reuse. The
 {doc}`arithmetic & algebra notebook <notebooks/arithmetic_and_algebra>` walks
 through Presburger and Büchi arithmetic in full.
 
+## Symbolic expressions instead of formula strings
+
+Formula strings are fine for a one-off question, but they are awkward to build
+programmatically and give no help with arities or variable names. Every
+structure and every class also hands out a **symbolic interface**: variables,
+relation symbols and function symbols that compose with ordinary Python
+operators.
+
+```python
+from autstr.arithmetic import integers
+
+Z = integers()
+x, y, z = Z.vars('x y z')
+
+phi = (x + y).eq(z) & z.lt(100)      # a relation over x, y, z
+phi.check()                          # satisfiable?                  — True
+phi.evaluate().contains(x=3, y=4, z=7)                             # — True
+(x + y).eq(4) & x.gt(0) & x.lt(y)    # ... and enumerate its solutions
+```
+
+Terms nest freely: `f(t)` for a declared function symbol compiles to an
+existential over the graph relation, so `((x + y) + z).eq(10)` means what it
+reads as. Arities come from the automata, so applying a relation to the wrong
+number of arguments is an error rather than a silently wrong query, and
+variables may be named anything — the compiler renames them internally and
+restores the names in results.
+
+What a structure offers is declared in a `Signature`: which relations are
+function graphs, which operators they bind to, and how Python values encode as
+elements.
+
+```python
+from autstr.arithmetic import encode, decode
+from autstr.symbolic import Signature, FunctionCodec
+
+signature = (Signature(codec=FunctionCodec(encode, decode))
+             .function('+', graph='A', out=2)     # A(x, y, z) is the graph of +
+             .operator('+', '+')
+             .operator('lt', 'Lt'))
+
+S = my_presentation.symbolic(signature)
+```
+
+Results carry their tape order as variable *names*, so membership and
+enumeration are keyed by name rather than position:
+
+```python
+relation = phi.evaluate()
+relation.variables                   # ['x', 'y', 'z']
+relation.contains(z=7, x=3, y=4)     # order does not matter
+relation.is_finite()                 # finitely many satisfying tuples?
+```
+
+The same expressions compile against a uniformly automatic class, where they
+define a relation across every member at once; `check_member` then evaluates
+one member, explicitly or implicitly.
+
 ## Computer algebra over infinite domains
 
 Structures need not be finitely generated. The localizations **ℤ[1/p]** — the

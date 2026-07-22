@@ -12,19 +12,20 @@ example changes; the file is committed so the README renders on GitHub.
 """
 from pathlib import Path
 
-from autstr.arithmetic import VariableETerm as Var
+from autstr.arithmetic import integers
 
 MEDIA = Path(__file__).resolve().parent.parent / "docs" / "media"
 
 
 def coprime_automaton(primes):
     """The DFA for {x > 1 : no p in `primes` divides x}."""
-    x = Var("x")
+    Z = integers()
+    x = Z.var("x")
     s = x.gt(1)
     for p in primes:
-        y = Var("y")
+        y = Z.var("y")
         s = s & ~((x.eq(p * y)).drop("y"))     # remove the multiples of p
-    return s.evaluate()
+    return s.evaluate().dfa
 
 
 def main():

@@ -7,9 +7,9 @@ from autstr.buildin.automata import zero, one
 from autstr.utils.logic import get_free_elementary_vars, optimize_query
 
 import json
+import re
 import struct
 import zlib
-from typing import Dict
 
 class AutomaticPresentationSerializer:
     MAGIC = b'APRS'
@@ -112,7 +112,72 @@ class AutomaticPresentationSerializer:
             enforce_consistency=False
         )
 
-class AutomaticPresentation:
+class DeferredRelations:
+    """Relations declared up front and built on first use.
+
+    Equality is definable in most presentations here -- from ``Leq`` in a
+    lattice, from ``Subset`` on set-valued elements, from the operation in a
+    group -- but defining it costs an automaton construction that most queries
+    never need, and for the wider graph classes that construction is
+    expensive. So such a relation is *registered* rather than built, and
+    materializes when something asks for it.
+
+    `materialize()` forces the construction, which is what you want before
+    pickling or otherwise reusing a structure, and every constructor that
+    registers deferred relations takes an ``eager`` flag for the same purpose.
+
+    Subclasses say where their relations live (`_relations`) and how to install
+    one (`_install_relation`). A definition is either a formula string over the
+    existing signature or a callable returning an automaton.
+    """
+
+    def _declare_deferred(self, definitions: Dict[str, object],
+                          eager: bool = False) -> None:
+        self._deferred = dict(definitions)
+        if eager:
+            self.materialize()
+
+    @property
+    def _relations(self) -> dict:
+        return self.automata
+
+    def _install_relation(self, name: str, definition) -> None:
+        raise NotImplementedError
+
+    def get_relation_symbols(self) -> List[str]:
+        """All relation symbols, including any not yet built."""
+        names = list(self._relations.keys())
+        names += [n for n in getattr(self, '_deferred', ())
+                  if n not in self._relations]
+        return names
+
+    def relation(self, name: str):
+        """The automaton for `name`, building it if it was deferred."""
+        deferred = getattr(self, '_deferred', {})
+        if name not in self._relations and name in deferred:
+            self._install_relation(name, deferred[name])
+        return self._relations.get(name)
+
+    def materialize(self, *names: str):
+        """Build the named deferred relations now, or all of them. Returns
+        self, so it chains onto a constructor."""
+        for name in (names or tuple(getattr(self, '_deferred', ()))):
+            self.relation(name)
+        return self
+
+    def _materialize_for(self, phi) -> None:
+        """Build any deferred relation the formula mentions."""
+        deferred = getattr(self, '_deferred', None)
+        if not deferred:
+            return
+        text = str(phi)
+        for name in list(deferred):
+            if name not in self._relations and re.search(
+                    rf'\b{re.escape(name)}\b', text):
+                self.relation(name)
+
+
+class AutomaticPresentation(DeferredRelations):
     """
     A presentation of a possibly infinite structure by finite state machines.
     """
@@ -143,13 +208,34 @@ class AutomaticPresentation:
     def automatic_presentation_from_file(cls, filename: str):
         return AutomaticPresentationSerializer.deserialize(filename)
 
-    def get_relation_symbols(self) -> List[str]:
-        """
-        Returns list of all defined relation symbols. The symbol 'U' must always be defined and denotes the Universe.
+    def _install_relation(self, name, definition):
+        """Build a deferred relation: a formula over the current signature, or
+        a callable returning an automaton."""
+        self.update(**{name: definition() if callable(definition)
+                       else definition})
 
-        :return: list of all defined relation symbols.
+    def symbolic(self, signature=None):
+        """A symbolic interface to this structure: variables, relation and
+        function symbols that build first-order expressions with Python
+        operators instead of formula strings.
+
+        :param signature: declared functions, operators and element codec.
+            Relation arities are read from the automata, so a structure with
+            no functions needs no signature at all.
+        :return: a `autstr.symbolic.SymbolicContext`.
         """
-        return list(self.automata.keys())
+        from autstr.symbolic.backends import StructureBackend
+        from autstr.symbolic.context import SymbolicContext
+        if signature is None:
+            signature = self.default_signature()
+        return SymbolicContext(StructureBackend(self), signature)
+
+    def default_signature(self):
+        """The signature `symbolic()` uses when none is given, or None for a
+        structure that declares no operators and is addressed through its
+        relation symbols. Structures that know their own vocabulary override
+        this; see `autstr.symbolic.operation_signature`."""
+        return None
 
     def update(self, **kwargs) -> None:
         for key in kwargs:
@@ -190,21 +276,38 @@ class AutomaticPresentation:
         if isinstance(phi, str):
             phi = logic.Expression.fromstring(phi)
         phi = phi.simplify()
+        self._materialize_for(phi)
         return not self._build_automaton(phi).is_empty()
 
-    def evaluate(self, phi: Union[str, logic.Expression], updates: Optional[Dict[str, Union[SparseDFA, str]]] = None) -> SparseDFA:
+    def evaluate(self, phi: Union[str, logic.Expression],
+                 updates: Optional[Dict[str, Union[SparseDFA, str]]] = None,
+                 prepared_updates: Optional[Dict[str, SparseDFA]] = None) -> SparseDFA:
         """Evaluates a given first-order query on the presented structure. Returns a presentation of the set of all
         satisfying assignments.
 
         :param phi: the first order formula.
         :param updates: Temporarily update the relations for the evaluation
+        :param prepared_updates: like `updates`, for automata already known to
+            be restricted to the universe -- results this presentation produced
+            itself. They are only re-padded, skipping the domain intersection
+            that `_prepare_automaton` would otherwise redo on every tape.
         :returns: The truth value of the formula, if the formula where all free variables are existentially quantified.
         """
         if isinstance(phi, str):
             phi = logic.Expression.fromstring(phi)
         phi = optimize_query(phi)
+        self._materialize_for(phi)
+        if prepared_updates:
+            updates = dict(updates or {})
+            for key, dfa in prepared_updates.items():
+                updates[key] = pad(dfa, self.padding_symbol).minimize()
+            prepared = set(prepared_updates)
+        else:
+            prepared = set()
         if updates is not None:
             for key in updates:
+                if key in prepared:
+                    continue
                 if isinstance(updates[key], str):
                     query = optimize_query(logic.Expression.fromstring(updates[key]))
                     updates[key] = self._prepare_automaton(self._build_automaton(query))
@@ -213,13 +316,18 @@ class AutomaticPresentation:
             automata_backup = self.automata
             self.automata = dict(self.automata, **updates)
 
-        if len(get_free_elementary_vars(phi)) > 0:
-            dfa_phi = unpad(self._build_automaton(phi), self.padding_symbol).minimize()
-        else:   
-            dfa_phi = self._build_automaton(phi)
-
-        if updates is not None:
-            self.automata = automata_backup
+        try:
+            if len(get_free_elementary_vars(phi)) > 0:
+                dfa_phi = unpad(self._build_automaton(phi),
+                                self.padding_symbol).minimize()
+            else:
+                dfa_phi = self._build_automaton(phi)
+        finally:
+            # Restore even if the build raises: otherwise a failed query would
+            # leave the spliced relations installed, and every later
+            # evaluation would silently answer against them.
+            if updates is not None:
+                self.automata = automata_backup
 
         return dfa_phi
 

@@ -11,10 +11,11 @@ saturation; complements are re-intersected with the domain product; and
 `project` — which produces the canonical (trimmed) language — is followed by
 re-saturation, the tree analog of the string pipeline's pad/unpad dance.
 """
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 from nltk.sem import logic
 
+from autstr.presentations import DeferredRelations
 from autstr.sparse_tree_automata import SparseTreeAutomaton
 from autstr.utils.logic import get_free_elementary_vars, optimize_query
 from autstr.utils.tree_automata_tools import (
@@ -34,7 +35,7 @@ def tree_zero(symbol_arity: int = 1, base_alphabet=None) -> SparseTreeAutomaton:
                                symbol_arity, base_alphabet or {0})
 
 
-class TreeAutomaticPresentation:
+class TreeAutomaticPresentation(DeferredRelations):
     """A presentation of a structure by tree automata.
 
     :param automata: 'U' is the domain automaton (symbol arity 1); every other
@@ -81,8 +82,33 @@ class TreeAutomaticPresentation:
                 minimize(expand(self.automata['U'], arity, [i]))))
         return domain
 
-    def get_relation_symbols(self):
-        return list(self.automata.keys())
+    def _install_relation(self, name, definition):
+        self.update(**{name: definition() if callable(definition)
+                       else definition})
+
+    def symbolic(self, signature=None):
+        """A symbolic interface to this structure: variables, relation and
+        function symbols that build first-order expressions with Python
+        operators instead of formula strings.
+
+        Elements are trees, so a signature's codec encodes Python values to
+        `Tree` objects. Enumeration is shortlex by node count, which orders by
+        encoding size rather than by any notion of value.
+
+        :param signature: declared functions, operators and element codec.
+        :return: a `autstr.symbolic.SymbolicContext`.
+        """
+        from autstr.symbolic.backends import TreeStructureBackend
+        from autstr.symbolic.context import SymbolicContext
+        if signature is None:
+            signature = self.default_signature()
+        return SymbolicContext(TreeStructureBackend(self), signature)
+
+    def default_signature(self):
+        """The signature `symbolic()` uses when none is given, or None for a
+        structure addressed through its relation symbols. See
+        `autstr.symbolic.operation_signature`."""
+        return None
 
     def update(self, **automata) -> None:
         """Install or replace relations. Values may be automata (saturated
@@ -103,14 +129,47 @@ class TreeAutomaticPresentation:
         if isinstance(phi, str):
             phi = logic.Expression.fromstring(phi)
         phi = phi.simplify()
+        self._materialize_for(phi)
         return not self._build_automaton(phi).is_empty()
 
-    def evaluate(self, phi) -> SparseTreeAutomaton:
+    def evaluate(self, phi, updates: Optional[Dict[str, Union[
+            SparseTreeAutomaton, str]]] = None) -> SparseTreeAutomaton:
         """Automaton of all satisfying assignments (tapes = sorted free
-        variables; padding-saturated form)."""
+        variables; padding-saturated form).
+
+        :param phi: the first-order formula.
+        :param updates: relations to install for this evaluation only. Values
+            may be automata or formula strings over the current signature, and
+            are prepared exactly as at construction time -- so a spliced
+            automaton is padding-saturated and domain-restricted before any
+            projection sees it.
+        """
         if isinstance(phi, str):
             phi = logic.Expression.fromstring(phi)
-        return self._build_automaton(optimize_query(phi))
+        phi = optimize_query(phi)
+        self._materialize_for(phi)
+        if not updates:
+            return self._build_automaton(phi)
+
+        prepared = {}
+        for name, value in updates.items():
+            if name == 'U':
+                raise ValueError("cannot replace the domain automaton")
+            if isinstance(value, SparseTreeAutomaton):
+                prepared[name] = self._prepare_automaton(value)
+            else:
+                query = optimize_query(logic.Expression.fromstring(value))
+                prepared[name] = self._prepare_automaton(
+                    self._build_automaton(query))
+
+        backup = self.automata
+        self.automata = dict(self.automata, **prepared)
+        try:
+            return self._build_automaton(phi)
+        finally:
+            # Restore even if the build raises; otherwise a failed query would
+            # leave the temporary relations installed on the presentation.
+            self.automata = backup
 
     def _build_automaton(self, phi) -> SparseTreeAutomaton:
         if isinstance(phi, str):

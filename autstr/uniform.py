@@ -17,7 +17,7 @@ from typing import Dict, List, Optional, Tuple, Union
 
 from nltk.sem import logic
 
-from autstr.presentations import AutomaticPresentation
+from autstr.presentations import AutomaticPresentation, DeferredRelations
 from autstr.sparse_automata import SparseDFA
 from autstr.buildin.automata import one
 from autstr.buildin.presentations import create_sparse_dfa, encode_symbol
@@ -91,7 +91,58 @@ def dfa_from_delta(sigma, states, arity, delta, initial, finals,
     ).minimize()
 
 
-class UniformlyAutomaticClass:
+class SymbolicClassWrapper:
+    """Mixin for the family wrappers that present a class through ``.cls``.
+
+    The wrappers (the group and algebra families) hold their uniformly
+    automatic class in ``.cls`` and otherwise offer a domain-specific API. This
+    forwards the symbolic interface to that class and supplies the family's
+    operator vocabulary, so `ExtraspecialGroups(3).symbolic()` works directly
+    instead of reaching into ``.cls``.
+
+    Subclasses set `GRAPH` and `OPERATOR`; the default is a multiplicative
+    group, since that is what most of these families are.
+    """
+
+    #: the ternary relation R(x, y, z) meaning ``x op y = z``
+    GRAPH = 'M'
+    #: the Python operator it binds to
+    OPERATOR = '*'
+
+    #: how equality is defined when the class does not ship it, as a formula
+    #: over the existing signature; None if the class already has one
+    EQUALITY = None
+
+    def _declare_equality(self, eager: bool = False) -> None:
+        """Register the family's equality relation, built on first use."""
+        if self.EQUALITY is not None:
+            self.cls._declare_deferred({'Eq': self.EQUALITY}, eager=eager)
+
+    def default_signature(self):
+        from autstr.symbolic import Signature, operation_signature
+        relations = self.cls.get_relation_symbols()
+        if self.GRAPH is None:
+            # lattices and graph classes have no single binary operation; their
+            # vocabulary is methods, but equality is still worth binding
+            signature = Signature()
+            if 'Eq' in relations:
+                signature.operator('eq', 'Eq')
+            return signature
+        return operation_signature(relations, graph=self.GRAPH,
+                                   operator=self.OPERATOR)
+
+    def symbolic(self, signature=None):
+        """A symbolic interface to this family; see
+        `UniformlyAutomaticClass.symbolic`. Element codecs are not used over a
+        class -- an element's encoding depends on the advice -- so constants
+        and decoded solutions come from ``get_structure(advice).symbolic()``.
+        """
+        if signature is None:
+            signature = self.default_signature()
+        return self.cls.symbolic(signature)
+
+
+class UniformlyAutomaticClass(DeferredRelations):
     """A uniformly automatic presentation of a class of structures.
 
     :param automata: dictionary of SparseDFAs. 'U' is reserved for the domain
@@ -126,9 +177,37 @@ class UniformlyAutomaticClass:
             wrapped, padding_symbol=padding_symbol, enforce_consistency=False
         )
 
-    def get_relation_symbols(self) -> List[str]:
-        """All relation symbols of the class signature ('U' is the domain)."""
-        return list(self.class_automata.keys())
+    @property
+    def _relations(self) -> dict:
+        """Deferred relations live alongside the class signature ('U' is the
+        domain); see `DeferredRelations`."""
+        return self.class_automata
+
+    def _install_relation(self, name, definition) -> None:
+        self.define(name, definition() if callable(definition) else definition)
+
+    def symbolic(self, signature=None):
+        """A symbolic interface to this class. Expressions are written over
+        the class signature exactly as for a single structure; the advice tape
+        is added and quantifiers relativized to the member domain during
+        compilation, and results carry the advice under the tape name
+        ``'advice'``.
+
+        :param signature: declared functions and operators. An element codec
+            has no advice-free meaning here and is not used.
+        :return: a `autstr.symbolic.SymbolicContext`.
+        """
+        from autstr.symbolic.backends import ClassBackend
+        from autstr.symbolic.context import SymbolicContext
+        if signature is None:
+            signature = self.default_signature()
+        return SymbolicContext(ClassBackend(self), signature)
+
+    def default_signature(self):
+        """The signature `symbolic()` uses when none is given, or None for a
+        class addressed through its relation symbols. See
+        `autstr.symbolic.operation_signature`."""
+        return None
 
     @staticmethod
     def _variable_names(phi: logic.Expression) -> set:
@@ -198,6 +277,7 @@ class UniformlyAutomaticClass:
         if isinstance(phi, str):
             phi = logic.Expression.fromstring(phi)
         phi = phi.simplify()
+        self._materialize_for(phi)
 
         free_vars = get_free_elementary_vars(phi)
         all_vars = sorted(self._variable_names(phi) | set(free_vars)) or ['p']
