@@ -64,6 +64,7 @@ function graphs, which operators they bind to, and how Python values encode as
 elements.
 
 ```python
+from autstr.arithmetic import encode, decode
 from autstr.symbolic import Signature, FunctionCodec
 
 signature = (Signature(codec=FunctionCodec(encode, decode))
