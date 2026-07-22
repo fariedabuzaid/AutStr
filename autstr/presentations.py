@@ -10,7 +10,6 @@ import json
 import re
 import struct
 import zlib
-from typing import Dict
 
 class AutomaticPresentationSerializer:
     MAGIC = b'APRS'
