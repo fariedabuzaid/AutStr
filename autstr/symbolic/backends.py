@@ -170,8 +170,9 @@ class TreeStructureBackend(Backend):
     """Queries answered by a `TreeAutomaticPresentation`.
 
     Elements are trees rather than words, so a signature's codec encodes
-    Python values to `Tree`s; everything above this module is unchanged, since
-    the codec's output is only ever handed back to the backend.
+    Python values to `Tree` objects; everything above this module is
+    unchanged, since the codec's output is only ever handed back to the
+    backend.
 
     Every operation of the string backends is available; the ones whose string
     formulation counts word positions -- enumeration order and `exinf` -- are

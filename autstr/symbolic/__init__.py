@@ -32,10 +32,14 @@ from autstr.symbolic.signature import (
     operation_signature,
 )
 
+# `Function` is importable from here but deliberately absent from __all__:
+# re-exporting it makes `autstr.symbolic.Function` a second autodoc target, and
+# the annotation `Dict[str, Function]` then resolves ambiguously and fails the
+# docs build, which runs with -W. Users build one via `Signature.function`.
 __all__ = [
     'Backend', 'ClassBackend', 'CompileError', 'ElementCodec',
     'EQUALITY_SYMBOL', 'Formula',
-    'Function', 'FunctionCodec', 'FunctionSymbol', 'Relation',
+    'FunctionCodec', 'FunctionSymbol', 'Relation',
     'RelationSymbol', 'Signature', 'StructureBackend', 'SymbolicContext',
     'SymbolicSymbolError', 'Term', 'Var', 'operation_signature',
 ]
