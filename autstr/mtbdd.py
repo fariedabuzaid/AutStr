@@ -333,6 +333,55 @@ class NodeStore:
 
         return rebuild(node, 0)
 
+    def fold_tapes(self, node: int, arity: int, m: int, bits: int,
+                   k: int) -> int:
+        """Group every `k` consecutive tapes into one tape over the product
+        alphabet Sigma^k.
+
+        The result reads ``arity // k`` tapes whose letters are k-tuples,
+        ordered lexicographically (mixed-radix, first component most
+        significant) -- which is the order `encode_symbol` gives a set of
+        tuples, so the encodings line up. New digit D at element-tape e decodes
+        to old digit ``(D // m**(k-1-i)) % m`` at old tape ``e*k + i``.
+
+        Diagram surgery mirrors `map_letters`, but one new tape consumes k old
+        tapes, so its cofactors range over all m**k combinations rather than m.
+        """
+        if arity % k:
+            raise ValueError("arity must be a multiple of k")
+        if k == 1:
+            return node
+        new_arity = arity // k
+        new_m = m ** k
+        new_bits = num_bits(new_m)
+        cache: Dict[Tuple[int, int], int] = {}
+
+        def cofactor_tape(current: int, old_tape: int, digit: int) -> int:
+            for j in range(bits):
+                bit = (digit >> (bits - 1 - j)) & 1
+                current = self.cofactor(current, old_tape * bits + j, bit)
+            return current
+
+        def rebuild(current: int, element: int) -> int:
+            if element == new_arity:
+                return current                     # every old tape consumed
+            key = (current, element)
+            cached = cache.get(key)
+            if cached is not None:
+                return cached
+            children = []
+            for digit in range(new_m):
+                branch = current
+                for i in range(k):
+                    old_digit = (digit // (m ** (k - 1 - i))) % m
+                    branch = cofactor_tape(branch, element * k + i, old_digit)
+                children.append(rebuild(branch, element + 1))
+            result = cache[key] = self.letter(element, children,
+                                              new_m, new_bits)
+            return result
+
+        return rebuild(node, 0)
+
     def recode_letters(self, node: int, arity: int, old_m: int, old_bits: int,
                        new_m: int, new_bits: int, digit_map: Sequence[int],
                        fill: int) -> int:

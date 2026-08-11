@@ -8,10 +8,11 @@ import itertools as it
 import random
 
 import numpy as np
+import pytest
 
 from autstr.sparse_automata import SparseDFA
 from autstr.utils.automata_tools import (
-    expand, pad, permute_tapes, projection, unpad,
+    expand, fold_tapes, pad, permute_tapes, projection, unpad,
 )
 
 
@@ -155,3 +156,40 @@ class TestScratchStoreCollection:
                 assert swept.num_states == plain.num_states, (trial, tape)
                 for word in words(m, MAX_LENGTH):
                     assert run(swept, word) == run(plain, word), (trial, tape)
+
+
+class TestFoldTapes:
+    """Grouping every k tapes into one product-alphabet tape must preserve the
+    accepted language. Contiguous mixed-radix grouping means a symbol's integer
+    code is unchanged by the fold, so the folded automaton run on the same
+    codes must agree with the original — a real test where m is not a power of
+    two, since then the diagram is genuinely rebuilt over fewer bits."""
+
+    def test_preserves_the_language(self):
+        # the alphabet grows as m**(k*r), so sample words rather than enumerate
+        rng = random.Random(2024)
+        for _ in range(30):
+            m = rng.randint(2, 3)                 # 3 is not a power of two
+            k = rng.randint(2, 3)
+            r = rng.randint(1, 2)
+            arity = k * r
+            symbols = m ** arity
+            dfa = random_dfa(rng, rng.randint(1, 4), m, arity)
+            folded = fold_tapes(dfa, k)
+            assert folded.symbol_arity == r
+            # a contiguous mixed-radix regroup leaves the integer code unchanged
+            for _ in range(60):
+                word = [rng.randrange(symbols)
+                        for _ in range(rng.randint(0, 5))]
+                assert run(folded, word) == run(dfa, word), (m, k, r, word)
+
+    def test_k_one_is_a_noop_on_the_language(self):
+        rng = random.Random(5)
+        dfa = random_dfa(rng, 3, 3, 2)
+        assert fold_tapes(dfa, 1).symbol_arity == 2
+
+    def test_arity_must_be_divisible(self):
+        rng = random.Random(6)
+        dfa = random_dfa(rng, 2, 2, 3)
+        with pytest.raises(ValueError, match="multiple"):
+            fold_tapes(dfa, 2)

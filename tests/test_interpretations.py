@@ -81,9 +81,81 @@ class TestArgumentOrder:
         assert not holds(3, 5)
 
 
+def _step(a, b):
+    return f'exists o.(({_ONE}) & (A({a},o,{b}) | A({b},o,{a})))'
+
+
+class TestTwoDimensional:
+    """Elements are pairs of integers. The k-dim interpretation of the grid
+    must reproduce the composition-built one exactly — same canonical
+    automaton — a cross-check of two independent constructions."""
+
+    def test_reproduces_the_product_grid(self):
+        edge = (f'(({_step("x0","y0")}) & Eq(x1,y1)) '
+                f'| (({_step("x1","y1")}) & Eq(x0,y0))')
+        grid = interpret(
+            BuechiArithmeticZ(),
+            domain=('Eq(x0,x0) & Eq(x1,x1)', ['x0', 'x1']),
+            relations={'E': (edge, ['x0', 'x1', 'y0', 'y1'])},
+            dimension=2)
+        from_product = IntegerGrid(2).presentation
+        assert grid.automata['E'].num_states == \
+            from_product.automata['E'].num_states == 51
+        assert grid.check('all x.(all y.(E(x,y) -> E(y,x)))')
+
+    def test_adjacency(self):
+        edge = (f'(({_step("x0","y0")}) & Eq(x1,y1)) '
+                f'| (({_step("x1","y1")}) & Eq(x0,y0))')
+        grid = interpret(
+            BuechiArithmeticZ(),
+            domain=('Eq(x0,x0) & Eq(x1,x1)', ['x0', 'x1']),
+            relations={'E': (edge, ['x0', 'x1', 'y0', 'y1'])},
+            dimension=2)
+        rel = grid.evaluate('E(x,y)')
+
+        def enc(a, b):
+            wa, wb = encode(a), encode(b)
+            n = max(len(wa), len(wb))
+            wa += ['*'] * (n - len(wa)); wb += ['*'] * (n - len(wb))
+            return list(zip(wa, wb))
+
+        def adjacent(p, q):
+            wp, wq = enc(*p), enc(*q)
+            n = max(len(wp), len(wq))
+            wp += [('*', '*')] * (n - len(wp))
+            wq += [('*', '*')] * (n - len(wq))
+            return rel.accepts(list(zip(wp, wq)))
+
+        assert adjacent((0, 0), (1, 0))
+        assert adjacent((2, 3), (2, 4))
+        assert not adjacent((0, 0), (1, 1))
+        assert not adjacent((0, 0), (0, 0))
+
+
+class TestSparseDomainDoesNotBlowUp:
+    """The user's concern, as a regression: the diagonal {(a, a)} ≅ ℤ realizes
+    only a sparse subset of the pairs, yet minimization keeps the successor
+    relation the same size as the one-dimensional native encoding."""
+
+    def test_diagonal_matches_native_state_count(self):
+        succ = f'exists o.(({_ONE}) & A(x0,o,y0))'   # y0 = x0 + 1
+        diagonal = interpret(
+            BuechiArithmeticZ(),
+            domain=('Eq(x0,x1)', ['x0', 'x1']),
+            relations={'S': (f'Eq(x0,x1) & Eq(y0,y1) & ({succ})',
+                             ['x0', 'x1', 'y0', 'y1'])},
+            dimension=2)
+        native = interpret(BuechiArithmeticZ(), domain=_TRUE,
+                           relations={'S': (succ.replace('x0', 'x').replace(
+                               'y0', 'y'), ['x', 'y'])})
+        assert diagonal.automata['S'].num_states == \
+            native.automata['S'].num_states
+
+
 class TestValidation:
     def test_domain_needs_one_free_variable(self):
-        with pytest.raises(ValueError, match="one free variable"):
+        # dimension 1 (default), so a two-free-variable domain defines 2 elements
+        with pytest.raises(ValueError, match="defines 2 element"):
             interpret(BuechiArithmeticZ(), domain='Lt(x,y)', relations={})
 
     def test_argument_order_must_match_free_variables(self):
@@ -95,3 +167,17 @@ class TestValidation:
         with pytest.raises(ValueError, match="reserved universe"):
             interpret(BuechiArithmeticZ(), domain=_TRUE,
                       relations={'U': 'Eq(x,x)'})
+
+    def test_domain_dimension_must_match(self):
+        # dimension 2 but the domain has only one free variable
+        with pytest.raises(ValueError, match="free variable"):
+            interpret(BuechiArithmeticZ(), domain=_TRUE, relations={},
+                      dimension=2)
+
+    def test_free_variables_must_be_a_multiple_of_the_dimension(self):
+        # dimension 2 but the relation has three free variables
+        with pytest.raises(ValueError, match="multiple of the dimension"):
+            interpret(BuechiArithmeticZ(),
+                      domain=('Eq(x0,x0) & Eq(x1,x1)', ['x0', 'x1']),
+                      relations={'R': ('A(x0,x1,x2)', ['x0', 'x1', 'x2'])},
+                      dimension=2)

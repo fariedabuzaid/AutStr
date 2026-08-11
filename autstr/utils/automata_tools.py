@@ -109,6 +109,34 @@ def unpad(dfa: SparseDFA, padding_symbol: int = -1) -> SparseDFA:
         start_state=dfa.start_state, symbol_arity=arity,
         base_alphabet=base_alphabet, nodes=dfa.nodes).minimize()
 
+def fold_tapes(dfa: SparseDFA, k: int) -> SparseDFA:
+    """Group every `k` consecutive tapes of a convolution into one tape over
+    the product alphabet Sigma^k.
+
+    An automaton reading ``k * r`` tapes over Sigma becomes one reading ``r``
+    tapes whose letters are k-tuples -- the fold that turns the many-tape
+    output of a k-dimensional interpretation into a structure whose elements
+    are k-tuples. The diagram is unchanged in spirit (no state is added); only
+    the alphabet is regrouped, and lexicographic tuple order matches
+    `encode_symbol`, so membership lines up.
+    """
+    import itertools
+    if dfa.symbol_arity % k:
+        raise ValueError(
+            f"arity {dfa.symbol_arity} is not a multiple of k={k}")
+    store = dfa.store
+    product_alphabet = set(
+        itertools.product(sorted(dfa.base_alphabet_frozen), repeat=k))
+    nodes = [store.fold_tapes(int(node), dfa.symbol_arity, dfa.m, dfa.bits, k)
+             for node in dfa.nodes.tolist()]
+    return SparseDFA(
+        dfa.num_states, is_accepting=dfa.is_accepting,
+        start_state=dfa.start_state,
+        symbol_arity=dfa.symbol_arity // k,
+        base_alphabet=product_alphabet,
+        nodes=np.array(nodes, dtype=np.int64))
+
+
 def canonical(dfa: SparseDFA, padding_symbol: int = -1) -> SparseDFA:
     """Keep only the canonical convolution of each tuple: words in which no
     position is padding on *every* tape.
