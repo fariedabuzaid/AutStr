@@ -14,9 +14,9 @@ interface (`symbolic`, `check`, `evaluate`, `relation`, `get_relation_symbols`).
 """
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, Sequence, Tuple
 
-from autstr.symbolic import graph_signature
+from autstr.symbolic import FunctionCodec, graph_signature
 
 
 class InfiniteGraph:
@@ -88,3 +88,106 @@ class InfiniteGraph:
         kind = 'directed' if self.directed else 'undirected'
         return (f"<InfiniteGraph {kind}, edge={self.edge!r}, "
                 f"relations={sorted(s for s in self.get_relation_symbols() if s != 'U')}>")
+
+
+# ----------------------------------------------------------------------
+# Concrete factory: the integer grid
+# ----------------------------------------------------------------------
+
+#: least-power-of-two, i.e. the constant 1, over Büchi arithmetic
+_ONE = 'Pt(o) & (all p.(Pt(p) -> (not Lt(p,o))))'
+_PAD = '*'
+
+
+class IntegerGrid:
+    """The n-dimensional integer grid — the Cayley graph of ℤⁿ with the
+    standard generators.
+
+    Vertices are points of ℤⁿ; two are adjacent iff they differ by ±1 in
+    exactly one coordinate. That is precisely the *asynchronous* product of n
+    copies of the two-way integer path (move one coordinate, hold the rest), so
+    the grid is built by folding `autstr.composition.direct_product` over n
+    integer paths rather than by authoring an automaton.
+
+    FO is decidable — it is an automatic structure. MSO is *not*: the grid
+    interprets the halting problem, the tidiest illustration that FO and MSO
+    are different questions.
+
+    :param n: the dimension (n ≥ 1). ``IntegerGrid(1)`` is the two-way path.
+    """
+
+    def __init__(self, n: int = 2) -> None:
+        if n < 1:
+            raise ValueError("dimension must be >= 1")
+        self.n = n
+        path = self._path()                      # one Büchi build, reused
+        presentation = path
+        for _ in range(n - 1):
+            presentation = _async_product(presentation, path)
+        self.presentation = presentation
+        self.graph = InfiniteGraph(
+            presentation, edge='E',
+            codec=FunctionCodec(self.encode, self.decode))
+
+    @staticmethod
+    def _path():
+        """The two-way integer path as a minimal presentation carrying only
+        the domain, the ±1 edge, and equality — so the product folds those and
+        nothing else."""
+        from autstr.buildin.presentations import BuechiArithmeticZ
+        from autstr.presentations import AutomaticPresentation
+        z = BuechiArithmeticZ()
+        z.update(E=f'exists o.(({_ONE}) & (A(x,o,y) | A(y,o,x)))')
+        return AutomaticPresentation(
+            {'U': z.automata['U'], 'E': z.automata['E'], 'Eq': z.automata['Eq']},
+            padding_symbol=z.padding_symbol)
+
+    # -- element codec: an n-tuple <-> its nested-pair convolution ------
+    def encode(self, point: Sequence[int]) -> list:
+        from autstr.arithmetic import encode as encode_int
+        point = tuple(point)
+        if len(point) != self.n:
+            raise ValueError(f"expected a {self.n}-tuple, got {point!r}")
+        word = encode_int(point[0])
+        pad = _PAD
+        for coordinate in point[1:]:
+            other = encode_int(coordinate)
+            length = max(len(word), len(other))
+            word = [(word[k] if k < len(word) else pad,
+                     other[k] if k < len(other) else _PAD)
+                    for k in range(length)]
+            pad = (pad, _PAD)
+        return word
+
+    def decode(self, word) -> Tuple[int, ...]:
+        from autstr.arithmetic import decode as decode_int
+        coordinates = []
+        current = list(word)
+        for _ in range(self.n - 1):
+            coordinates.append(decode_int([letter[1] for letter in current]))
+            current = [letter[0] for letter in current]
+        coordinates.append(decode_int(current))
+        return tuple(reversed(coordinates))
+
+    # -- interface -----------------------------------------------------
+    def symbolic(self, signature=None):
+        """A symbolic interface to the grid; write adjacency as ``x.adj(y)``
+        and vertices as Python n-tuples."""
+        return self.graph.symbolic(signature)
+
+    def is_symmetric(self) -> bool:
+        return self.graph.is_symmetric()
+
+    def check(self, phi) -> bool:
+        return self.graph.check(phi)
+
+    def evaluate(self, phi):
+        return self.graph.evaluate(phi)
+
+    def __repr__(self):
+        return f"<IntegerGrid dimension={self.n}>"
+
+
+def _async_product(left, right):
+    from autstr.composition import direct_product
+    return direct_product(left, right, kind='async')
