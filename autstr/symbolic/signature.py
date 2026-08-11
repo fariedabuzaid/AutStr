@@ -75,6 +75,29 @@ def operation_signature(relations, graph: str, operator: str,
     return signature
 
 
+def graph_signature(relations, edge: str = 'E', adjacency: str = 'adj',
+                    equality: str = EQUALITY_SYMBOL, codec=None) -> 'Signature':
+    """The signature of a graph: the binary edge relation `edge` bound to the
+    method ``.{adjacency}(y)`` (default ``.adj``), plus equality when the
+    structure declares it.
+
+    A graph carries no operation, so nothing binds to ``+`` or ``*``; adjacency
+    is a relation method, exactly like ``.lt`` in the arithmetic signature.
+    The edge name is passed in, never guessed — ``E`` means the edge here but
+    equality elsewhere, the same hazard `operation_signature` guards against.
+
+    :param relations: the structure's relation symbols.
+    :param edge: the binary relation read as adjacency.
+    :param adjacency: the method name it binds to.
+    :param codec: optional element codec for writing vertices as constants.
+    """
+    signature = Signature(codec=codec)
+    signature.operator(adjacency, edge)
+    if equality in relations:
+        signature.operator('eq', equality)
+    return signature
+
+
 class ElementCodec:
     """Translation between Python values and element encodings.
 
