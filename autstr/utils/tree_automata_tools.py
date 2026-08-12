@@ -587,6 +587,61 @@ def iterate_trees(sta: SparseTreeAutomaton, max_entries: int = 10 ** 7):
         yield from accepted
 
 
+def partial_tree_automaton(base_alphabet, symbol_arity: int,
+                           transitions: Dict[tuple, str],
+                           final: Set[str]) -> SparseTreeAutomaton:
+    """A bottom-up tree automaton from a *partial* transition table — the tree
+    counterpart of `autstr.utils.automata_tools.partial_dfa`.
+
+    Everything the table does not list goes to a rejecting sink, which is what
+    an automaton authored by hand almost always wants: a convolution alphabet
+    is a product, so spelling out "reject" for every combination of child
+    states and symbols would swamp the few transitions that carry the meaning.
+
+    :param base_alphabet: the base alphabet, padding symbol included.
+    :param symbol_arity: the number of tapes.
+    :param transitions: ``{(left, right, symbol tuple): target}``, where a
+        child is a state name or None for an absent child. States are numbered
+        in order of first appearance.
+    :param final: the accepting states.
+    :return: a minimized `SparseTreeAutomaton`.
+    """
+    base = frozenset(base_alphabet)
+    states: Dict[str, int] = {}
+
+    def index(name: str) -> int:
+        if name not in states:
+            states[name] = len(states)
+        return states[name]
+
+    for (left, right, symbol), target in transitions.items():
+        if len(symbol) != symbol_arity:
+            raise ValueError(
+                f"{symbol!r} is not a symbol of {symbol_arity} tape(s)")
+        for name in (left, right, target):
+            if name is not None:
+                index(name)
+    for name in final:
+        index(name)
+
+    sink = len(states)                       # the implicit rejecting state
+    absent = sink + 1                        # SparseTreeAutomaton's BOT
+    rows = sorted((absent if left is None else states[left],
+                   absent if right is None else states[right],
+                   encode_symbol(symbol, base), states[target])
+                  for (left, right, symbol), target in transitions.items())
+
+    is_accepting = np.zeros(sink + 1, dtype=bool)
+    for name in final:
+        is_accepting[states[name]] = True
+
+    return minimize(SparseTreeAutomaton(
+        sink + 1, sink,
+        [row[0] for row in rows], [row[1] for row in rows],
+        [row[2] for row in rows], [row[3] for row in rows],
+        is_accepting, symbol_arity, set(base_alphabet)))
+
+
 def tree_automaton(tree, base_alphabet, symbol_arity: int = 1
                    ) -> SparseTreeAutomaton:
     """Automaton accepting exactly the given tree. Subtrees are hash-consed

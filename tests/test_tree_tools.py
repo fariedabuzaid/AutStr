@@ -7,7 +7,8 @@ from autstr.utils.tree_automata_tools import k_deeper_automaton
 from autstr.sparse_tree_automata import SparseTreeAutomaton, Tree, tree_to_arrays
 from autstr.utils.misc import encode_symbol
 from autstr.utils.tree_automata_tools import (
-    attach_padding, equivalent, expand, fold_tapes, minimize, project,
+    attach_padding, equivalent, expand, fold_tapes, minimize,
+    partial_tree_automaton, project,
 )
 from test_tree_automata import RefDTA, random_sta, random_tree
 
@@ -434,3 +435,81 @@ class TestFoldTapes:
         source = random_sta_arity(rng, 3, 2)
         with pytest.raises(ValueError, match="multiple"):
             fold_tapes(source, 2)
+
+
+class TestPartialTreeAutomaton:
+    """Authoring a bottom-up automaton from a partial table: everything the
+    table omits must reject, and everything it lists must fire — including the
+    rows whose children are absent, which is how leaves are written."""
+
+    ALPHABET = {'*', 'a', 'b'}
+
+    def counting(self):
+        """Trees whose every node is labelled 'a', with at least one node
+        having two children."""
+        table = {(None, None, ('a',)): 'thin',
+                 ('thin', None, ('a',)): 'thin',
+                 (None, 'thin', ('a',)): 'thin'}
+        for left in ('thin', 'wide'):
+            for right in ('thin', 'wide'):
+                table[(left, right, ('a',))] = 'wide'
+        for child in ('thin', 'wide'):
+            table[('wide', None, ('a',))] = 'wide'
+            table[(None, 'wide', ('a',))] = 'wide'
+        return partial_tree_automaton(self.ALPHABET, 1, table, {'wide'})
+
+    def test_accepts_what_the_table_describes(self):
+        automaton = self.counting()
+        assert automaton.accepts(Tree('a', Tree('a'), Tree('a')))
+        assert automaton.accepts(Tree('a', Tree('a', Tree('a'), Tree('a'))))
+        assert not automaton.accepts(Tree('a'))
+        assert not automaton.accepts(Tree('a', Tree('a')))
+        assert not automaton.accepts(Tree('a', None, Tree('a')))
+
+    def test_an_unlisted_symbol_sinks(self):
+        automaton = self.counting()
+        assert not automaton.accepts(Tree('a', Tree('b'), Tree('a')))
+        assert not automaton.accepts(Tree('b', Tree('a'), Tree('a')))
+
+    def test_against_a_dictionary_oracle(self):
+        """A random partial table, run against a plain recursive evaluation of
+        the same table."""
+        rng = random.Random(11)
+        names = ['s0', 's1', 's2']
+        letters = sorted(self.ALPHABET)
+        for trial in range(20):
+            table = {}
+            for _ in range(rng.randint(3, 12)):
+                key = (rng.choice([None] + names), rng.choice([None] + names),
+                       (rng.choice(letters),))
+                table[key] = rng.choice(names)
+            final = set(rng.sample(names, rng.randint(1, 2)))
+            automaton = partial_tree_automaton(self.ALPHABET, 1, table, final)
+
+            def state(tree):
+                left = state(tree.left) if tree.left is not None else None
+                right = state(tree.right) if tree.right is not None else None
+                if left == 'sink' or right == 'sink':
+                    return 'sink'
+                return table.get((left, right, (tree.label,)), 'sink')
+
+            for _ in range(30):
+                tree = random_labelled_tree(rng, letters)
+                assert automaton.accepts(tree) == (state(tree) in final), \
+                    (trial, tree)
+
+    def test_the_symbol_must_match_the_arity(self):
+        with pytest.raises(ValueError, match="tape"):
+            partial_tree_automaton(self.ALPHABET, 2, {(None, None, ('a',)): 's'},
+                                   {'s'})
+
+
+def random_labelled_tree(rng, letters, size=6):
+    """A small random tree over the given labels."""
+    if size <= 1 or rng.random() < 0.3:
+        return Tree(rng.choice(letters))
+    left = random_labelled_tree(rng, letters, size - 1 - rng.randint(0, 2)) \
+        if rng.random() < 0.8 else None
+    right = random_labelled_tree(rng, letters, size - 1 - rng.randint(0, 2)) \
+        if rng.random() < 0.6 else None
+    return Tree(rng.choice(letters), left, right)
