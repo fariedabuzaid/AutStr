@@ -29,7 +29,8 @@ from autstr.symbolic.compiler import CompileError
 from autstr.symbolic.expr import Formula, Term, Var
 from autstr.symbolic.signature import (
     ElementCodec, EQUALITY_SYMBOL, Function, FunctionCodec, Signature,
-    graph_signature, operation_signature,
+    graph_signature, operation_signature, order_signature,
+    relational_signature,
 )
 
 # `Function` is importable from here but deliberately absent from __all__:
@@ -42,5 +43,5 @@ __all__ = [
     'FunctionCodec', 'FunctionSymbol', 'Relation',
     'RelationSymbol', 'Signature', 'StructureBackend', 'SymbolicContext',
     'SymbolicSymbolError', 'Term', 'Var', 'graph_signature',
-    'operation_signature',
+    'operation_signature', 'order_signature', 'relational_signature',
 ]

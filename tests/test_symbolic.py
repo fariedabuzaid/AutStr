@@ -6,6 +6,7 @@ import pytest
 from autstr.buildin.presentations import BuechiArithmeticZ
 from autstr.symbolic import (
     CompileError, FunctionCodec, Signature, SymbolicSymbolError,
+    graph_signature, order_signature, relational_signature,
 )
 
 
@@ -466,3 +467,50 @@ def test_failed_evaluation_does_not_leave_spliced_relations_installed(S):
 
     assert dict(presentation.automata) == before
     assert 'Spliced' not in presentation.automata
+
+
+# ----------------------------------------------------------------------
+# signature constructors
+# ----------------------------------------------------------------------
+
+def test_relational_signature_binds_every_method():
+    signature = relational_signature({'Lt', 'Eq', 'Div'},
+                                     {'lt': 'Lt', 'divides': 'Div'})
+    assert signature.operators == {'lt': 'Lt', 'divides': 'Div', 'eq': 'Eq'}
+    assert signature.functions == {}          # a relational structure has none
+
+
+def test_relational_signature_omits_an_absent_equality():
+    signature = relational_signature({'Lt'}, {'lt': 'Lt'})
+    assert 'eq' not in signature.operators
+
+
+def test_relational_signature_binds_a_method_whose_symbol_is_absent():
+    """A requested method is bound whether or not the structure declares it,
+    so a typo fails loudly at compile time rather than going silently
+    unbound."""
+    signature = relational_signature({'Lt'}, {'lt': 'Ltt'})
+    assert signature.operators['lt'] == 'Ltt'
+
+
+def test_order_signature_binds_the_order_and_extra_methods():
+    signature = order_signature({'Lt', 'Eq', 'Succ'}, less='Lt',
+                                methods={'succ': 'Succ'})
+    assert signature.operators == {'lt': 'Lt', 'succ': 'Succ', 'eq': 'Eq'}
+
+
+def test_order_signature_renames_the_method():
+    signature = order_signature({'Below', 'Eq'}, less='Below', order='below')
+    assert signature.operators['below'] == 'Below'
+    assert 'lt' not in signature.operators
+
+
+def test_graph_signature_binds_adjacency():
+    signature = graph_signature({'E', 'Eq'})
+    assert signature.operators == {'adj': 'E', 'eq': 'Eq'}
+
+
+def test_a_signature_carries_its_codec():
+    codec = FunctionCodec(_encode, _decode)
+    assert order_signature({'Lt'}, codec=codec).codec is codec
+    assert graph_signature({'E'}, codec=codec).codec is codec

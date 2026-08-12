@@ -745,3 +745,59 @@ def lsbf_Z_automaton(z: int) -> SparseDFA:
         symbol_arity=1,
         base_alphabet={"*", "0", "1"}  # "*"=0, "0"=1, "1"=2
     )
+
+def partial_dfa(base_alphabet: Set, arity: int,
+                transitions: Dict[str, Dict[tuple, str]],
+                initial: str, final: Set[str]) -> SparseDFA:
+    """A DFA over `arity` tapes from a *partial* transition table.
+
+    Every symbol tuple a state does not list goes to a rejecting sink, which is
+    what an automaton authored by hand almost always wants: the interesting
+    transitions are few and the alphabet — a product of k copies of the base —
+    is large, so spelling the table out in full costs ``|Σ|^k`` entries per
+    state to say "reject" over and over.
+
+    :param base_alphabet: the base alphabet, padding symbol included.
+    :param arity: number of tapes; the automaton reads `arity`-tuples.
+    :param transitions: ``{state: {symbol tuple: target state}}``. Its keys are
+        the states, in the order they are numbered.
+    :param initial: the start state.
+    :param final: the accepting states.
+    :return: a minimized `SparseDFA`.
+    """
+    states = list(transitions)
+    if initial not in states:
+        raise ValueError(f"the start state {initial!r} has no row in the table")
+    unknown = {target for row in transitions.values() for target in row.values()}
+    unknown |= set(final)
+    unknown -= set(states)
+    if unknown:
+        raise ValueError(f"states without a row in the table: {sorted(unknown)}")
+
+    sink = len(states)                       # the implicit rejecting state
+    index = {state: i for i, state in enumerate(states)}
+    rows = [sorted((encode_symbol(symbol, base_alphabet), index[target])
+                   for symbol, target in transitions[state].items())
+            for state in states]
+    width = max([len(row) for row in rows], default=0)
+
+    exception_symbols = np.full((sink + 1, width), -1, dtype=np.int32)
+    exception_states = np.full((sink + 1, width), -1, dtype=np.int32)
+    for i, row in enumerate(rows):
+        exception_symbols[i, :len(row)] = [symbol for symbol, _ in row]
+        exception_states[i, :len(row)] = [target for _, target in row]
+
+    is_accepting = np.zeros(sink + 1, dtype=bool)
+    for state in final:
+        is_accepting[index[state]] = True
+
+    return SparseDFA(
+        num_states=sink + 1,
+        default_states=np.full(sink + 1, sink, dtype=np.int32),
+        exception_symbols=exception_symbols,
+        exception_states=exception_states,
+        is_accepting=is_accepting,
+        start_state=index[initial],
+        symbol_arity=arity,
+        base_alphabet=set(base_alphabet),
+    ).minimize()

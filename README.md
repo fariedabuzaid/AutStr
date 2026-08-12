@@ -131,6 +131,7 @@ batch:
 |---------|------------|
 | `autstr.arithmetic`, `autstr.buildin` | Presburger and Büchi arithmetic (ℤ, +, <, \|₂), Skolem arithmetic (ℕ, ·), the MSO0 finite-powerset structure |
 | `autstr.algebra` | the localizations **ℤ[1/p]**, finite **Boolean algebras** |
+| `autstr.infinite_graphs`, `autstr.ordinals`, `autstr.turing` | the **integer grid** ℤⁿ, the **regular tree** T_k, the **ordinals** below ω^ω, **Turing-machine configuration graphs** |
 
 **Classes** — one automaton for a whole family, indexed by advice:
 
@@ -140,10 +141,16 @@ batch:
 | `autstr.groups`, `autstr.tree_groups` | finite **abelian** groups, **index-≤2 cyclic** groups (dihedral, quaternion, semidihedral, modular), **extraspecial** p-groups, class-2 groups of bounded **rank-width** (over F_p or ℤ/pᵈ) | group multiplication `M` |
 | `autstr.cocycle_groups` | **distributed-center** class-2 groups of bounded rank-width | multiplication `M` |
 
-Three capabilities cut across all of these:
+Four capabilities cut across all of these:
 
 - **Composition** (`autstr.composition`) — disjoint union and direct products of
   structures, and union and finite-product closure of classes.
+- **First-order interpretations** (`autstr.interpretations`) — automatic
+  structures are closed under FO-interpretations, and `interpret` *computes* the
+  interpreted presentation: a domain formula, a formula per relation, elements as
+  k-tuples, optionally quotiented by a definable equivalence. It is how the
+  ordinals are built — three formulas over Büchi arithmetic, no automaton
+  authored.
 - **Implicit evaluation** (`autstr.implicit`) — `check_implicit` /
   `evaluate_implicit` decide formulas and compute satisfying sets *without
   building a query automaton*, reaching members whose automata are far too large

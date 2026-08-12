@@ -271,6 +271,30 @@ class AutomaticPresentation(DeferredRelations):
             ).minimize()
         return domain
 
+    def _operand_automaton(self, psi, free_operand: List[str],
+                           free_vars: List[str], verbose=False) -> SparseDFA:
+        """A connective's operand, placed into the enclosing formula's tape
+        order.
+
+        A sentence has no tapes to place: it collapses to the all/none marker,
+        whose single tape is a placeholder rather than a variable, so renaming
+        it into the enclosing arity is meaningless (and, when the enclosing
+        formula is itself a sentence, impossible — there is no tape to rename
+        to). It is remade at the enclosing arity instead: false becomes the
+        empty relation, true the full one, which over a structure is the
+        product of universes rather than every word.
+        """
+        dfa = self._build_automaton(psi, verbose=verbose, init=False)
+        arity = max(len(free_vars), 1)
+        if free_operand:
+            return expand(dfa, arity, [free_vars.index(v) for v in free_operand])
+        if dfa.is_empty():
+            return zero(symbol_arity=arity, base_alphabet=self.sigma)
+        # a true sentence: the marker convention at arity 1, so that an
+        # enclosing sentence stays a marker; the domain otherwise
+        return one(base_alphabet=self.sigma) if not free_vars \
+            else self._domain_product(arity)
+
     def check(self, phi: logic.Expression | str) -> bool:
         """Checks if a given first-order formula holds on the presented structure. Free variables are assumed be
         implicitly existentially quantified.
@@ -424,8 +448,8 @@ class AutomaticPresentation(DeferredRelations):
             free_l = get_free_elementary_vars(left)
             free_r = get_free_elementary_vars(right)
 
-            dfa_l = expand(self._build_automaton(left, verbose=verbose, init=False), len(free_vars), pos=[free_vars.index(v) for v in free_l])
-            dfa_r = expand(self._build_automaton(right, verbose=verbose, init=False), len(free_vars), pos=[free_vars.index(v) for v in free_r])
+            dfa_l = self._operand_automaton(left, free_l, free_vars, verbose)
+            dfa_r = self._operand_automaton(right, free_r, free_vars, verbose)
 
             result = dfa_l.intersection(dfa_r).minimize()
             if verbose:
@@ -440,8 +464,8 @@ class AutomaticPresentation(DeferredRelations):
             free_l = get_free_elementary_vars(left)
             free_r = get_free_elementary_vars(right)
 
-            dfa_l = expand(self._build_automaton(left, verbose=verbose, init=False), len(free_vars), pos=[free_vars.index(v) for v in free_l])
-            dfa_r = expand(self._build_automaton(right, verbose=verbose, init=False), len(free_vars), pos=[free_vars.index(v) for v in free_r])
+            dfa_l = self._operand_automaton(left, free_l, free_vars, verbose)
+            dfa_r = self._operand_automaton(right, free_r, free_vars, verbose)
 
             result = dfa_l.union(dfa_r).minimize()
             if verbose:
