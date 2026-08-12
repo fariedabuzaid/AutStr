@@ -6,10 +6,16 @@ engine relies on that — quantifiers restrict a bound variable to `U`, so an
 unrestricted relation makes a universal sentence look false on encodings that
 are not elements at all.
 """
+import itertools
+
+import pytest
+
+from autstr.buildin.automata import zero
 from autstr.buildin.presentations import (
     BuechiArithmetic, BuechiArithmeticZ, MSO0,
 )
 from autstr.interpretations import interpret
+from autstr.presentations import AutomaticPresentation
 
 
 def _leaks(presentation, name) -> bool:
@@ -53,48 +59,113 @@ def _same_language(one, other) -> bool:
             other.intersection(one.complement()).is_empty())
 
 
+#: a true and a false sentence over Buechi arithmetic
+TRUE, FALSE = 'all x.(Eq(x,x))', 'all x.(Lt(x,x))'
+
+#: the binary connectives, with their Python truth tables
+CONNECTIVES = {
+    '&': lambda a, b: a and b,
+    '|': lambda a, b: a or b,
+    '->': lambda a, b: (not a) or b,
+    '<->': lambda a, b: a == b,
+}
+
+
+def _convolution(a: int, b: int):
+    """The two-tape encoding of a pair of naturals, padded to equal length."""
+    wa, wb = list(format(a, 'b')[::-1]), list(format(b, 'b')[::-1])
+    n = max(len(wa), len(wb))
+    return list(zip(wa + ['*'] * (n - len(wa)), wb + ['*'] * (n - len(wb))))
+
+
 class TestSentencesUnderConnectives:
     """A sentence has no free variables, so it evaluates to the all/none
-    marker rather than to a relation with tapes. Placing that marker into an
-    enclosing conjunction or disjunction used to be attempted as a tape
-    renaming, which raised `IndexError` — for two sentences there is no tape to
-    rename to at all.
+    marker rather than to a relation with tapes: an arity-1 automaton that is
+    non-empty exactly when the sentence is true.
+
+    The marker is deliberately not the universe -- over an empty structure a
+    universal sentence is still vacuously true -- so placing it into an
+    enclosing formula is not a tape renaming. Attempting one raised IndexError,
+    and for two sentences there was no tape to rename to at all.
     """
 
-    def test_two_sentences_conjoined(self):
+    @pytest.mark.parametrize("connective", list(CONNECTIVES))
+    @pytest.mark.parametrize("left,right", list(itertools.product([True, False],
+                                                                 repeat=2)))
+    def test_two_sentences(self, connective, left, right):
         arithmetic = BuechiArithmetic()
-        true, false = 'all x.(Eq(x,x))', 'all x.(Lt(x,x))'
-        assert arithmetic.check(f'({true}) & ({true})')
-        assert not arithmetic.check(f'({true}) & ({false})')
-        assert not arithmetic.check(f'({false}) & ({true})')
+        phi = (f'({TRUE if left else FALSE}) {connective} '
+               f'({TRUE if right else FALSE})')
+        expected = CONNECTIVES[connective](left, right)
+        assert arithmetic.check(phi) == expected
+        assert arithmetic.check(f'not ({phi})') == (not expected)
 
-    def test_two_sentences_disjoined(self):
+    def test_sentences_nest(self):
         arithmetic = BuechiArithmetic()
-        true, false = 'all x.(Eq(x,x))', 'all x.(Lt(x,x))'
-        assert arithmetic.check(f'({false}) | ({true})')
-        assert not arithmetic.check(f'({false}) | ({false})')
+        assert arithmetic.check(f'(({TRUE}) | ({FALSE})) & (not ({FALSE}))')
+        assert arithmetic.check(
+            f'all y.((({TRUE}) & ({TRUE})) & Eq(y,y))')
+        assert not arithmetic.check(f'(all w.({TRUE})) & (exists w.({FALSE}))')
 
-    def test_a_sentence_beside_an_open_formula(self):
+    @pytest.mark.parametrize("connective", list(CONNECTIVES))
+    @pytest.mark.parametrize("truth", [True, False])
+    @pytest.mark.parametrize("first", [True, False])
+    def test_a_sentence_beside_an_open_formula(self, connective, truth, first):
         """The sentence contributes its truth value and the open formula its
-        relation: a true conjunct must leave the relation alone, a false one
-        must empty it, and a true disjunct must fill it with the whole
-        universe."""
+        relation, on either side of the connective."""
         arithmetic = BuechiArithmetic()
-        true, false = 'all x.(Eq(x,x))', 'all x.(Lt(x,x))'
+        sentence = TRUE if truth else FALSE
+        phi = (f'({sentence}) {connective} Lt(y,z)' if first
+               else f'Lt(y,z) {connective} ({sentence})')
+        relation = arithmetic.evaluate(phi)
 
-        less = arithmetic.evaluate('Lt(y,z)')
-        assert _same_language(arithmetic.evaluate(f'({true}) & Lt(y,z)'), less)
-        assert arithmetic.evaluate(f'({false}) & Lt(y,z)').is_empty()
+        for a, b in itertools.product(range(4), repeat=2):
+            expected = (CONNECTIVES[connective](truth, a < b) if first
+                        else CONNECTIVES[connective](a < b, truth))
+            assert relation.accepts(_convolution(a, b)) == expected, (a, b)
 
-        assert _same_language(arithmetic.evaluate(f'({true}) | Lt(y,z)'),
-                              arithmetic._domain_product(2))
-        assert _same_language(arithmetic.evaluate(f'({false}) | Lt(y,z)'), less)
-
-    def test_a_true_disjunct_does_not_admit_non_elements(self):
-        """The full relation of a structure is the product of its universes,
-        not every word: a true sentence disjoined with an open formula must
-        still reject encodings that are not elements."""
+    def test_a_true_operand_is_the_universe_not_every_word(self):
+        """A subformula's automaton is a relation over the universe. The
+        marker is not -- it accepts every word -- so a true sentence beside an
+        open formula must contribute the product of universes instead, or the
+        result admits encodings that are not elements."""
         arithmetic = BuechiArithmetic()
-        filled = arithmetic.evaluate('(all x.(Eq(x,x))) | Lt(y,z)')
+        filled = arithmetic.evaluate(f'({TRUE}) | Lt(y,z)')
         assert not filled.accepts([('0', '0'), ('0', '1')])   # '00' is not a
         assert filled.accepts([('0', '0')])                   # well-formed 0
+        assert _same_language(filled, arithmetic._domain_product(2))
+
+        kept = arithmetic.evaluate(f'({TRUE}) & Lt(y,z)')
+        assert _same_language(kept, arithmetic.evaluate('Lt(y,z)'))
+        assert arithmetic.evaluate(f'({FALSE}) & Lt(y,z)').is_empty()
+
+
+class TestSentencesOverAnEmptyUniverse:
+    """The degenerate case the marker convention exists for: over an empty
+    structure every universal sentence is vacuously true, which is why a true
+    sentence is the all-marker and not the universe. An open formula beside it
+    still collapses, since every relation over an empty universe is empty.
+    """
+
+    @staticmethod
+    def _empty():
+        sigma = {'0', '1', '*'}
+        return AutomaticPresentation(
+            {'U': zero(1, sigma), 'Eq': zero(2, sigma), 'Lt': zero(2, sigma)},
+            padding_symbol='*')
+
+    def test_a_universal_sentence_is_vacuously_true(self):
+        assert self._empty().check('all x.(Lt(x,x))')
+
+    def test_an_existential_sentence_is_false(self):
+        assert not self._empty().check('exists x.(Eq(x,x))')
+
+    def test_vacuous_truth_survives_a_connective(self):
+        empty = self._empty()
+        assert empty.check('(all x.(Lt(x,x))) & (all x.(Lt(x,x)))')
+        assert empty.check('(all x.(Lt(x,x))) | (exists x.(Eq(x,x)))')
+        assert not empty.check('(all x.(Lt(x,x))) & (exists x.(Eq(x,x)))')
+
+    def test_an_open_formula_beside_it_is_still_empty(self):
+        empty = self._empty()
+        assert empty.evaluate('(all x.(Lt(x,x))) | Lt(y,z)').is_empty()
