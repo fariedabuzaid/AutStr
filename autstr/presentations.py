@@ -246,10 +246,15 @@ class AutomaticPresentation(DeferredRelations):
                 self.automata[key] = self._prepare_automaton(self._build_automaton(query))
 
     def _prepare_automaton(self, dfa: SparseDFA) -> SparseDFA:
-        """Applies restriction to the universe and padding to the automaton"""
+        """Restrict every tape to the universe, then saturate with padding.
+
+        Every tape, not all but the last: a relation is a relation over L(U)^k,
+        and quantifiers restrict a bound variable to `U`, so a relation that
+        still holds of a non-element makes universal sentences come out false
+        on encodings that are not elements at all."""
         arity = dfa.symbol_arity  # Get arity from symbol_arity attribute
         domain = self.automata['U']
-        for i in range(arity-1):
+        for i in range(arity):
             domain_i = expand(domain, new_arity=arity, pos=[i]).minimize()
             dfa = dfa.intersection(domain_i).minimize()
         return pad(dfa, self.padding_symbol).minimize()
