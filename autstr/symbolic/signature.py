@@ -75,6 +75,33 @@ def operation_signature(relations, graph: str, operator: str,
     return signature
 
 
+def relational_signature(relations, methods: Dict[str, str],
+                         equality: str = EQUALITY_SYMBOL,
+                         codec=None) -> 'Signature':
+    """The signature of a purely relational structure: each method name in
+    `methods` bound to the relation symbol it names, plus equality when the
+    structure declares it.
+
+    Nothing binds to ``+`` or ``*`` — a relational structure carries no
+    operation, so every symbol is reached as a method, exactly like ``.lt`` in
+    the arithmetic signature. The requested methods are bound whether or not
+    the structure declares them, so a symbol that is missing fails loudly when
+    a formula uses it rather than silently going unbound; only equality, which
+    a caller asks for generically, is conditional.
+
+    :param relations: the structure's relation symbols.
+    :param methods: ``{method name: relation symbol}``.
+    :param equality: the equality symbol, bound to ``.eq`` when present.
+    :param codec: optional element codec for writing elements as constants.
+    """
+    signature = Signature(codec=codec)
+    for method, symbol in methods.items():
+        signature.operator(method, symbol)
+    if equality in relations:
+        signature.operator('eq', equality)
+    return signature
+
+
 def graph_signature(relations, edge: str = 'E', adjacency: str = 'adj',
                     equality: str = EQUALITY_SYMBOL, codec=None) -> 'Signature':
     """The signature of a graph: the binary edge relation `edge` bound to the
@@ -91,11 +118,29 @@ def graph_signature(relations, edge: str = 'E', adjacency: str = 'adj',
     :param adjacency: the method name it binds to.
     :param codec: optional element codec for writing vertices as constants.
     """
-    signature = Signature(codec=codec)
-    signature.operator(adjacency, edge)
-    if equality in relations:
-        signature.operator('eq', equality)
-    return signature
+    return relational_signature(relations, {adjacency: edge},
+                                equality=equality, codec=codec)
+
+
+def order_signature(relations, less: str = 'Lt', order: str = 'lt',
+                    equality: str = EQUALITY_SYMBOL, codec=None,
+                    methods: Optional[Dict[str, str]] = None) -> 'Signature':
+    """The signature of an ordered structure: the binary relation `less` bound
+    to ``.{order}(y)`` (default ``.lt``), plus equality when declared.
+
+    An order is not a graph — ``x.lt(y)`` and ``x.adj(y)`` read differently
+    even where both are binary — so orders get their own vocabulary rather than
+    being wrapped as graphs. Further relations of the same structure (a
+    successor, a limit predicate) go in `methods`.
+
+    :param relations: the structure's relation symbols.
+    :param less: the binary relation read as the strict order.
+    :param order: the method name it binds to.
+    :param codec: optional element codec for writing elements as constants.
+    :param methods: further ``{method name: relation symbol}`` bindings.
+    """
+    return relational_signature(relations, {order: less, **(methods or {})},
+                                equality=equality, codec=codec)
 
 
 class ElementCodec:
