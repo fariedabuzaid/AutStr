@@ -174,6 +174,17 @@ class TestSentencesUnderConnectives:
         assert not trees.check(f'({false}) & Lt(y,z)')
         assert trees.check(f'({false}) | Lt(y,z)')
 
+    def test_the_two_engines_agree(self, engines):
+        """Both engines answer a sentence with a marker and place it into a
+        connective the same way, so the same formula must come out the same on
+        the same structure."""
+        strings, trees = engines
+        true, false = 'all x.(exists y.(Lt(x,y)))', 'exists x.(all y.(Lt(x,y)))'
+        for phi in [f'({true}) & ({false})', f'({true}) | ({false})',
+                    f'({false}) -> ({true})', f'({true}) <-> ({true})',
+                    f'({false}) <-> ({true})', f'not (({true}) & ({false}))']:
+            assert strings.check(phi) == trees.check(phi), phi
+
     def test_a_true_operand_is_the_domain_not_every_tree(self, engines):
         """A subformula's automaton is a relation over the domain. The marker
         is not -- it accepts every tree -- so a true sentence beside an open
