@@ -127,6 +127,40 @@ def permute_tapes(sta: SparseTreeAutomaton, perm: List[int]
         pair_keys=sta.pair_keys, pair_nodes=np.array(nodes, dtype=np.int64))
 
 
+def fold_tapes(sta: SparseTreeAutomaton, k: int) -> SparseTreeAutomaton:
+    """Group every `k` consecutive tapes of a convolution into one tape over
+    the product alphabet Sigma^k.
+
+    An automaton reading ``k * r`` tapes over Sigma becomes one reading ``r``
+    tapes whose letters are k-tuples — the fold that turns the many-tape output
+    of a k-dimensional interpretation into a structure whose elements are
+    k-tuples of trees. Since the convolution of k trees is one tree over
+    k-tuples, an element of the interpreted structure *is* such a tree, and
+    nothing about the shapes changes: the fold only regroups the alphabet.
+
+    The regrouping is the same diagram surgery as in the string engine — the
+    symbol diagrams are ordinary MTBDDs either way, so `NodeStore.fold_tapes`
+    does the work here too, applied to each child pair's diagram. No state is
+    added, and lexicographic tuple order matches `encode_symbol`, so encodings
+    line up.
+    """
+    import itertools
+    if sta.symbol_arity % k:
+        raise ValueError(
+            f"arity {sta.symbol_arity} is not a multiple of k={k}")
+    if k == 1:
+        return sta
+    store = sta.store
+    product_alphabet = set(
+        itertools.product(sorted(sta.base_alphabet_frozen), repeat=k))
+    nodes = [store.fold_tapes(int(node), sta.symbol_arity, sta.m, sta.bits, k)
+             for node in sta.pair_nodes.tolist()]
+    return SparseTreeAutomaton(
+        sta.num_states, sta.default_state, is_accepting=sta.is_accepting,
+        symbol_arity=sta.symbol_arity // k, base_alphabet=product_alphabet,
+        pair_keys=sta.pair_keys, pair_nodes=np.array(nodes, dtype=np.int64))
+
+
 # ====================================================================
 # Existential projection
 # ====================================================================

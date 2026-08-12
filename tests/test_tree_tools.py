@@ -7,7 +7,7 @@ from autstr.utils.tree_automata_tools import k_deeper_automaton
 from autstr.sparse_tree_automata import SparseTreeAutomaton, Tree, tree_to_arrays
 from autstr.utils.misc import encode_symbol
 from autstr.utils.tree_automata_tools import (
-    attach_padding, equivalent, expand, minimize, project,
+    attach_padding, equivalent, expand, fold_tapes, minimize, project,
 )
 from test_tree_automata import RefDTA, random_sta, random_tree
 
@@ -393,3 +393,44 @@ class TestKDeeperAutomaton:
                       Tree(('*', 'a'), Tree(('*', 'a'))))
         assert self._automaton(k=2).accepts(forked)
         assert not self._automaton(k=3).accepts(forked)
+
+
+# ====================================================================
+# fold_tapes
+# ====================================================================
+
+class TestFoldTapes:
+    """Grouping every k tapes into one product-alphabet tape must preserve the
+    accepted language. The grouping is contiguous and mixed-radix, so a
+    symbol's integer code is unchanged by the fold and the folded automaton run
+    on the same codes must agree with the original — a real test when m is not
+    a power of two, since the diagram is then genuinely rebuilt over a
+    different number of bits."""
+
+    def test_preserves_the_language(self):
+        rng = random.Random(2026)
+        for trial in range(25):
+            m = rng.randint(2, 3)                 # 3 is not a power of two
+            k = rng.randint(2, 3)
+            r = rng.randint(1, 2)
+            source = random_sta_arity(rng, k * r, m)
+            folded = fold_tapes(source, k)
+            assert folded.symbol_arity == r
+            assert len(folded.base_alphabet) == m ** k
+            for _ in range(20):
+                tree = random_tree(rng, m ** (k * r))
+                arrays = tree_to_arrays_encoded(tree)
+                got = bool(folded.is_accepting[folded.run(*arrays)])
+                want = bool(source.is_accepting[source.run(*arrays)])
+                assert got == want, trial
+
+    def test_k_one_is_the_automaton_itself(self):
+        rng = random.Random(7)
+        source = random_sta_arity(rng, 2, 3)
+        assert fold_tapes(source, 1) is source
+
+    def test_arity_must_be_divisible(self):
+        rng = random.Random(8)
+        source = random_sta_arity(rng, 3, 2)
+        with pytest.raises(ValueError, match="multiple"):
+            fold_tapes(source, 2)
