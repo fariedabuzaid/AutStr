@@ -363,7 +363,12 @@ class AutomaticPresentation(DeferredRelations):
                 domain = self._domain_product(len(free_vars) - 1)
                 result = projection(dfa_rec, pos).minimize().complement().minimize().intersection(domain).minimize()
             else:
-                result = one() if dfa_rec.is_empty() else zero()
+                # A sentence collapses to the all/none marker, which must carry
+                # this structure's alphabet: an enclosing connective intersects
+                # it with the domain, and a size-1 default would mismatch any
+                # product-alphabet presentation.
+                result = one(base_alphabet=self.sigma) if dfa_rec.is_empty() \
+                    else zero(base_alphabet=self.sigma)
 
             if verbose:
                 print(f'{str(phi)}: {result.num_states} states')
@@ -382,7 +387,8 @@ class AutomaticPresentation(DeferredRelations):
                 else:
                     if verbose:
                         print(f'{str(phi)}: 1 state')
-                    return zero() if dfa_rec.is_empty() else one()
+                    return zero(base_alphabet=self.sigma) if dfa_rec.is_empty() \
+                        else one(base_alphabet=self.sigma)
             else:
                 result = dfa_rec
 
