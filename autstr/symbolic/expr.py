@@ -15,6 +15,7 @@ silently meaning addition.
 from __future__ import annotations
 
 import math
+from collections.abc import Mapping
 from typing import Any, Iterable, List, Sequence, Tuple, Union
 
 
@@ -173,6 +174,31 @@ class Var(Term):
         return self.name
 
 
+def _hashable(value):
+    """A hashable stand-in for a Python value.
+
+    An element codec may accept any Python value, and for some structures the
+    natural one is a set or a map — a clopen set is a set of cylinders, an
+    ordinal a map from exponent to coefficient. Those are unhashable, but a
+    constant has to sit in the dictionaries the compiler keys by subterm, so
+    they get a canonical stand-in instead. Equal values give equal stand-ins,
+    which is what the hash/equality contract needs; unequal values may collide,
+    which costs nothing, since equality itself still compares the values.
+    """
+    if isinstance(value, (set, frozenset)):
+        return 'set', tuple(sorted(map(_hashable, value), key=repr))
+    if isinstance(value, Mapping):
+        return 'map', tuple(sorted(((_hashable(k), _hashable(v))
+                                    for k, v in value.items()), key=repr))
+    if isinstance(value, (list, tuple)):
+        return 'seq', tuple(map(_hashable, value))
+    try:
+        hash(value)
+    except TypeError:
+        return 'repr', repr(value)
+    return value
+
+
 class Const(Term):
     """A Python value, encoded through the signature's codec."""
 
@@ -181,6 +207,10 @@ class Const(Term):
     def __init__(self, ctx, value):
         super().__init__(ctx, (value,))
         object.__setattr__(self, 'value', value)
+
+    def __hash__(self):
+        return hash((type(self).__name__, id(self.ctx),
+                     _hashable(self.value)))
 
     def variables(self):
         return []

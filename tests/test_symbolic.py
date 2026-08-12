@@ -514,3 +514,30 @@ def test_a_signature_carries_its_codec():
     codec = FunctionCodec(_encode, _decode)
     assert order_signature({'Lt'}, codec=codec).codec is codec
     assert graph_signature({'E'}, codec=codec).codec is codec
+
+
+# ----------------------------------------------------------------------
+# constants whose Python value is not hashable
+# ----------------------------------------------------------------------
+
+def test_a_constant_may_be_a_set_or_a_map(S):
+    """An element codec may accept any Python value, and for some structures
+    the natural one is a set (a clopen set of cylinders) or a map (an ordinal
+    as exponent to coefficient). Constants sit in the dictionaries the compiler
+    keys by subterm, so they must hash even then."""
+    for value in [{1, 2}, {'a': 1, 'b': 2}, [1, 2], frozenset({3})]:
+        assert isinstance(hash(S.term(value)), int)
+
+
+def test_equal_unhashable_constants_agree(S):
+    # equal values must land in the same bucket, whatever order they were
+    # written in
+    assert S.term({'a': 1, 'b': 2}) == S.term({'b': 2, 'a': 1})
+    assert hash(S.term({'a': 1, 'b': 2})) == hash(S.term({'b': 2, 'a': 1}))
+    assert S.term({1, 2}) == S.term({2, 1})
+    assert hash(S.term({1, 2})) == hash(S.term({2, 1}))
+
+
+def test_distinct_unhashable_constants_stay_distinct(S):
+    assert S.term({1, 2}) != S.term({1, 3})
+    assert S.term({'a': 1}) != S.term({'a': 2})

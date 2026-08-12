@@ -130,7 +130,7 @@ batch:
 | package | structures |
 |---------|------------|
 | `autstr.arithmetic`, `autstr.buildin` | Presburger and Büchi arithmetic (ℤ, +, <, \|₂), Skolem arithmetic (ℕ, ·), the MSO0 finite-powerset structure |
-| `autstr.algebra` | the localizations **ℤ[1/p]**, finite **Boolean algebras** |
+| `autstr.algebra`, `autstr.tree_algebra` | the localizations **ℤ[1/p]**, finite **Boolean algebras**, and the countable **atomless Boolean algebra** |
 | `autstr.infinite_graphs`, `autstr.ordinals`, `autstr.turing` | the **integer grid** ℤⁿ, the **regular tree** T_k, the **ordinals** below ω^ω and — on the tree engine — below ω^(ω^ω), **Turing-machine configuration graphs** |
 
 **Classes** — one automaton for a whole family, indexed by advice:
