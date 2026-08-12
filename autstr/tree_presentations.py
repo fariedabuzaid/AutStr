@@ -171,6 +171,31 @@ class TreeAutomaticPresentation(DeferredRelations):
             # leave the temporary relations installed on the presentation.
             self.automata = backup
 
+    def _operand_automaton(self, psi, free_operand, free_vars
+                           ) -> SparseTreeAutomaton:
+        """A connective's operand, placed into the enclosing formula's tape
+        order.
+
+        A sentence has no tapes to place: it collapses to the all/none marker,
+        whose single tape is a placeholder rather than a variable, so renaming
+        it into the enclosing arity is meaningless (and, when the enclosing
+        formula is itself a sentence, impossible — there is no tape to rename
+        to). It is remade at the enclosing arity instead: false becomes the
+        empty relation, true the full one, which over a structure is the
+        product of domains rather than every tree.
+        """
+        sta = self._build_automaton(psi)
+        arity = max(len(free_vars), 1)
+        if free_operand:
+            return expand(sta, arity, [free_vars.index(v)
+                                       for v in free_operand])
+        if sta.is_empty():
+            return tree_zero(arity, self.base_alphabet)
+        # a true sentence: the marker convention at arity 1, so that an
+        # enclosing sentence stays a marker; the domain otherwise
+        return tree_one(1, self.base_alphabet) if not free_vars \
+            else self._domain_product(arity)
+
     def _build_automaton(self, phi) -> SparseTreeAutomaton:
         if isinstance(phi, str):
             phi = logic.Expression.fromstring(phi)
@@ -214,10 +239,8 @@ class TreeAutomaticPresentation(DeferredRelations):
             free_vars = get_free_elementary_vars(phi)
             free_l = get_free_elementary_vars(phi.first)
             free_r = get_free_elementary_vars(phi.second)
-            left = expand(self._build_automaton(phi.first), len(free_vars),
-                          [free_vars.index(v) for v in free_l])
-            right = expand(self._build_automaton(phi.second), len(free_vars),
-                           [free_vars.index(v) for v in free_r])
+            left = self._operand_automaton(phi.first, free_l, free_vars)
+            right = self._operand_automaton(phi.second, free_r, free_vars)
             if isinstance(phi, logic.AndExpression):
                 return minimize(left.intersection(right))
             return minimize(left.union(right))
