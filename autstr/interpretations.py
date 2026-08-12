@@ -24,24 +24,76 @@ symbol-width overhead, intrinsic to representing tuples.
 Quotient interpretations (elements as classes of a definable equivalence) are
 supported at every dimension: pass ``quotient=ε``, and the universe is
 restricted to the shortlex-least representative of each class.
+
+**Both engines.** The source may be an `AutomaticPresentation` or a
+`TreeAutomaticPresentation`, and the result is a presentation of the same kind;
+the orchestration is identical because both engines encode a convolution letter
+the same way. Over trees an element of a k-dimensional interpretation is a
+k-tuple of trees, which *is* one tree over k-tuples — the same fold, since the
+tree convolution already overlays the shapes. Quotients are the exception: over
+trees the representatives exist and are regular, but reaching them takes a
+different construction from the string engine's "least element of the class",
+because no tree-automatic order is well-founded. Name the representatives with
+a formula and restrict the domain instead; `_quotient` says why in full, with
+the reference for building them properly.
 """
 from __future__ import annotations
 
-from typing import Dict, Optional, Sequence, Tuple, Union
+from dataclasses import dataclass
+from typing import Callable, Dict, Optional, Sequence, Tuple, Union
 
 from nltk.sem import logic
 
 from autstr.presentations import AutomaticPresentation
-from autstr.sparse_automata import SparseDFA
-from autstr.utils.automata_tools import (
-    fold_tapes, permute_tapes, shortlex_order,
-)
 from autstr.utils.logic import get_free_elementary_vars
 
 #: scaffolding relations a quotient interpretation installs on the intermediate
 #: structure and drops from the result
 _EQUIV = '_Equiv'
 _LE = '_Le'
+
+@dataclass(frozen=True)
+class _Engine:
+    """The tape machinery of whichever engine the source belongs to.
+
+    Interpreting is the same orchestration over words and over trees — evaluate
+    the formulas, order their tapes, fold every k into one element tape — and
+    the operations differ only in which automaton type they act on. Both
+    engines encode a symbol the same way (an MTBDD over the binary digits of
+    the convolution letter, tape-major), which is why the fold is literally the
+    same diagram surgery on either side.
+    """
+    name: str
+    permute_tapes: Callable
+    fold_tapes: Callable
+    presentation: Callable
+    #: a well-order on encodings, or None where the engine has none — the
+    #: quotient construction needs one to pick class representatives
+    well_order: Optional[Callable]
+
+
+def _engine_for(source) -> _Engine:
+    from autstr.tree_presentations import TreeAutomaticPresentation
+    if isinstance(source, TreeAutomaticPresentation):
+        from autstr.utils import tree_automata_tools as trees
+        return _Engine(
+            name='tree',
+            permute_tapes=trees.permute_tapes,
+            fold_tapes=trees.fold_tapes,
+            presentation=lambda automata, padding: TreeAutomaticPresentation(
+                automata, padding_symbol=padding,
+                max_states=source.max_states),
+            well_order=None)
+
+    from autstr.utils import automata_tools as words
+    return _Engine(
+        name='string',
+        permute_tapes=words.permute_tapes,
+        fold_tapes=words.fold_tapes,
+        presentation=lambda automata, padding: AutomaticPresentation(
+            automata, padding_symbol=padding),
+        well_order=words.shortlex_order)
+
 
 Formula = Union[str, logic.Expression]
 #: a relation is a formula, or a ``(formula, coordinate-order)`` pair; the
@@ -50,13 +102,15 @@ Formula = Union[str, logic.Expression]
 RelationSpec = Union[Formula, Tuple[Formula, Sequence[str]]]
 
 
-def interpret(source: AutomaticPresentation, domain: RelationSpec,
+def interpret(source, domain: RelationSpec,
               relations: Dict[str, RelationSpec],
               dimension: int = 1,
-              quotient: Optional[RelationSpec] = None) -> AutomaticPresentation:
+              quotient: Optional[RelationSpec] = None):
     """The first-order interpretation of a structure in `source`.
 
-    :param source: the structure to interpret in.
+    :param source: the structure to interpret in — an `AutomaticPresentation`
+        or a `TreeAutomaticPresentation`. The result is a presentation of the
+        same kind.
     :param domain: the domain formula δ(x̄) with ``dimension`` free variables —
         the coordinates of one element; the new universe is the tuples
         satisfying it. A ``(formula, coordinate-order)`` pair fixes which free
@@ -71,37 +125,41 @@ def interpret(source: AutomaticPresentation, domain: RelationSpec,
         are its equivalence classes: the universe is restricted to the
         shortlex-least representative of each class, and the relations are read
         on those representatives. The caller must ensure ε really is an
-        equivalence and that every relation is ε-invariant.
-    :return: a fresh `AutomaticPresentation`. For k > 1 its alphabet is the
-        source alphabet's k-fold product.
+        equivalence and that every relation is ε-invariant. **String engine
+        only so far** — see `_quotient` for what the tree engine would need,
+        and for what to write instead meanwhile.
+    :return: a fresh presentation of the same kind as `source`. For k > 1 its
+        alphabet is the source alphabet's k-fold product.
     """
     if dimension < 1:
         raise ValueError("dimension must be >= 1")
+    engine = _engine_for(source)
     if quotient is not None:
-        return _quotient(source, domain, relations, dimension, quotient)
+        return _quotient(source, domain, relations, dimension, quotient,
+                         engine)
     k = dimension
 
-    universe = _fold_formula(source, domain, k)
+    universe = _fold_formula(source, domain, k, engine)
     if universe.symbol_arity != 1:
         raise ValueError(
             f"the domain formula must have {k} free variable(s) — the "
             f"coordinates of one element — but defines "
             f"{universe.symbol_arity} element(s)")
 
-    automata: Dict[str, SparseDFA] = {'U': universe}
+    automata = {'U': universe}
     for name, spec in relations.items():
         if name == 'U':
             raise ValueError("'U' is the reserved universe symbol")
-        automata[name] = _fold_formula(source, spec, k)
+        automata[name] = _fold_formula(source, spec, k, engine)
 
     padding = source.padding_symbol if k == 1 \
         else (source.padding_symbol,) * k
-    return AutomaticPresentation(automata, padding_symbol=padding)
+    return engine.presentation(automata, padding)
 
 
-def _quotient(source: AutomaticPresentation, domain: RelationSpec,
+def _quotient(source, domain: RelationSpec,
               relations: Dict[str, RelationSpec], dimension: int,
-              equivalence: RelationSpec) -> AutomaticPresentation:
+              equivalence: RelationSpec, engine: _Engine):
     """Interpret with a quotient, in two stages: first the plain (k-dim)
     interpretation carrying the equivalence as a relation, then a
     one-dimensional interpretation restricting the universe to the
@@ -111,13 +169,53 @@ def _quotient(source: AutomaticPresentation, domain: RelationSpec,
     shortlex well-order on the element encoding — ``x`` is canonical iff it is
     ``<=`` every element equivalent to it — so the whole thing stays inside the
     engine.
+
+    That last step is what the tree engine does not have. It is *not* that
+    representatives fail to exist: every tree-automatic equivalence has a
+    regular complete system of representatives (Colcombet & Löding 2007), and
+    one is computable in polynomial space with ``2^O(|A|)`` states (Kuske &
+    Weidner, *Size and computation of injective tree automatic presentations*,
+    MFCS 2011, Thm. 3.1). What fails is *this* way of getting them.
+
+    Taking the least element of a class needs a well-founded order, and the
+    tree-automatic order does not qualify. There is a tree-automatic linear
+    order — compare at the lexicographically least position where two trees
+    differ, counting an absent position as larger — but growing a tree at that
+    position makes it *smaller*, so an infinite descending chain is easy to
+    write down and a class need have no least element. Shortlex avoids this
+    over words only because the convolution aligns positions, which makes
+    length the primary key for free; a tree convolution aligns shapes instead,
+    and comparing two trees' sizes is not a finite-state property at all.
+
+    Kuske and Weidner get round it by not minimizing over the whole class.
+    Their *shadow* of a class is the set of positions present in every member,
+    and a *description* is a member whose subtrees below the shadow's frontier
+    are no taller than the equivalence automaton has states. That set is
+    non-empty and finite for every class, so its least element under the linear
+    order exists — and the exponential price is unavoidable: they also show a
+    structure where every automaton recognizing a complete system of
+    representatives has exponentially many states.
+
+    Until that is built, a caller who wants a quotient over trees names the
+    representatives instead: pick a formula ρ(x̄) true of exactly one element
+    per class and interpret with ``domain=δ ∧ ρ``, which is the same
+    construction with the choice made explicit.
     """
+    if engine.well_order is None:
+        raise NotImplementedError(
+            f"the {engine.name} engine does not build quotient representatives "
+            f"yet: they exist and are regular, but reaching them needs the "
+            f"shadow construction of Kuske & Weidner (MFCS 2011) rather than "
+            f"the least element of a class, since no tree-automatic order is "
+            f"well-founded. Restrict the domain to a definable set of "
+            f"representatives instead (see the documentation of this "
+            f"construction)")
     if _EQUIV in relations or _LE in relations:
         raise ValueError(f"{_EQUIV!r} and {_LE!r} are reserved for the "
                          f"quotient construction")
     raw = interpret(source, domain, {**relations, _EQUIV: equivalence},
                     dimension)
-    raw.update(**{_LE: shortlex_order(raw.sigma, raw.padding_symbol)})
+    raw.update(**{_LE: engine.well_order(raw.sigma, raw.padding_symbol)})
 
     representative = f'all y.({_EQUIV}(x,y) -> {_LE}(x,y))'
     specs: Dict[str, RelationSpec] = {}
@@ -128,8 +226,7 @@ def _quotient(source: AutomaticPresentation, domain: RelationSpec,
     return interpret(raw, (representative, ['x']), specs)
 
 
-def _fold_formula(source: AutomaticPresentation, spec: RelationSpec,
-                  k: int) -> SparseDFA:
+def _fold_formula(source, spec: RelationSpec, k: int, engine: _Engine):
     """Evaluate a formula over `source`, order its tapes coordinate-major, and
     fold every k of them into one element tape."""
     formula, order = spec if isinstance(spec, tuple) else (spec, None)
@@ -150,5 +247,5 @@ def _fold_formula(source: AutomaticPresentation, spec: RelationSpec,
 
     permutation = [free.index(v) for v in order]
     if permutation != list(range(len(order))):
-        dfa = permute_tapes(dfa, permutation)
-    return fold_tapes(dfa, k) if k > 1 else dfa
+        dfa = engine.permute_tapes(dfa, permutation)
+    return engine.fold_tapes(dfa, k) if k > 1 else dfa
