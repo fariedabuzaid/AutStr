@@ -22,10 +22,8 @@ engine minimizes away a sparse domain's redundancy) but a bounded ×k
 symbol-width overhead, intrinsic to representing tuples.
 
 Quotient interpretations (elements as classes of a definable equivalence) are
-supported at dimension 1: pass ``quotient=ε``, and the universe is restricted
-to the shortlex-least representative of each class. k-dimensional quotients are
-not enabled yet — they rest on nested-quantifier sentences over folded
-automata, which currently misbehave under the diagonal/complement operations.
+supported at every dimension: pass ``quotient=ε``, and the universe is
+restricted to the shortlex-least representative of each class.
 """
 from __future__ import annotations
 
@@ -117,16 +115,6 @@ def _quotient(source: AutomaticPresentation, domain: RelationSpec,
     if _EQUIV in relations or _LE in relations:
         raise ValueError(f"{_EQUIV!r} and {_LE!r} are reserved for the "
                          f"quotient construction")
-    if dimension > 1:
-        # The representative predicate is a nested-quantifier sentence over the
-        # folded relations, and folded (k>1) automata currently misbehave under
-        # the diagonal/complement operations those sentences use -- so the
-        # result would be silently wrong. One-dimensional quotients are exact.
-        raise NotImplementedError(
-            "quotient interpretations are only available at dimension 1 for "
-            "now; k-dimensional quotients await a fix to how folded automata "
-            "compose under quantifiers")
-
     raw = interpret(source, domain, {**relations, _EQUIV: equivalence},
                     dimension)
     raw.update(**{_LE: shortlex_order(raw.sigma, raw.padding_symbol)})

@@ -175,14 +175,29 @@ class TestQuotient:
         assert Q.check('exists x.(exists y. Lt(x,y))')
         assert Q.check('all x.(exists y. Lt(x,y))')      # no maximum, like Z
 
-    def test_k_dimensional_quotient_is_refused_for_now(self):
-        with pytest.raises(NotImplementedError, match="dimension 1"):
-            interpret(BuechiArithmeticZ(),
-                      domain=('N0(x0) & N0(x1)', ['x0', 'x1']),
-                      relations={},
-                      dimension=2,
-                      quotient=('exists s.(A(x0,y1,s) & A(y0,x1,s))',
-                                ['x0', 'x1', 'y0', 'y1']))
+    def test_integers_as_difference_pairs_of_naturals(self):
+        """The textbook two-dimensional quotient: ℤ = ℕ² / "same difference",
+        with the order read off the representatives. The result must be a
+        discrete unbounded total order — ℤ, built from ℕ alone."""
+        pairs = ('N0(x0) & N0(x1)', ['x0', 'x1'])
+        # (x0,x1) ~ (y0,y1)  iff  x0 + y1 = y0 + x1  (same difference)
+        same = ('exists s.(A(x0,y1,s) & A(y0,x1,s))',
+                ['x0', 'x1', 'y0', 'y1'])
+        # x0 - x1 < y0 - y1  iff  x0 + y1 < y0 + x1
+        less = ('exists s.(exists t.(A(x0,y1,s) & A(y0,x1,t) & Lt(s,t)))',
+                ['x0', 'x1', 'y0', 'y1'])
+        Z = interpret(BuechiArithmeticZ(), domain=pairs,
+                      relations={'L': less}, dimension=2, quotient=same)
+
+        assert Z.check('all x.(not L(x,x))')                    # irreflexive
+        assert Z.check('all x.(all y.(all z.('                  # transitive
+                       '(L(x,y) & L(y,z)) -> L(x,z))))')
+        assert Z.check('all x.(exists y. L(y,x))')              # no least
+        assert Z.check('all x.(exists y. L(x,y))')              # no greatest
+        assert Z.check('all x.(exists y.(L(x,y) & (not exists z.('
+                       'L(x,z) & L(z,y)))))')                   # has successors
+        assert not Z.check('all x.(all y.(L(x,y) -> exists z.('
+                           'L(x,z) & L(z,y))))')                # so: not dense
 
     def test_reserved_scaffolding_names(self):
         with pytest.raises(ValueError, match="reserved"):
