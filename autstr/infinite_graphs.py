@@ -191,3 +191,131 @@ class IntegerGrid:
 def _async_product(left, right):
     from autstr.composition import direct_product
     return direct_product(left, right, kind='async')
+
+
+# ----------------------------------------------------------------------
+# Concrete factory: the regular tree
+# ----------------------------------------------------------------------
+
+class RegularTree:
+    """The infinite k-ary tree :math:`T_k`, with its successors and the prefix
+    order.
+
+    Vertices are the words over ``{0, …, k-1}``: the root is the empty word,
+    and ``x·i`` is the i-th child of ``x``. So the tree *is* its own encoding,
+    and the relations are small automata read straight off the word operations
+    — appending one letter, and being a prefix — rather than derived from
+    another structure.
+
+    The presentation carries ``S0 … S{k-1}`` (``Si(x, y)`` iff ``y = x·i``),
+    their union ``Child``, ``Prefix`` (the reflexive prefix order, i.e.
+    ancestor-or-self), ``Eq``, and the undirected child edge ``E``, under which
+    the tree is a graph: the root has degree k and every other vertex degree
+    k+1.
+
+    :math:`T_k` is the Cayley graph of the free monoid on k generators, and the
+    2k-regular version is the Cayley graph of the free group — the same object
+    the pushdown graphs are unravelled from.
+
+    :param k: the branching degree (k ≥ 1). ``RegularTree(1)`` is a ray.
+    """
+
+    def __init__(self, k: int = 2) -> None:
+        if k < 1:
+            raise ValueError("the branching degree must be >= 1")
+        self.k = k
+        self.letters = [str(i) for i in range(k)]
+        alphabet = self.letters + [_PAD]
+
+        from autstr.presentations import AutomaticPresentation
+        automata = {'U': _words(alphabet, self.letters),
+                    'Eq': _identity(alphabet, self.letters),
+                    'Prefix': _prefix(alphabet, self.letters)}
+        automata.update({f'S{i}': _append(alphabet, self.letters, letter)
+                         for i, letter in enumerate(self.letters)})
+        self.presentation = AutomaticPresentation(automata, padding_symbol=_PAD)
+        self.presentation.update(
+            Child=' | '.join(f'S{i}(x,y)' for i in range(k)))
+        self.presentation.update(E='Child(x,y) | Child(y,x)')
+
+        self.graph = InfiniteGraph(
+            self.presentation, edge='E',
+            codec=FunctionCodec(self.encode, self.decode))
+
+    # -- element codec: a vertex as its word ---------------------------
+    def encode(self, vertex) -> list:
+        """The encoding of a vertex, written as a sequence of child indices —
+        ``(0, 1, 1)``, or the string ``'011'`` — with the empty sequence for
+        the root."""
+        word = []
+        for step in vertex:
+            index = int(step)
+            if not 0 <= index < self.k:
+                raise ValueError(
+                    f"{step!r} is not a child index of a {self.k}-ary tree")
+            word.append(self.letters[index])
+        return word
+
+    def decode(self, word) -> Tuple[int, ...]:
+        """The vertex encoded by a word, as a tuple of child indices."""
+        return tuple(int(symbol) for symbol in word if symbol != _PAD)
+
+    # -- interface -----------------------------------------------------
+    def symbolic(self, signature=None):
+        """A symbolic interface to the tree; write the child edge as
+        ``x.adj(y)`` and vertices as sequences of child indices. The
+        successors and the prefix order are reached by name, through
+        `autstr.symbolic.SymbolicContext.rel`."""
+        return self.graph.symbolic(signature)
+
+    def is_symmetric(self) -> bool:
+        return self.graph.is_symmetric()
+
+    def check(self, phi) -> bool:
+        return self.graph.check(phi)
+
+    def evaluate(self, phi):
+        return self.graph.evaluate(phi)
+
+    def get_relation_symbols(self):
+        return self.presentation.get_relation_symbols()
+
+    def __repr__(self):
+        return f"<RegularTree branching={self.k}>"
+
+
+def _dfa(alphabet, arity: int, transitions, initial: str, final):
+    from autstr.utils.automata_tools import partial_dfa
+    return partial_dfa(set(alphabet), arity, transitions, initial, set(final))
+
+
+def _words(alphabet, letters):
+    """The universe: every word over the child letters, the root included."""
+    return _dfa(alphabet, 1,
+                {'w': {(letter,): 'w' for letter in letters}},
+                initial='w', final={'w'})
+
+
+def _identity(alphabet, letters):
+    """``x = y``, on the convolution of two words."""
+    return _dfa(alphabet, 2,
+                {'s': {(letter, letter): 's' for letter in letters}},
+                initial='s', final={'s'})
+
+
+def _append(alphabet, letters, letter):
+    """``y = x·letter``: the tapes agree while x runs, then x pads out and y
+    carries the one extra letter."""
+    table = {'s': {(a, a): 's' for a in letters}}
+    table['s'][(_PAD, letter)] = 'done'
+    table['done'] = {}
+    return _dfa(alphabet, 2, table, initial='s', final={'done'})
+
+
+def _prefix(alphabet, letters):
+    """``x`` is a prefix of ``y``, reflexively: the tapes agree while x runs,
+    and whatever y has left is the descent below it."""
+    table = {'s': {(a, a): 's' for a in letters},
+             'below': {(_PAD, a): 'below' for a in letters}}
+    table['s'].update({(_PAD, a): 'below' for a in letters})
+    return _dfa(alphabet, 2, table, initial='s', final={'s', 'below'})
