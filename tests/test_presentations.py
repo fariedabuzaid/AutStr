@@ -45,3 +45,56 @@ class TestRelationsLiveInTheUniverse:
                              relations={'Id': ('Eq(x,y)', ['x', 'y'])})
         assert naturals.check('all x. Id(x,x)')
         assert not naturals.check('exists x.(not Id(x,x))')
+
+
+def _same_language(one, other) -> bool:
+    """Language equality: the symmetric difference is empty."""
+    return (one.intersection(other.complement()).is_empty() and
+            other.intersection(one.complement()).is_empty())
+
+
+class TestSentencesUnderConnectives:
+    """A sentence has no free variables, so it evaluates to the all/none
+    marker rather than to a relation with tapes. Placing that marker into an
+    enclosing conjunction or disjunction used to be attempted as a tape
+    renaming, which raised `IndexError` — for two sentences there is no tape to
+    rename to at all.
+    """
+
+    def test_two_sentences_conjoined(self):
+        arithmetic = BuechiArithmetic()
+        true, false = 'all x.(Eq(x,x))', 'all x.(Lt(x,x))'
+        assert arithmetic.check(f'({true}) & ({true})')
+        assert not arithmetic.check(f'({true}) & ({false})')
+        assert not arithmetic.check(f'({false}) & ({true})')
+
+    def test_two_sentences_disjoined(self):
+        arithmetic = BuechiArithmetic()
+        true, false = 'all x.(Eq(x,x))', 'all x.(Lt(x,x))'
+        assert arithmetic.check(f'({false}) | ({true})')
+        assert not arithmetic.check(f'({false}) | ({false})')
+
+    def test_a_sentence_beside_an_open_formula(self):
+        """The sentence contributes its truth value and the open formula its
+        relation: a true conjunct must leave the relation alone, a false one
+        must empty it, and a true disjunct must fill it with the whole
+        universe."""
+        arithmetic = BuechiArithmetic()
+        true, false = 'all x.(Eq(x,x))', 'all x.(Lt(x,x))'
+
+        less = arithmetic.evaluate('Lt(y,z)')
+        assert _same_language(arithmetic.evaluate(f'({true}) & Lt(y,z)'), less)
+        assert arithmetic.evaluate(f'({false}) & Lt(y,z)').is_empty()
+
+        assert _same_language(arithmetic.evaluate(f'({true}) | Lt(y,z)'),
+                              arithmetic._domain_product(2))
+        assert _same_language(arithmetic.evaluate(f'({false}) | Lt(y,z)'), less)
+
+    def test_a_true_disjunct_does_not_admit_non_elements(self):
+        """The full relation of a structure is the product of its universes,
+        not every word: a true sentence disjoined with an open formula must
+        still reject encodings that are not elements."""
+        arithmetic = BuechiArithmetic()
+        filled = arithmetic.evaluate('(all x.(Eq(x,x))) | Lt(y,z)')
+        assert not filled.accepts([('0', '0'), ('0', '1')])   # '00' is not a
+        assert filled.accepts([('0', '0')])                   # well-formed 0
