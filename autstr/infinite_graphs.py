@@ -17,6 +17,7 @@ from __future__ import annotations
 from typing import Optional, Sequence, Tuple
 
 from autstr.symbolic import FunctionCodec, graph_signature
+from autstr.utils.automata_tools import partial_dfa
 
 
 class InfiniteGraph:
@@ -225,7 +226,7 @@ class RegularTree:
             raise ValueError("the branching degree must be >= 1")
         self.k = k
         self.letters = [str(i) for i in range(k)]
-        alphabet = self.letters + [_PAD]
+        alphabet = set(self.letters) | {_PAD}
 
         from autstr.presentations import AutomaticPresentation
         automata = {'U': _words(alphabet, self.letters),
@@ -284,23 +285,18 @@ class RegularTree:
         return f"<RegularTree branching={self.k}>"
 
 
-def _dfa(alphabet, arity: int, transitions, initial: str, final):
-    from autstr.utils.automata_tools import partial_dfa
-    return partial_dfa(set(alphabet), arity, transitions, initial, set(final))
-
-
 def _words(alphabet, letters):
     """The universe: every word over the child letters, the root included."""
-    return _dfa(alphabet, 1,
-                {'w': {(letter,): 'w' for letter in letters}},
-                initial='w', final={'w'})
+    return partial_dfa(alphabet, 1,
+                       {'w': {(letter,): 'w' for letter in letters}},
+                       initial='w', final={'w'})
 
 
 def _identity(alphabet, letters):
     """``x = y``, on the convolution of two words."""
-    return _dfa(alphabet, 2,
-                {'s': {(letter, letter): 's' for letter in letters}},
-                initial='s', final={'s'})
+    return partial_dfa(alphabet, 2,
+                       {'s': {(letter, letter): 's' for letter in letters}},
+                       initial='s', final={'s'})
 
 
 def _append(alphabet, letters, letter):
@@ -309,7 +305,7 @@ def _append(alphabet, letters, letter):
     table = {'s': {(a, a): 's' for a in letters}}
     table['s'][(_PAD, letter)] = 'done'
     table['done'] = {}
-    return _dfa(alphabet, 2, table, initial='s', final={'done'})
+    return partial_dfa(alphabet, 2, table, initial='s', final={'done'})
 
 
 def _prefix(alphabet, letters):
@@ -318,4 +314,5 @@ def _prefix(alphabet, letters):
     table = {'s': {(a, a): 's' for a in letters},
              'below': {(_PAD, a): 'below' for a in letters}}
     table['s'].update({(_PAD, a): 'below' for a in letters})
-    return _dfa(alphabet, 2, table, initial='s', final={'s', 'below'})
+    return partial_dfa(alphabet, 2, table, initial='s',
+                       final={'s', 'below'})
