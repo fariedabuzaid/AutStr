@@ -12,7 +12,8 @@ import pytest
 
 from autstr.sparse_automata import SparseDFA
 from autstr.utils.automata_tools import (
-    expand, fold_tapes, pad, permute_tapes, projection, shortlex_order, unpad,
+    expand, fold_tapes, pad, partial_dfa, permute_tapes, projection,
+    shortlex_order, unpad,
 )
 
 
@@ -232,3 +233,36 @@ class TestShortlexOrder:
         order = shortlex_order({0, 1, 2}, 0)          # 0 pad, letters 1, 2
         assert order.accepts([(2, 1), (0, 1)])        # [2] < [1,1]  (shorter)
         assert not order.accepts([(1, 1), (1, 0)])    # [1,1] not <= [1]
+
+
+class TestPartialDFA:
+    """A transition table with the rejecting majority left out."""
+
+    def test_unlisted_symbols_reject(self):
+        # accepts exactly the word 'ab' over {a, b}
+        dfa = partial_dfa({'a', 'b'}, 1,
+                          {'0': {('a',): '1'}, '1': {('b',): '2'}, '2': {}},
+                          initial='0', final={'2'})
+        assert dfa.accepts([('a',), ('b',)])
+        for word in [[], [('a',)], [('b',), ('a',)], [('a',), ('b',), ('a',)]]:
+            assert not dfa.accepts(word), word
+
+    def test_a_product_alphabet_needs_only_the_listed_pairs(self):
+        # the diagonal over a 3-letter alphabet: 3 entries, not 9
+        letters = {'a', 'b', 'c'}
+        table = {'s': {(letter, letter): 's' for letter in letters}}
+        diagonal = partial_dfa(letters, 2, table, 's', {'s'})
+        assert diagonal.accepts([('a', 'a'), ('c', 'c')])
+        assert not diagonal.accepts([('a', 'a'), ('c', 'b')])
+
+    def test_an_unreachable_start_state_is_rejected(self):
+        with pytest.raises(ValueError, match="start state"):
+            partial_dfa({'a'}, 1, {'s': {}}, initial='t', final={'s'})
+
+    def test_a_target_without_a_row_is_rejected(self):
+        with pytest.raises(ValueError, match="without a row"):
+            partial_dfa({'a'}, 1, {'s': {('a',): 'gone'}}, 's', {'s'})
+
+    def test_an_accepting_state_without_a_row_is_rejected(self):
+        with pytest.raises(ValueError, match="without a row"):
+            partial_dfa({'a'}, 1, {'s': {}}, 's', {'other'})
