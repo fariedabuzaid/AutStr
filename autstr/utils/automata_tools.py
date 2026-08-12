@@ -754,8 +754,8 @@ def partial_dfa(base_alphabet: Set, arity: int,
     Every symbol tuple a state does not list goes to a rejecting sink, which is
     what an automaton authored by hand almost always wants: the interesting
     transitions are few and the alphabet — a product of k copies of the base —
-    is large, so spelling the table out in full costs |Σ|^k entries per state
-    to say "reject" over and over.
+    is large, so spelling the table out in full costs ``|Σ|^k`` entries per
+    state to say "reject" over and over.
 
     :param base_alphabet: the base alphabet, padding symbol included.
     :param arity: number of tapes; the automaton reads `arity`-tuples.
