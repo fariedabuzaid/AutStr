@@ -30,10 +30,12 @@ restricted to the shortlex-least representative of each class.
 the orchestration is identical because both engines encode a convolution letter
 the same way. Over trees an element of a k-dimensional interpretation is a
 k-tuple of trees, which *is* one tree over k-tuples — the same fold, since the
-tree convolution already overlays the shapes. The one thing the tree engine
-cannot do is choose quotient representatives: that needs a well-order on
-encodings, and shortlex has no tree counterpart. Name the representatives with
-a formula and restrict the domain instead; `_quotient` says why in full.
+tree convolution already overlays the shapes. Quotients are the exception: over
+trees the representatives exist and are regular, but reaching them takes a
+different construction from the string engine's "least element of the class",
+because no tree-automatic order is well-founded. Name the representatives with
+a formula and restrict the domain instead; `_quotient` says why in full, with
+the reference for building them properly.
 """
 from __future__ import annotations
 
@@ -124,8 +126,8 @@ def interpret(source, domain: RelationSpec,
         shortlex-least representative of each class, and the relations are read
         on those representatives. The caller must ensure ε really is an
         equivalence and that every relation is ε-invariant. **String engine
-        only** — see `_quotient` for why, and for what to write instead over
-        trees.
+        only so far** — see `_quotient` for what the tree engine would need,
+        and for what to write instead meanwhile.
     :return: a fresh presentation of the same kind as `source`. For k > 1 its
         alphabet is the source alphabet's k-fold product.
     """
@@ -168,24 +170,46 @@ def _quotient(source, domain: RelationSpec,
     ``<=`` every element equivalent to it — so the whole thing stays inside the
     engine.
 
-    That last step is what the tree engine cannot supply. Picking a
-    representative needs a **well-order** on encodings, and shortlex works over
-    words because the convolution aligns positions, which makes comparing
-    lengths free. A tree convolution aligns *shapes*, so a bottom-up automaton
-    cannot compare two trees\' sizes at all, and every order it can decide is
-    settled by a finite-state summary — which the usual trick of pushing the
-    difference deeper turns into an infinite descending chain. So a caller who
-    wants a quotient over trees names the representatives instead: pick a
-    formula ρ(x̄) true of exactly one element per class and interpret with
-    ``domain=δ ∧ ρ``, which is the same construction with the choice made
-    explicit.
+    That last step is what the tree engine does not have. It is *not* that
+    representatives fail to exist: every tree-automatic equivalence has a
+    regular complete system of representatives (Colcombet & Löding 2007), and
+    one is computable in polynomial space with ``2^O(|A|)`` states (Kuske &
+    Weidner, *Size and computation of injective tree automatic presentations*,
+    MFCS 2011, Thm. 3.1). What fails is *this* way of getting them.
+
+    Taking the least element of a class needs a well-founded order, and the
+    tree-automatic order does not qualify. There is a tree-automatic linear
+    order — compare at the lexicographically least position where two trees
+    differ, counting an absent position as larger — but growing a tree at that
+    position makes it *smaller*, so an infinite descending chain is easy to
+    write down and a class need have no least element. Shortlex avoids this
+    over words only because the convolution aligns positions, which makes
+    length the primary key for free; a tree convolution aligns shapes instead,
+    and comparing two trees' sizes is not a finite-state property at all.
+
+    Kuske and Weidner get round it by not minimizing over the whole class.
+    Their *shadow* of a class is the set of positions present in every member,
+    and a *description* is a member whose subtrees below the shadow's frontier
+    are no taller than the equivalence automaton has states. That set is
+    non-empty and finite for every class, so its least element under the linear
+    order exists — and the exponential price is unavoidable: they also show a
+    structure where every automaton recognizing a complete system of
+    representatives has exponentially many states.
+
+    Until that is built, a caller who wants a quotient over trees names the
+    representatives instead: pick a formula ρ(x̄) true of exactly one element
+    per class and interpret with ``domain=δ ∧ ρ``, which is the same
+    construction with the choice made explicit.
     """
     if engine.well_order is None:
         raise NotImplementedError(
-            f"the {engine.name} engine has no well-order on encodings, so a "
-            f"quotient cannot pick class representatives; restrict the domain "
-            f"to a definable set of representatives instead (see the "
-            f"documentation of this construction)")
+            f"the {engine.name} engine does not build quotient representatives "
+            f"yet: they exist and are regular, but reaching them needs the "
+            f"shadow construction of Kuske & Weidner (MFCS 2011) rather than "
+            f"the least element of a class, since no tree-automatic order is "
+            f"well-founded. Restrict the domain to a definable set of "
+            f"representatives instead (see the documentation of this "
+            f"construction)")
     if _EQUIV in relations or _LE in relations:
         raise ValueError(f"{_EQUIV!r} and {_LE!r} are reserved for the "
                          f"quotient construction")

@@ -136,16 +136,17 @@ class TestTwoDimensional:
             skolem.automata['M'].num_states
 
 
-class TestQuotientsAreNotAvailableOverTrees:
-    """Choosing class representatives needs a well-order on encodings.
-    Shortlex works over words because the convolution aligns positions, which
-    makes comparing lengths free; a tree convolution aligns shapes instead, and
-    a bottom-up automaton cannot compare two trees' sizes at all. So the
-    construction refuses rather than quietly picking a non-representative.
+class TestQuotientsAreNotBuiltForTreesYet:
+    """Representatives exist — every tree-automatic equivalence has a regular
+    complete system of them — but not by the string engine's route of taking
+    the least element of a class, since no tree-automatic order is
+    well-founded. Reaching them needs the shadow construction of Kuske &
+    Weidner (MFCS 2011), which is not built here, so the construction refuses
+    rather than quietly picking a non-representative.
     """
 
     def test_the_quotient_is_refused_with_an_explanation(self, skolem):
-        with pytest.raises(NotImplementedError, match="well-order"):
+        with pytest.raises(NotImplementedError, match="well-founded"):
             interpret(skolem, domain=('Eq(x,x)', ['x']),
                       relations={'M': ('M(x,y,z)', ['x', 'y', 'z'])},
                       quotient=('Eq(x,y)', ['x', 'y']))
