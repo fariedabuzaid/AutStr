@@ -12,7 +12,7 @@ import pytest
 
 from autstr.sparse_automata import SparseDFA
 from autstr.utils.automata_tools import (
-    expand, fold_tapes, pad, permute_tapes, projection, unpad,
+    expand, fold_tapes, pad, permute_tapes, projection, shortlex_order, unpad,
 )
 
 
@@ -193,3 +193,42 @@ class TestFoldTapes:
         dfa = random_dfa(rng, 2, 2, 3)
         with pytest.raises(ValueError, match="multiple"):
             fold_tapes(dfa, 2)
+
+
+class TestShortlexOrder:
+    """x <= y in shortlex order: shorter words first, ties by the alphabet's
+    order, trailing padding ignored. Length is the primary key, so a
+    lexicographic verdict must stay overridable by a later length difference."""
+
+    def test_matches_the_reference(self):
+        PAD = 0
+        def reference(x, y):
+            sx = list(x)
+            while sx and sx[-1] == PAD:
+                sx.pop()
+            sy = list(y)
+            while sy and sy[-1] == PAD:
+                sy.pop()
+            if len(sx) != len(sy):
+                return len(sx) < len(sy)
+            return sx <= sy
+
+        rng = random.Random(0)
+        for _ in range(25):
+            m = rng.randint(2, 4)
+            letters = list(range(1, m + 1))          # 1..m real; 0 is padding
+            order = shortlex_order(set(letters) | {PAD}, PAD)
+            for _ in range(200):
+                x = [rng.choice(letters) for _ in range(rng.randint(0, 5))]
+                y = [rng.choice(letters) for _ in range(rng.randint(0, 5))]
+                n = max(len(x), len(y))
+                conv = list(zip(x + [PAD] * (n - len(x)),
+                                y + [PAD] * (n - len(y))))
+                assert order.accepts(conv) == reference(x, y), (x, y)
+
+    def test_length_dominates_lexicographic(self):
+        # [b] vs [a, a] with a < b: the shorter [b] must be the smaller, even
+        # though b > a lexicographically at the first position
+        order = shortlex_order({0, 1, 2}, 0)          # 0 pad, letters 1, 2
+        assert order.accepts([(2, 1), (0, 1)])        # [2] < [1,1]  (shorter)
+        assert not order.accepts([(1, 1), (1, 0)])    # [1,1] not <= [1]

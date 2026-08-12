@@ -152,6 +152,45 @@ class TestSparseDomainDoesNotBlowUp:
             native.automata['S'].num_states
 
 
+class TestQuotient:
+    """One-dimensional quotient interpretations: the universe becomes the
+    shortlex-least representative of each equivalence class."""
+
+    def test_integers_mod_two(self):
+        # quotient of Z by "x - y is even" has exactly two classes
+        even = 'exists u.(exists w.(A(u,u,w) & A(y,w,x)))'   # x = y + 2u
+        Q = interpret(BuechiArithmeticZ(), domain=_TRUE,
+                      relations={'Eq': (even, ['x', 'y'])},
+                      dimension=1, quotient=(even, ['x', 'y']))
+        assert Q.check('exists x.(exists y.(not Eq(x,y)))')          # >= 2
+        assert not Q.check('exists x.(exists y.(exists z.('          # not >= 3
+                           '(not Eq(x,y)) & (not Eq(x,z)) & (not Eq(y,z)))))')
+
+    def test_a_trivial_equivalence_keeps_every_element(self):
+        # x ~ y iff x = y: each class is a singleton, so the quotient is the
+        # whole structure
+        Q = interpret(BuechiArithmeticZ(), domain=_TRUE,
+                      relations={'Lt': ('Lt(x,y)', ['x', 'y'])},
+                      dimension=1, quotient=('Eq(x,y)', ['x', 'y']))
+        assert Q.check('exists x.(exists y. Lt(x,y))')
+        assert Q.check('all x.(exists y. Lt(x,y))')      # no maximum, like Z
+
+    def test_k_dimensional_quotient_is_refused_for_now(self):
+        with pytest.raises(NotImplementedError, match="dimension 1"):
+            interpret(BuechiArithmeticZ(),
+                      domain=('N0(x0) & N0(x1)', ['x0', 'x1']),
+                      relations={},
+                      dimension=2,
+                      quotient=('exists s.(A(x0,y1,s) & A(y0,x1,s))',
+                                ['x0', 'x1', 'y0', 'y1']))
+
+    def test_reserved_scaffolding_names(self):
+        with pytest.raises(ValueError, match="reserved"):
+            interpret(BuechiArithmeticZ(), domain=_TRUE,
+                      relations={'_Equiv': 'Eq(x,y)'},
+                      quotient=('Eq(x,y)', ['x', 'y']))
+
+
 class TestValidation:
     def test_domain_needs_one_free_variable(self):
         # dimension 1 (default), so a two-free-variable domain defines 2 elements

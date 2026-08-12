@@ -109,6 +109,61 @@ def unpad(dfa: SparseDFA, padding_symbol: int = -1) -> SparseDFA:
         start_state=dfa.start_state, symbol_arity=arity,
         base_alphabet=base_alphabet, nodes=dfa.nodes).minimize()
 
+def shortlex_order(base_alphabet, padding_symbol) -> SparseDFA:
+    """The binary automaton for ``x <= y`` in shortlex order: shorter words
+    first, ties broken by the alphabet's own order, trailing padding ignored.
+
+    Shortlex is a well-order, so every non-empty set of elements has a unique
+    least member -- which is exactly what picks the canonical representative of
+    an equivalence class for a quotient interpretation.
+    """
+    letters = sorted(base_alphabet)
+    frozen = frozenset(base_alphabet)
+    pad = padding_symbol
+    # Length is the primary key, so a lexicographic verdict on the common
+    # prefix stays *provisional* -- a later length difference (one word padding
+    # while the other runs on) overrides it. Hence five states, not three:
+    # the two provisional verdicts are distinct from the two final ones.
+    EQ, XLESS, XGREATER, ACCEPT, REJECT = range(5)
+    default = [EQ, XLESS, XGREATER, ACCEPT, REJECT]
+
+    def target(state, a, b):
+        if state in (ACCEPT, REJECT):
+            return state
+        if a == pad and b == pad:                 # both ended: verdict stands
+            return state
+        if a == pad:                              # x shorter -> x < y, final
+            return ACCEPT
+        if b == pad:                              # x longer -> x > y, final
+            return REJECT
+        if state != EQ:                           # lex already decided
+            return state
+        return XLESS if a < b else XGREATER if a > b else EQ
+
+    symbols = [[] for _ in range(5)]
+    targets = [[] for _ in range(5)]
+    for state in range(5):
+        for a in letters:
+            for b in letters:
+                t = target(state, a, b)
+                if t != default[state]:
+                    symbols[state].append(encode_symbol((a, b), frozen))
+                    targets[state].append(t)
+
+    width = max(len(row) for row in symbols)
+    def pad_row(row):
+        return row + [-1] * (width - len(row))
+    return SparseDFA(
+        num_states=5,
+        default_states=np.array(default, dtype=np.int64),
+        exception_symbols=np.array([pad_row(r) for r in symbols],
+                                   dtype=np.int64),
+        exception_states=np.array([pad_row(r) for r in targets],
+                                  dtype=np.int64),
+        is_accepting=[True, True, False, True, False], start_state=EQ,
+        symbol_arity=2, base_alphabet=set(base_alphabet))
+
+
 def fold_tapes(dfa: SparseDFA, k: int) -> SparseDFA:
     """Group every `k` consecutive tapes of a convolution into one tape over
     the product alphabet Sigma^k.
