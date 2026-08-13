@@ -18,6 +18,7 @@ reference is generated from the docstrings.
    :caption: Notebooks
 
    notebooks/arithmetic_and_algebra
+   notebooks/infinite_structures
    notebooks/graphs
    notebooks/groups
    notebooks/composition
