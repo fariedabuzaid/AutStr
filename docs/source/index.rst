@@ -30,6 +30,12 @@ reference is generated from the docstrings.
 
    api/modules
 
+.. toctree::
+   :maxdepth: 1
+   :caption: Project
+
+   changelog
+
 Indices and tables
 ==================
 
