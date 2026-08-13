@@ -1,8 +1,28 @@
-"""Returns and loops of a level 2 collapsible pushdown system.
+"""Reachability in a level 2 collapsible pushdown graph.
 
-Reachability in a collapsible pushdown graph is built out of four kinds of run
-(Kartzow 2013, §4), all of them concerned with what a stack can do *before* it
-drops below where it started:
+Whether one configuration can reach another is decidable here, and that is the
+point of the whole encoding: over a Turing machine's configuration graph the
+same question is halting. Kartzow proves the relation tree-automatic; this
+builds it.
+
+**Reach = A ; B ; C ; D.** Every run splits into four stretches — words come
+off the stack, then letters, then letters go back on, then words — and all four
+relations are reflexive, so the composition excludes nothing. Reachability is
+therefore a first-order formula over the four rather than an automaton of its
+own, and `Relations.reach` writes it out. `regular_reach` gives Kartzow's
+sharper ``Reach_L``, along runs whose labels a finite automaton accepts, by
+building that automaton into a product system; an ε-contraction is the case of
+any number of silent labels followed by one other.
+
+Each of the four is checked on four tapes: the two configurations, the summary
+annotation of one of them, and a guessed control state per node. The annotation
+is what lets a bottom-up automaton consult a computation that runs top-down —
+a node carries the summary of the word read from the root down to it, which is
+a local check — and both scaffolding tapes are quantified away afterwards.
+
+**The summaries** are what all of that rests on. Four kinds of run matter
+(Kartzow 2013, §4), all concerned with what a stack can do *before* it drops
+below where it started:
 
 * a **return** takes a stack to the one below it,
 * a **loop** takes a stack back to itself, and splits into a **high loop**,
@@ -52,11 +72,13 @@ Tree-Automatic*, LMCS 9(1), 2013, §4.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, FrozenSet, Optional, Tuple
+from typing import Dict, FrozenSet, Optional, Sequence, Tuple
 
 from autstr.collapsible import PAD, SEP, Level2CPS
 from autstr.sparse_tree_automata import SparseTreeAutomaton, Tree
-from autstr.utils.tree_automata_tools import partial_tree_automaton
+from autstr.utils.tree_automata_tools import (
+    minimize, partial_tree_automaton,
+)
 
 #: a relation on control states
 Relation = FrozenSet[Tuple[str, str]]
@@ -526,11 +548,12 @@ class Relations:
     #: regions would otherwise want the same entry
     BURIED = '@buried'
 
-    def __init__(self, system: Level2CPS, summaries: Optional[Summaries] = None
-                 ) -> None:
+    def __init__(self, system: Level2CPS, summaries: Optional[Summaries] = None,
+                 extra_states: Sequence[str] = ()) -> None:
         from autstr.collapsible import _Encoding
         self.system = system
-        self.encoding = _Encoding(system.states, system.symbols, system.bottom)
+        self.encoding = _Encoding(system.states, system.symbols, system.bottom,
+                                  extra_states)
         self.summaries = summaries or Summaries(system)
         self.annotation = Annotation(self.encoding, self.summaries)
         # a letter the run drops carries the states it is in before and after
@@ -1273,3 +1296,135 @@ class Relations:
         return scratch.evaluate(
             'exists u.(exists v.(exists w.('
             'A(x,u) & B(u,v) & C(v,w) & D(w,y))))')
+
+
+# ----------------------------------------------------------------------
+# reachability along a regular set of label words
+# ----------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class LabelAutomaton:
+    """A finite automaton over a system's edge labels.
+
+    It says which sequences of labels a run may read, which is what turns
+    plain reachability into Kartzow's regular reachability ``Reach_L``.
+
+    :param transitions: ``(state, label, state)`` triples; several may share a
+        state and label, so the automaton need not be deterministic.
+    :param initial: the state a run starts in.
+    :param final: the states a run may end in.
+    """
+    transitions: Tuple[Tuple[str, str, str], ...]
+    initial: str
+    final: FrozenSet[str]
+
+    @staticmethod
+    def of_word(labels) -> 'LabelAutomaton':
+        """Runs reading exactly this sequence of labels."""
+        steps = tuple((f'p{index}', label, f'p{index + 1}')
+                      for index, label in enumerate(labels))
+        return LabelAutomaton(steps, 'p0', frozenset({f'p{len(steps)}'}))
+
+    @staticmethod
+    def anything(labels) -> 'LabelAutomaton':
+        """Runs reading any sequence at all — plain reachability."""
+        return LabelAutomaton(tuple(('p', label, 'p') for label in labels),
+                              'p', frozenset({'p'}))
+
+    @staticmethod
+    def contracting(labels, silent) -> 'LabelAutomaton':
+        """Runs reading any number of `silent` labels and then one other —
+        the step relation of an ε-contraction."""
+        steps = [('p', label, 'p') for label in silent]
+        steps += [('p', label, 'q') for label in labels if label not in silent]
+        return LabelAutomaton(tuple(steps), 'p', frozenset({'q'}))
+
+    @property
+    def states(self):
+        found = {self.initial} | set(self.final)
+        for source, _, target in self.transitions:
+            found |= {source, target}
+        return sorted(found)
+
+
+def product(system: Level2CPS, labels: LabelAutomaton) -> Level2CPS:
+    """The system whose runs are those of `system` whose labels `labels`
+    accepts, its control state carrying both.
+
+    Kartzow builds the label automaton into the reachability automaton
+    directly; as a product system it is the same thing said once, and it costs
+    nothing beyond the states multiplying.
+    """
+    rules = []
+    for rule in system.rules:
+        for source, label, target in labels.transitions:
+            if label != rule.label:
+                continue
+            rules.append((f'{rule.state}|{source}', rule.symbol, rule.label,
+                          f'{rule.target}|{target}', rule.operation))
+    return Level2CPS(rules, bottom=system.bottom,
+                     initial_state=f'{system.initial_state}|{labels.initial}',
+                     states=[f'{state}|{other}' for state in system.states
+                             for other in labels.states],
+                     symbols=system.symbols)
+
+
+def relabel_root(encoding, source: str, target: str) -> SparseTreeAutomaton:
+    """Two configurations with the same stack, whose control states are the
+    two given ones — the trees agree everywhere but at the root."""
+    table = {}
+    for label in encoding.nodes:
+        for left in (None, 'same'):
+            for right in (None, 'same'):
+                table[(left, right, (label, label))] = 'same'
+    table[('same', None, (f'<{source}>', f'<{target}>'))] = 'accept'
+    return partial_tree_automaton(encoding.alphabet, 2, table, {'accept'})
+
+
+def regular_reach(system: Level2CPS, labels: LabelAutomaton,
+                  summaries: Optional[Summaries] = None
+                  ) -> SparseTreeAutomaton:
+    """``Reach_L``: reachability along runs whose labels `labels` accepts.
+
+    The label automaton goes into a product system, whose reachability is the
+    ordinary one; what remains is to say that the two configurations are the
+    plain ones underneath — same stack, control state tagged with the label
+    automaton's initial state at one end and an accepting one at the other::
+
+        Reach_L(x,y) ≡ ∃u ∃v. Tag_{p₀}(x,u) ∧ Reach(u,v) ∧ ⋁_f Tag_f(y,v)
+
+    Both kinds of configuration live in the same structure for the length of
+    that formula, which is why the encoding carries root letters for both, and
+    the alphabet is narrowed again once the tags are quantified away.
+    """
+    from autstr.tree_presentations import TreeAutomaticPresentation
+    from autstr.utils.tree_automata_tools import restrict_alphabet
+    both = product(system, labels)
+    relations = Relations(both, summaries, extra_states=system.states)
+    encoding = relations.encoding
+
+    tags, names = {}, {}
+    for index, state in enumerate(labels.states):
+        pairs = [relabel_root(encoding, plain, f'{plain}|{state}')
+                 for plain in system.states]
+        joined = pairs[0]
+        for other in pairs[1:]:
+            joined = minimize(joined.union(other))
+        names[state] = f'Tag{index}'
+        tags[f'Tag{index}'] = joined
+
+    scratch = TreeAutomaticPresentation(
+        {'U': encoding.universe(), 'Reach': relations.reach(), **tags},
+        padding_symbol=PAD)
+    accepting = ' | '.join(f'{names[state]}(y,v)' for state in
+                           sorted(labels.final) if state in names)
+    result = scratch.evaluate(
+        f'exists u.(exists v.({names[labels.initial]}(x,u) & Reach(u,v) '
+        f'& ({accepting})))')
+    plain = _Encoding_of(system)
+    return restrict_alphabet(result, plain.alphabet)
+
+
+def _Encoding_of(system: Level2CPS):
+    from autstr.collapsible import _Encoding
+    return _Encoding(system.states, system.symbols, system.bottom)

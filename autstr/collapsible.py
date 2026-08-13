@@ -45,15 +45,24 @@ structure tree-automatic without a quotient.
 
 **Reachability, and the contrast with Turing machines.** For a level 2
 collapsible pushdown graph the reachability relation is itself tree-automatic
-(Kartzow, Prop. 5.1), so first-order logic *with* reachability is decidable
-here — the very question that `autstr.turing` cannot answer, since for a
-configuration graph of a Turing machine reachability is the halting problem.
-That construction is not implemented: it is exponential in the number of
-control states and takes up the bulk of the paper, whereas everything below is
-elementary. This module presents the one-step relation, over *all*
-configurations rather than only those reachable from an initial one — the same
-reading Kartzow's result takes, and the only one available without the
-reachability construction.
+(Kartzow, Prop. 5.1), and it is built here — ``Reach`` is a relation of the
+graph like any other, so a first-order formula may ask about runs of any
+length. That is the very question `autstr.turing` cannot answer, since for a
+configuration graph of a Turing machine reachability is the halting problem. It
+is also the reason these graphs belong on the tree engine at all::
+
+    >>> 'Reach' in graph.get_relation_symbols()
+    True
+
+`reach_along` gives the sharper version: reachability along runs whose labels a
+finite automaton accepts, which is Kartzow's ``Reach_L`` and covers the
+ε-contraction of the graph as the case of any number of silent labels followed
+by one other. The construction is in `autstr.collapsible_reach`; it is
+exponential in the number of control states, so ``Reach`` is declared but not
+built until a query asks for it.
+
+Configurations are *all* of them, not only those reachable from an initial
+one — the same reading Kartzow's result takes.
 
 References:
 
@@ -354,14 +363,19 @@ class _Encoding:
     ACCEPT = 'accept'
 
     def __init__(self, states: Sequence[str], symbols: Sequence[str],
-                 bottom: str) -> None:
+                 bottom: str, extra_states: Sequence[str] = ()) -> None:
         self.bottom_label = f'{bottom}:1'
         #: the labels of letter nodes: the bottom symbol carries a level 1
         #: link and never occurs anywhere but at the bottom
         self.letters = [self.bottom_label] + [
             f'{symbol}:{level}' for symbol in symbols if symbol != bottom
             for level in (1, 2)]
-        self.states = [f'<{state}>' for state in states]
+        # `extra_states` are root letters for configurations of another
+        # system over the same stacks — a product with a label automaton, say,
+        # which has to be related to the plain configurations tree by tree
+        self.states = [f'<{state}>' for state in states] + \
+            [f'<{state}>' for state in extra_states
+             if state not in set(states)]
         #: everything that can label a node of a stack tree
         self.nodes = self.letters + [SEP]
         self.alphabet = set(self.nodes) | set(self.states) | {PAD}
@@ -863,6 +877,10 @@ class Level2CPG:
             'Pop1': encoding.pop1,
             'Pop2': encoding.pop2,
             'Collapse': self._collapse,
+            # reachability is in the signature from the start, but the
+            # automaton is exponential in the number of control states, so it
+            # is built the first time a query actually asks for it
+            'Reach': self._reach,
             **{self.push_names[symbol, level]:
                (lambda symbol=symbol, level=level:
                 encoding.push(symbol, level))
@@ -903,6 +921,31 @@ class Level2CPG:
         table[('stack', None, (f'<{state}>',))] = encoding.ACCEPT
         return partial_tree_automaton(encoding.alphabet, 1, table,
                                       {encoding.ACCEPT})
+
+    def _reach(self):
+        """Reachability: a run of any length between two configurations.
+
+        Decidable here, and *not* over a Turing machine's configuration graph,
+        where the same question is halting — the difference this whole module
+        exists to show. The construction is Kartzow's; see
+        `autstr.collapsible_reach`.
+        """
+        from autstr.collapsible_reach import Relations
+        return Relations(self.system).reach()
+
+    def reach_along(self, name: str, labels) -> None:
+        """Install ``Reach_L``: reachability along runs whose labels the
+        given `autstr.collapsible_reach.LabelAutomaton` accepts.
+
+        Plain reachability is the case where every label word is allowed, and
+        an ε-contraction is the case of any number of silent labels followed by
+        one other — so this one relation covers both.
+
+        :param name: the relation symbol to install it under.
+        :param labels: which sequences of labels a run may read.
+        """
+        from autstr.collapsible_reach import regular_reach
+        self.presentation.update(**{name: regular_reach(self.system, labels)})
 
     def _collapse(self):
         """``collapse``, at either link level: on a level 2 link the stack is

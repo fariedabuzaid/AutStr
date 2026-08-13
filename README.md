@@ -132,7 +132,7 @@ batch:
 | `autstr.arithmetic`, `autstr.buildin` | Presburger and Büchi arithmetic (ℤ, +, <, \|₂), Skolem arithmetic (ℕ, ·), the MSO0 finite-powerset structure |
 | `autstr.algebra`, `autstr.tree_algebra` | the localizations **ℤ[1/p]**, finite **Boolean algebras**, and the countable **atomless Boolean algebra** |
 | `autstr.infinite_graphs`, `autstr.ordinals`, `autstr.turing` | the **integer grid** ℤⁿ, the **regular tree** T_k, the **ordinals** below ω^ω and — on the tree engine — below ω^(ω^ω), **Turing-machine configuration graphs** |
-| `autstr.collapsible` | **level 2 collapsible pushdown graphs** — tree-automatic by Kartzow's encoding, and the one automatic route to them, since their MSO theory is undecidable |
+| `autstr.collapsible`, `autstr.collapsible_reach` | **level 2 collapsible pushdown graphs** — tree-automatic by Kartzow's encoding, and the one automatic route to them, since their MSO theory is undecidable. **Reachability** is a relation of the graph, so first-order formulas may ask about runs of any length — the question a Turing machine's configuration graph cannot answer |
 
 **Classes** — one automaton for a whole family, indexed by advice:
 

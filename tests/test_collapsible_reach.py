@@ -21,7 +21,10 @@ from autstr.collapsible import (
     Configuration, Letter, Level2CPS, Operation, PAD, Stack, _Encoding,
     encode_configuration, initial_stack,
 )
-from autstr.collapsible_reach import Annotation, Relations, Summaries
+from autstr.collapsible_reach import (
+    Annotation, LabelAutomaton, Relations, Summaries, _Encoding_of,
+    regular_reach,
+)
 from autstr.sparse_tree_automata import Tree, convolve_trees
 
 
@@ -969,3 +972,92 @@ class TestReach:
         assert structure.check('all x.(Reach(x,x))')
         assert structure.check('all x.(all y.(all z.('
                                '(Reach(x,y) & Reach(y,z)) -> Reach(x,z))))')
+
+
+class TestRegularReach:
+    """``Reach_L`` — reachability along runs whose labels a finite automaton
+    accepts. The automaton goes into a product system, whose plain
+    reachability is the answer; what is left is to say that the two
+    configurations are the untagged ones underneath."""
+
+    RULES = [('0', None, 'c', '1', 'clone'),
+             ('1', None, 'o', '0', 'pop 2')]
+
+    def accepts(self, labels, word):
+        current = {labels.initial}
+        for letter in word:
+            current = {target for source, label, target in labels.transitions
+                       if source in current and label == letter}
+        return bool(current & labels.final)
+
+    def search(self, system, source, labels, bound=2000):
+        found, seen = set(), {(source, ())}
+        frontier, steps = deque([(source, ())]), 0
+        while frontier and steps < bound:
+            configuration, word = frontier.popleft()
+            steps += 1
+            if self.accepts(labels, word):
+                found.add(configuration)
+            for label, successor in system.step(configuration):
+                longer = word + (label,)
+                if len(longer) > 3 or (successor, longer) in seen:
+                    continue
+                if successor.stack.width > 3 or \
+                        max(map(len, successor.stack.words)) > 3:
+                    continue
+                seen.add((successor, longer))
+                frontier.append((successor, longer))
+        return found
+
+    def cases(self, system):
+        return {
+            'one clone': LabelAutomaton.of_word(['c']),
+            'a clone then a pop': LabelAutomaton.of_word(['c', 'o']),
+            'anything at all': LabelAutomaton.anything(system.labels),
+            'clones are silent':
+                LabelAutomaton.contracting(system.labels, {'c'}),
+        }
+
+    @pytest.mark.parametrize("case", ['one clone', 'a clone then a pop',
+                                      'anything at all', 'clones are silent'])
+    def test_against_the_search(self, case):
+        system = Level2CPS(self.RULES, symbols=SYMBOLS)
+        labels = self.cases(system)[case]
+        relation = regular_reach(system, labels)
+        alphabet = frozenset(_Encoding_of(system).alphabet)
+        configurations = [Configuration(state, stack)
+                          for stack in walk_stacks(6, 4, width=2, height=2)
+                          for state in system.states]
+        for source in configurations:
+            found = self.search(system, source, labels)
+            for target in configurations:
+                got = relation.accepts(convolve_trees(
+                    [encode_configuration(source),
+                     encode_configuration(target)], alphabet, PAD))
+                assert got == (target in found), (case, source, target)
+
+    def test_anything_at_all_is_plain_reachability(self):
+        """The label automaton that accepts everything gives back the
+        relation `Relations.reach` builds on its own."""
+        from autstr.utils.tree_automata_tools import equivalent
+        system = Level2CPS(self.RULES, symbols=SYMBOLS)
+        constrained = regular_reach(
+            system, LabelAutomaton.anything(system.labels))
+        assert equivalent(constrained, Relations(system).reach())
+
+    def test_the_graph_declares_reachability(self):
+        """It is in the signature from the start, and built when asked for."""
+        system = Level2CPS(self.RULES, symbols=SYMBOLS)
+        graph = system.configuration_graph()
+        assert 'Reach' in graph.get_relation_symbols()
+        assert graph.check('all x.(Reach(x,x))')
+        assert graph.check('all x.(all y.(all z.('
+                           '(Reach(x,y) & Reach(y,z)) -> Reach(x,z))))')
+        assert graph.check('all x.(all y.(E(x,y) -> Reach(x,y)))')
+
+    def test_the_graph_takes_a_label_constraint(self):
+        system = Level2CPS(self.RULES, symbols=SYMBOLS)
+        graph = system.configuration_graph()
+        graph.reach_along('Cloned', LabelAutomaton.of_word(['c']))
+        # one clone is one step, so this is the c-labelled edge relation
+        assert graph.check('all x.(all y.(Cloned(x,y) <-> Edgec(x,y)))')
