@@ -149,8 +149,18 @@ relation on every presentation.
 - **Serializing such a presentation.** JSON has no tuples, so a reloaded
   product alphabet was a set of lists (unhashable) and the padding symbol a
   list. Both are restored on load, on both engines.
+- **A sentence as an operand of a connective raised `IndexError`.** In 3.1.0,
+  `check('(all x.(Eq(x,x))) & (all y.(Lt(y,y)))')` crashed, and so did a
+  sentence placed beside an open formula. A sentence has no free variables, so
+  it evaluates to the all/none *marker* — an automaton non-empty exactly when
+  the sentence is true — rather than to a relation with tapes. Placing that
+  into an enclosing formula is therefore not a tape renaming, and with two
+  sentences there is no tape to rename to at all. Fixed on both engines, and
+  pinned across all four binary connectives, nested, and on either side of an
+  open formula.
+- Sentence markers that dropped the structure's alphabet, which made the
+  marker's language wrong for the enclosing query.
 - A universal quantifier that silently became an existential.
-- Sentence markers that dropped the structure's alphabet.
 - Relation automata are restricted to the universe on *every* tape, not all but
   the last: a relation that still held of a non-element made universal
   sentences false on encodings that were not elements at all.
