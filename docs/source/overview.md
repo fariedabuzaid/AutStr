@@ -25,8 +25,9 @@ Z.check('all x.(exists y.(A(x,y,x)))')          # ∀x ∃y: x+y=x   — True
 Z.check('exists x.(all y.(Lt(x,y)))')           # a least integer? — False
 ```
 
-Because the first-order theory of an automatic structure is decidable, `check`
-always terminates with a definite answer — a theorem prover for the fragment of
+Because the first-order theory of an automatic structure is decidable
+({ref}`Khoussainov & Nerode <khoussainov1994>`, {ref}`Blumensath & Grädel
+<blumensath2000>`), `check` always terminates with a definite answer — a theorem prover for the fragment of
 mathematics these structures capture. `evaluate` goes further and returns the
 automaton of *all* satisfying assignments, which you can enumerate or reuse. The
 {doc}`arithmetic & algebra notebook <notebooks/arithmetic_and_algebra>` walks
@@ -118,9 +119,10 @@ element of ℤ[1/2] is 2-divisible but not 3-divisible, and vice versa for ℤ[1
 
 ## Uniformly automatic classes: one automaton for a whole family
 
-A **uniformly automatic class** presents not one structure but an entire *family*,
-by giving every automaton one extra tape that reads an **advice string**
-synchronously with the elements. Fixing the advice instantiates one member; a
+A **uniformly automatic class** ({ref}`Abu Zaid, Grädel & Reinhardt
+<abuzaid2017>`) presents not one structure but an entire *family*, by giving
+every automaton one extra tape that reads an **advice string** synchronously
+with the elements. Fixing the advice instantiates one member; a
 query is compiled once for the class and then decides any member by running its
 advice word through the resulting automaton.
 
@@ -152,7 +154,8 @@ complex relations from primitives.
 The same machinery runs over **trees** rather than words. Where an automatic
 presentation encodes elements as strings and a word automaton reads them, a
 *tree-automatic* presentation encodes them as finite trees read by a bottom-up
-tree automaton — exactly the step from Büchi's theorem to Rabin's.
+tree automaton — exactly the step from {ref}`Büchi's theorem <buechi1960>` to
+{ref}`Rabin's <rabin1969>`.
 `autstr.tree_uniform` hosts the classes whose advice is naturally a tree: a tree
 decomposition (bounded tree-width) or a k-expression (bounded clique-width), and
 Skolem arithmetic (ℕ, ·) in `autstr.tree_arithmetic`, where a number
@@ -220,6 +223,70 @@ one copy per component. `FiniteAbelianGroups` is this construction applied to th
 cyclic groups, and it predates the module. The
 {doc}`composition notebook <notebooks/composition>` walks through all five
 operations.
+
+## Defining one structure inside another
+
+Automatic structures are closed under **first-order interpretation**, and
+`autstr.interpretations` does not merely record that — it *computes* the
+interpreted presentation. You give a domain formula δ(x̄), a formula per
+relation, a dimension *k* (an element is a *k*-tuple of source elements), and
+optionally a definable equivalence ε whose classes become the elements:
+
+```python
+Z = interpret(BuechiArithmetic(),                  # the integers from the naturals
+              domain=('Eq(x0,x0) and Eq(x1,x1)', ['x0', 'x1']),
+              relations={'Lt': (LESS, pair), 'Eq': (SAME, pair)},
+              dimension=2, quotient=(SAME, pair))
+```
+
+A quotient needs one representative per class. Over words that is the
+shortlex-least member, and shortlex is a well-order, so it exists. Over
+**trees** no automatic order is well-founded — growing a tree where two members
+differ makes it *smaller* — so a class need have no least member at all, and
+the representative is instead the least *description*
+({ref}`Kuske & Weidner <kuske2011>`; existence is
+{ref}`Colcombet & Löding <colcombet2007>`). That construction is provably
+exponential in the worst case, which is why `max_states` is worth passing.
+
+The **ordinals** are the payoff example. By Cantor normal form an ordinal below
+ω^n is an n-tuple of naturals under reverse-lexicographic order, so
+`autstr.ordinals` is three formulas over Büchi arithmetic and no automaton
+authored by hand. How far this reaches is exactly
+{ref}`Delhommé's theorem <delhomme2004>`: the word-automatic ordinals are those
+below ω^ω and the tree-automatic ones those below ω^(ω^ω) — which is why
+`Ordinal` and `TreeOrdinal` take an exponent instead of being single
+structures.
+
+## Infinite graphs, and where first-order logic stops
+
+`autstr.infinite_graphs` presents the Cayley graph of ℤⁿ (an asynchronous
+product) and the infinite k-regular tree with its prefix order.
+`autstr.turing` presents a Turing machine's **configuration graph**: one step
+is a bounded rewrite, so the graph is automatic and its first-order theory is
+decidable. What you may not ask is whether one configuration *reaches* another —
+that is halting, and no first-order formula over this graph can express it.
+
+Level 2 **collapsible pushdown systems** are where that changes. Their stacks
+are stacks of stacks whose letters carry collapse links, and their configuration
+graphs are tree-automatic by {ref}`Kartzow's encoding <kartzow2013>` — blocks
+hang off each other as a tree and the links are recovered from its shape rather
+than stored. MSO over these graphs is undecidable, so this is the only
+automatic route to them.
+
+For these graphs **reachability is a relation like any other**. Every run
+decomposes into four stretches — words leaving the stack, letters leaving,
+letters returning, words returning — each of them reflexive, so
+
+```
+Reach(x, y) = ∃d ∃f ∃g. A(x, d) ∧ B(d, f) ∧ C(f, g) ∧ D(g, y)
+```
+
+is a first-order formula over four automata rather than a fixpoint over trees.
+It is exponential in the number of control states, so it is *declared* up front
+and built the first time a query mentions it. The
+{doc}`infinite structures notebook <notebooks/infinite_structures>` builds one
+and decides that its reachability is transitive — a statement about all runs of
+all lengths.
 
 ## Bounded rank-width: groups and graphs from one linear algebra
 
@@ -357,12 +424,14 @@ exponents, and classes whose advice is inherently a tree.
 
 Evaluating a *fixed* formula on a structure is one linear pass of its advice through
 the query automaton, so on any class of bounded width every fixed MSO property is
-decided in linear time — a constructive, streaming form of Courcelle's theorem. The
+decided in linear time — a constructive, streaming form of
+{ref}`Courcelle's theorem <courcelle1990>`. The
 cost lives entirely in *compiling* the automaton.
 
 A transition is not a `symbol -> target` table but a **decision diagram over the
 symbol's digits**, hash-consed and shared across states and automata
-(`autstr.mtbdd`) — the representation MONA uses, for the same reason. A transition
+(`autstr.mtbdd`) — the representation {doc}`MONA <references>` uses, for the
+same reason. A transition
 that ignores a tape never tests that tape's variables, so cylindrification is a
 variable renaming rather than a duplication of every row once per letter of every
 new tape, complementation touches no diagram at all, and the alphabet's *width*

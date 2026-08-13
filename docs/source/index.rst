@@ -35,6 +35,7 @@ reference is generated from the docstrings.
    :caption: Project
 
    changelog
+   references
 
 Indices and tables
 ==================

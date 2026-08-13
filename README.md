@@ -239,6 +239,8 @@ choices, and the verification protocol are human.
   graph cannot be asked.
 - **The countable atomless Boolean algebra**, and the ordinals below ω^ω and
   ω^(ω^n).
+- **Serialization for the tree engine**, so an expensive relation is built once
+  and kept.
 - `autstr.buildin` is gone: every structure the library ships is built in, so
   its contents moved to modules named for their subject. See the changelog for
   the upgrade path.
@@ -249,81 +251,37 @@ choices, and the verification protocol are human.
 
 ## References
 
-1. **Abu Zaid, F.** *Algorithmic Solutions via Model Theoretic Interpretations.*
-   Dissertation, RWTH Aachen University, 2016.
-   DOI: [10.18154/RWTH-2017-07663](https://doi.org/10.18154/RWTH-2017-07663)
+AutStr implements a line of work that runs from Büchi's theorem to uniformly
+automatic classes. The four below are the ones it leans on most; the
+**[full bibliography](https://fariedabuzaid.github.io/AutStr/references.html)**
+in the documentation lists the rest — Rabin, Courcelle, Delhommé, Kuske &
+Weidner, Kartzow and others — and says for each what in the library it is.
 
-2. **Abu Zaid, F.** *Uniformly Automatic Classes of Finite Structures.*
-   FSTTCS 2018, LIPIcs vol. 122, pp. 10:1–10:21.
-   DOI: [10.4230/LIPIcs.FSTTCS.2018.10](https://doi.org/10.4230/LIPIcs.FSTTCS.2018.10)
-   *The meta-theorems for finite Boolean algebras, finite groups, and graphs of
-   bounded tree-depth implemented by `autstr.uniform`, `autstr.graphs`,
-   `autstr.algebra`, and `autstr.groups`.*
+1. **Büchi, J. R.** *Weak Second-Order Arithmetic and Finite Automata.*
+   Zeitschrift für math. Logik und Grundlagen der Mathematik 6 (1960), 66–92.
+   DOI: [10.1002/malq.19600060105](https://doi.org/10.1002/malq.19600060105)
+   *Every `evaluate` call in this library is this construction.*
 
-3. **Abu Zaid, F., Grädel, E., & Reinhardt, F.** *Advice Automatic Structures and
-   Uniformly Automatic Classes.* CSL 2017, LIPIcs vol. 82, pp. 35:1–35:20.
-   DOI: [10.4230/LIPIcs.CSL.2017.35](https://doi.org/10.4230/LIPIcs.CSL.2017.35)
-   *Introduces automatic presentations with advice — the foundation of the uniform
-   classes here; the ℤ[1/p] presentation follows its blueprint for (ℚ, +).*
-
-4. **Blumensath, A., & Grädel, E.** *Automatic Structures.* LICS 2000, pp. 51–62.
-   [Proceedings](https://lics.siglog.org/2000/Grdel-AutomaticStructures.html)
-
-5. **Khoussainov, B., & Nerode, A.** *Automatic presentations of structures.*
+2. **Khoussainov, B., & Nerode, A.** *Automatic presentations of structures.*
    LCC 1994, LNCS vol. 960, Springer.
    DOI: [10.1007/3-540-60178-3_93](https://doi.org/10.1007/3-540-60178-3_93)
 
-6. **Khoussainov, B., Rubin, S., & Stephan, F.** *Automatic Structures: Richness
-   and Limitations.* LMCS 3(2), 2007.
-   arXiv: [cs/0703064](https://arxiv.org/abs/cs/0703064) ·
-   DOI: [10.2168/LMCS-3(2:2)2007](https://doi.org/10.2168/LMCS-3%282%3A2%292007)
+3. **Blumensath, A., & Grädel, E.** *Automatic Structures.* LICS 2000, pp. 51–62.
+   [Proceedings](https://lics.siglog.org/2000/Grdel-AutomaticStructures.html)
+   *Closure under first-order definability — the decidability `check` rests on.*
 
-### Foundations
-
-The idea that a logic can be decided by translating formulas into automata long
-predates the term *automatic structure*; this library is a late implementation of
-a line of work that runs through:
-
-7. **Büchi, J. R.** *Weak Second-Order Arithmetic and Finite Automata.*
-   Zeitschrift für math. Logik und Grundlagen der Mathematik 6 (1960), 66–92.
-   DOI: [10.1002/malq.19600060105](https://doi.org/10.1002/malq.19600060105)
-   *Monadic second-order logic over (ℕ, +1) is decidable, by translation into
-   finite automata. Every `evaluate` call in this library is this construction.*
-
-8. **Rabin, M. O.** *Decidability of Second-Order Theories and Automata on
-   Infinite Trees.* Transactions of the AMS 141 (1969), 1–35.
-   DOI: [10.2307/1995086](https://doi.org/10.2307/1995086)
-   *The same programme over trees. `autstr.sparse_tree_automata` and the
-   tree-automatic presentations are the finite-tree fragment of this.*
-
-9. **Courcelle, B.** *The Monadic Second-Order Logic of Graphs I: Recognizable
-   Sets of Finite Graphs.* Information and Computation 85(1), 1990, 12–75.
-   DOI: [10.1016/0890-5401(90)90043-H](https://doi.org/10.1016/0890-5401%2890%2990043-H)
-   *MSO properties of graphs of bounded tree-width are decidable in linear time.
-   `autstr.tree_graphs.TreeWidthClass` builds the automaton the theorem promises.*
-
-10. **Courcelle, B., & Olariu, S.** *Upper Bounds to the Clique Width of Graphs.*
-    Discrete Applied Mathematics 101 (2000), 77–114.
-    DOI: [10.1016/S0166-218X(99)00184-5](https://doi.org/10.1016/S0166-218X%2899%2900184-5)
-    *The k-expressions that `autstr.tree_graphs.CliqueWidthClass` reads as advice.*
-
-11. **Makowsky, J. A.** *Algorithmic Uses of the Feferman–Vaught Theorem.*
-    Annals of Pure and Applied Logic 126 (2004), 159–213.
-    DOI: [10.1016/j.apal.2003.11.002](https://doi.org/10.1016/j.apal.2003.11.002)
-    *The composition method behind meta-theorems of this shape.*
+4. **Abu Zaid, F.** *Uniformly Automatic Classes of Finite Structures.*
+   FSTTCS 2018, LIPIcs vol. 122, pp. 10:1–10:21.
+   DOI: [10.4230/LIPIcs.FSTTCS.2018.10](https://doi.org/10.4230/LIPIcs.FSTTCS.2018.10)
+   *The meta-theorems behind `autstr.uniform`, `autstr.graphs`,
+   `autstr.algebra` and `autstr.groups`.*
 
 ### Related tools
 
-- **[MONA](https://www.brics.dk/mona/)** (Klarlund, Møller, Henriksen et al.)
-  decides WS1S and WS2S by translating formulas to automata whose transitions are
-  shared multi-terminal BDDs over the symbol's bits. AutStr's
-  [`autstr.mtbdd`](autstr/mtbdd.py) adopts exactly that representation, for
-  exactly MONA's reason: over a convolution alphabet, the flat
-  `symbol -> target` table is the bottleneck.
-- **[Walnut](https://cs.uwaterloo.ca/~shallit/walnut.html)** (Mousavi, Shallit)
-  proves theorems about automatic sequences by deciding first-order statements
-  over (ℕ, +) with automata — the same decision procedure, aimed at combinatorics
-  on words rather than at presenting structures.
-
-Both are mature and fast, and neither targets *uniformly* automatic classes or
-arbitrary automatic presentations, which is where AutStr sits.
+**[MONA](https://www.brics.dk/mona/)** decides WS1S and WS2S with automata whose
+transitions are shared multi-terminal BDDs over the symbol's bits;
+[`autstr.mtbdd`](autstr/mtbdd.py) adopts exactly that representation, for
+exactly MONA's reason. **[Walnut](https://cs.uwaterloo.ca/~shallit/walnut.html)**
+proves theorems about automatic sequences by deciding first-order statements
+over (ℕ, +). Both are mature and fast, and neither targets *uniformly* automatic
+classes or arbitrary automatic presentations, which is where AutStr sits.
