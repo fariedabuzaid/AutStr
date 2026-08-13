@@ -3,10 +3,14 @@ import random
 import numpy as np
 import pytest
 
-from autstr.sparse_tree_automata import SparseTreeAutomaton, Tree, tree_to_arrays
+from autstr.utils.tree_automata_tools import k_deeper_automaton
+from autstr.sparse_tree_automata import (
+    SparseTreeAutomaton, Tree, convolve_trees, tree_to_arrays,
+)
 from autstr.utils.misc import encode_symbol
 from autstr.utils.tree_automata_tools import (
-    attach_padding, equivalent, expand, minimize, project,
+    attach_padding, domain_within, equivalent, expand, fold_tapes, minimize,
+    partial_tree_automaton, project, restrict_alphabet, tree_order,
 )
 from test_tree_automata import RefDTA, random_sta, random_tree
 
@@ -354,3 +358,289 @@ class TestMinimizeSoundness:
             sta = random_sta_arity(rng, 1, 2, max_states=n,
                                    max_exc=2 * (n + 1) ** 2, max_pd=6)
             assert equivalent(sta, minimize(sta)), trial
+
+
+class TestKDeeperAutomaton:
+    """`k_deeper_automaton` underwrites exists-infinity: it must certify that
+    the witness itself runs k nodes below every reference."""
+
+    ALPHA = {'*', 'a'}
+
+    def _automaton(self, k=3, references=1):
+        return k_deeper_automaton(k, references, self.ALPHA, '*')
+
+    def test_accepts_a_genuinely_deeper_witness(self):
+        deep = Tree(('a', 'a'),
+                    Tree(('*', 'a'), Tree(('*', 'a'), Tree(('*', 'a')))))
+        assert self._automaton().accepts(deep)
+
+    def test_rejects_a_shallow_witness(self):
+        assert not self._automaton().accepts(Tree(('a', 'a')))
+
+    def test_padding_alone_does_not_make_depth(self):
+        """`attach_padding` hangs all-padding regions below every tree. Those
+        nodes have the reference padded too, so counting them would invent
+        depth that carries no witness and make exists-infinity true for finite
+        fibres."""
+        padded = Tree(('a', 'a'),
+                      Tree(('*', '*'), Tree(('*', '*'), Tree(('*', '*')))))
+        assert not self._automaton().accepts(padded)
+
+    def test_depth_must_be_on_one_path(self):
+        """Two short branches do not add up: pumping needs the repeated state
+        on a single root-to-leaf path. The root carries the reference, so each
+        branch contributes a run of 2 -- four qualifying nodes in total, but
+        no path with more than two."""
+        forked = Tree(('a', 'a'),
+                      Tree(('*', 'a'), Tree(('*', 'a'))),
+                      Tree(('*', 'a'), Tree(('*', 'a'))))
+        assert self._automaton(k=2).accepts(forked)
+        assert not self._automaton(k=3).accepts(forked)
+
+
+# ====================================================================
+# fold_tapes
+# ====================================================================
+
+class TestFoldTapes:
+    """Grouping every k tapes into one product-alphabet tape must preserve the
+    accepted language. The grouping is contiguous and mixed-radix, so a
+    symbol's integer code is unchanged by the fold and the folded automaton run
+    on the same codes must agree with the original — a real test when m is not
+    a power of two, since the diagram is then genuinely rebuilt over a
+    different number of bits."""
+
+    def test_preserves_the_language(self):
+        rng = random.Random(2026)
+        for trial in range(25):
+            m = rng.randint(2, 3)                 # 3 is not a power of two
+            k = rng.randint(2, 3)
+            r = rng.randint(1, 2)
+            source = random_sta_arity(rng, k * r, m)
+            folded = fold_tapes(source, k)
+            assert folded.symbol_arity == r
+            assert len(folded.base_alphabet) == m ** k
+            for _ in range(20):
+                tree = random_tree(rng, m ** (k * r))
+                arrays = tree_to_arrays_encoded(tree)
+                got = bool(folded.is_accepting[folded.run(*arrays)])
+                want = bool(source.is_accepting[source.run(*arrays)])
+                assert got == want, trial
+
+    def test_k_one_is_the_automaton_itself(self):
+        rng = random.Random(7)
+        source = random_sta_arity(rng, 2, 3)
+        assert fold_tapes(source, 1) is source
+
+    def test_arity_must_be_divisible(self):
+        rng = random.Random(8)
+        source = random_sta_arity(rng, 3, 2)
+        with pytest.raises(ValueError, match="multiple"):
+            fold_tapes(source, 2)
+
+
+class TestPartialTreeAutomaton:
+    """Authoring a bottom-up automaton from a partial table: everything the
+    table omits must reject, and everything it lists must fire — including the
+    rows whose children are absent, which is how leaves are written."""
+
+    ALPHABET = {'*', 'a', 'b'}
+
+    def counting(self):
+        """Trees whose every node is labelled 'a', with at least one node
+        having two children."""
+        table = {(None, None, ('a',)): 'thin',
+                 ('thin', None, ('a',)): 'thin',
+                 (None, 'thin', ('a',)): 'thin'}
+        for left in ('thin', 'wide'):
+            for right in ('thin', 'wide'):
+                table[(left, right, ('a',))] = 'wide'
+        for child in ('thin', 'wide'):
+            table[('wide', None, ('a',))] = 'wide'
+            table[(None, 'wide', ('a',))] = 'wide'
+        return partial_tree_automaton(self.ALPHABET, 1, table, {'wide'})
+
+    def test_accepts_what_the_table_describes(self):
+        automaton = self.counting()
+        assert automaton.accepts(Tree('a', Tree('a'), Tree('a')))
+        assert automaton.accepts(Tree('a', Tree('a', Tree('a'), Tree('a'))))
+        assert not automaton.accepts(Tree('a'))
+        assert not automaton.accepts(Tree('a', Tree('a')))
+        assert not automaton.accepts(Tree('a', None, Tree('a')))
+
+    def test_an_unlisted_symbol_sinks(self):
+        automaton = self.counting()
+        assert not automaton.accepts(Tree('a', Tree('b'), Tree('a')))
+        assert not automaton.accepts(Tree('b', Tree('a'), Tree('a')))
+
+    def test_against_a_dictionary_oracle(self):
+        """A random partial table, run against a plain recursive evaluation of
+        the same table."""
+        rng = random.Random(11)
+        names = ['s0', 's1', 's2']
+        letters = sorted(self.ALPHABET)
+        for trial in range(20):
+            table = {}
+            for _ in range(rng.randint(3, 12)):
+                key = (rng.choice([None] + names), rng.choice([None] + names),
+                       (rng.choice(letters),))
+                table[key] = rng.choice(names)
+            final = set(rng.sample(names, rng.randint(1, 2)))
+            automaton = partial_tree_automaton(self.ALPHABET, 1, table, final)
+
+            def state(tree):
+                left = state(tree.left) if tree.left is not None else None
+                right = state(tree.right) if tree.right is not None else None
+                if left == 'sink' or right == 'sink':
+                    return 'sink'
+                return table.get((left, right, (tree.label,)), 'sink')
+
+            for _ in range(30):
+                tree = random_labelled_tree(rng, letters)
+                assert automaton.accepts(tree) == (state(tree) in final), \
+                    (trial, tree)
+
+    def test_the_symbol_must_match_the_arity(self):
+        with pytest.raises(ValueError, match="tape"):
+            partial_tree_automaton(self.ALPHABET, 2, {(None, None, ('a',)): 's'},
+                                   {'s'})
+
+
+def random_labelled_tree(rng, letters, size=6):
+    """A small random tree over the given labels."""
+    if size <= 1 or rng.random() < 0.3:
+        return Tree(rng.choice(letters))
+    left = random_labelled_tree(rng, letters, size - 1 - rng.randint(0, 2)) \
+        if rng.random() < 0.8 else None
+    right = random_labelled_tree(rng, letters, size - 1 - rng.randint(0, 2)) \
+        if rng.random() < 0.6 else None
+    return Tree(rng.choice(letters), left, right)
+
+
+class TestTreeOrder:
+    """The tree-automatic linear order: compare at the lexicographically least
+    differing position, an absent position counting as larger."""
+
+    ALPHABET = {'*', 'a', 'b'}
+
+    @staticmethod
+    def positions(tree, prefix=''):
+        out = {prefix: tree.label}
+        if tree.left is not None:
+            out.update(TestTreeOrder.positions(tree.left, prefix + '1'))
+        if tree.right is not None:
+            out.update(TestTreeOrder.positions(tree.right, prefix + '2'))
+        return out
+
+    @staticmethod
+    def less(x, y):
+        """The definition, on trees."""
+        px, py = TestTreeOrder.positions(x), TestTreeOrder.positions(y)
+        differing = [p for p in set(px) | set(py) if px.get(p) != py.get(p)]
+        if not differing:
+            return False
+        p = min(differing)          # lexicographic on {1,2}* is plain string
+        return p not in py or (p in px and px[p] < py[p])
+
+    def test_against_the_definition(self):
+        rng = random.Random(2027)
+        trees = [random_labelled_tree(rng, ['a', 'b']) for _ in range(60)]
+        strict = tree_order(self.ALPHABET, '*', strict=True)
+        weak = tree_order(self.ALPHABET, '*')
+        for x in trees:
+            for y in trees[:25]:
+                convolution = convolve_trees([x, y], frozenset(self.ALPHABET),
+                                             '*')
+                want = self.less(x, y)
+                assert strict.accepts(convolution) == want, (x, y)
+                assert weak.accepts(convolution) == (
+                    want or self.positions(x) == self.positions(y))
+
+    def test_it_is_linear(self):
+        rng = random.Random(5)
+        trees = [random_labelled_tree(rng, ['a', 'b']) for _ in range(30)]
+        for x in trees:
+            for y in trees:
+                same = self.positions(x) == self.positions(y)
+                assert self.less(x, y) + self.less(y, x) + same == 1, (x, y)
+
+    def test_it_is_not_well_founded(self):
+        """Growing a tree at the position where two differ makes it smaller,
+        so a descending chain never stops — which is the whole reason the tree
+        quotient cannot take the least element of a class."""
+        chain = [Tree('a')]
+        for _ in range(5):
+            chain.append(Tree('a', chain[-1]))
+        strict = tree_order(self.ALPHABET, '*', strict=True)
+        for smaller, larger in zip(chain[1:], chain):
+            assert self.less(smaller, larger)
+            assert strict.accepts(convolve_trees(
+                [smaller, larger], frozenset(self.ALPHABET), '*'))
+
+
+class TestDomainWithin:
+    """``dom(x)`` inside ``dom(y)`` fringed by a few levels."""
+
+    ALPHABET = {'*', 'a', 'b'}
+
+    @staticmethod
+    def within(x, y, depth):
+        dy = set(TestTreeOrder.positions(y))
+        return all(any(p[:len(p) - k] in dy for k in range(depth + 1))
+                   for p in TestTreeOrder.positions(x))
+
+    @pytest.mark.parametrize("depth", [0, 1, 2, 3])
+    def test_against_the_definition(self, depth):
+        rng = random.Random(90 + depth)
+        trees = [random_labelled_tree(rng, ['a', 'b']) for _ in range(50)]
+        automaton = domain_within(self.ALPHABET, '*', depth)
+        for x in trees:
+            for y in trees[:20]:
+                convolution = convolve_trees([x, y], frozenset(self.ALPHABET),
+                                             '*')
+                assert automaton.accepts(convolution) == \
+                    self.within(x, y, depth), (depth, x, y)
+
+    def test_depth_zero_is_containment(self):
+        automaton = domain_within(self.ALPHABET, '*')
+        convolution = convolve_trees(
+            [Tree('a'), Tree('b', Tree('a'))], frozenset(self.ALPHABET), '*')
+        assert automaton.accepts(convolution)
+        assert not automaton.accepts(convolve_trees(
+            [Tree('b', Tree('a')), Tree('a')], frozenset(self.ALPHABET), '*'))
+
+    def test_a_negative_depth_is_refused(self):
+        with pytest.raises(ValueError, match="depth"):
+            domain_within(self.ALPHABET, '*', -1)
+
+
+class TestRestrictAlphabet:
+    """Reading an automaton over fewer letters keeps what it does on the ones
+    that remain — which is what a construction needs once an annotation it was
+    built to read has been quantified away."""
+
+    WIDE = {'*', 'a', 'b', 'c'}
+    NARROW = {'*', 'a', 'b'}
+
+    def automaton(self, rng, alphabet):
+        names = ['s0', 's1', 's2']
+        table = {(rng.choice([None] + names), rng.choice([None] + names),
+                  (rng.choice(sorted(alphabet)),)): rng.choice(names)
+                 for _ in range(rng.randint(3, 14))}
+        return partial_tree_automaton(alphabet, 1, table,
+                                      set(rng.sample(names, 2)))
+
+    def test_the_language_over_the_kept_letters_is_unchanged(self):
+        rng = random.Random(3)
+        sample = [random_labelled_tree(rng, ['a', 'b']) for _ in range(40)]
+        for _ in range(20):
+            wide = self.automaton(rng, self.WIDE)
+            narrow = restrict_alphabet(wide, self.NARROW)
+            assert narrow.base_alphabet_frozen == frozenset(self.NARROW)
+            for tree in sample:
+                assert narrow.accepts(tree) == wide.accepts(tree), tree
+
+    def test_widening_is_refused(self):
+        rng = random.Random(4)
+        with pytest.raises(ValueError, match="no letter"):
+            restrict_alphabet(self.automaton(rng, self.NARROW), self.WIDE)

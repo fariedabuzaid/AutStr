@@ -1,0 +1,9 @@
+# The repository keeps notebooks output-free; the docs build executes them
+# (docs/source/conf.py sets nb_execution_mode = 'force').
+repos:
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.7.1
+    hooks:
+      - id: nbstripout
+        # Keep the notebooks' cell ids; renumbering them churns every cell.
+        args: [--keep-id]

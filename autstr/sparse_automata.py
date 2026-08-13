@@ -32,7 +32,9 @@ import zlib
 from autstr.mtbdd import (
     NONE, STORE, TOP, ComputedTable, NodeStore, bits_of, num_bits, var_tables,
 )
-from autstr.utils.misc import decode_symbol, encode_symbol
+from autstr.utils.misc import (
+    alphabet_from_json, decode_symbol, encode_symbol,
+)
 
 
 
@@ -132,7 +134,7 @@ class SparseDFASerializer:
         num_states, num_nodes, start_state, symbol_arity, alphabet_len = \
             struct.unpack(cls.METADATA_FORMAT, payload[:cls.METADATA_SIZE])
         offset = cls.METADATA_SIZE
-        base_alphabet = set(json.loads(payload[offset:offset + alphabet_len]))
+        base_alphabet = alphabet_from_json(payload[offset:offset + alphabet_len])
         offset += alphabet_len
 
         is_accepting = np.frombuffer(payload, dtype=np.uint8, count=num_states,
@@ -157,7 +159,7 @@ class SparseDFASerializer:
         num_states, max_exceptions, start_state, symbol_arity, alphabet_len = \
             struct.unpack(cls.METADATA_FORMAT, payload[:cls.METADATA_SIZE])
         offset = cls.METADATA_SIZE
-        base_alphabet = set(json.loads(payload[offset:offset + alphabet_len]))
+        base_alphabet = alphabet_from_json(payload[offset:offset + alphabet_len])
         offset += alphabet_len
 
         defaults = np.frombuffer(payload, dtype=np.uint32, count=num_states,

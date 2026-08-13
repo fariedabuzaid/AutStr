@@ -11,11 +11,17 @@ saturation; complements are re-intersected with the domain product; and
 `project` — which produces the canonical (trimmed) language — is followed by
 re-saturation, the tree analog of the string pipeline's pad/unpad dance.
 """
-from typing import Dict, Optional
+import json
+import struct
+import zlib
+from typing import Dict, Optional, Union
 
 from nltk.sem import logic
 
-from autstr.sparse_tree_automata import SparseTreeAutomaton
+from autstr.presentations import DeferredRelations
+from autstr.sparse_tree_automata import (
+    SparseTreeAutomaton, SparseTreeAutomatonSerializer,
+)
 from autstr.utils.logic import get_free_elementary_vars, optimize_query
 from autstr.utils.tree_automata_tools import (
     attach_padding, expand, minimize, project,
@@ -34,7 +40,88 @@ def tree_zero(symbol_arity: int = 1, base_alphabet=None) -> SparseTreeAutomaton:
                                symbol_arity, base_alphabet or {0})
 
 
-class TreeAutomaticPresentation:
+class TreeAutomaticPresentationSerializer:
+    """Binary serialization for `TreeAutomaticPresentation`.
+
+    Mirrors `autstr.presentations.AutomaticPresentationSerializer`, but stores
+    each automaton's payload as raw bytes with a length prefix rather than as
+    a JSON list of integers -- which costs roughly four bytes of file per byte
+    of data.
+    """
+
+    MAGIC = b'TPRS'
+    VERSION = 1
+    HEADER_FORMAT = "4sB3sII"
+    HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
+
+    @classmethod
+    def serialize(cls, presentation, filename: str) -> None:
+        payload = cls._create_payload(presentation)
+        header = struct.pack(cls.HEADER_FORMAT, cls.MAGIC, cls.VERSION,
+                             b'\0\0\0', zlib.crc32(payload), len(payload))
+        with open(filename, 'wb') as handle:
+            handle.write(header)
+            handle.write(payload)
+
+    @classmethod
+    def deserialize(cls, filename: str) -> 'TreeAutomaticPresentation':
+        with open(filename, 'rb') as handle:
+            data = handle.read()
+        magic, version, _, checksum, payload_size = struct.unpack(
+            cls.HEADER_FORMAT, data[:cls.HEADER_SIZE])
+        if magic != cls.MAGIC:
+            raise ValueError("Invalid file format (bad magic number)")
+        if version != cls.VERSION:
+            raise ValueError(f"Unsupported version: {version}")
+        payload = data[cls.HEADER_SIZE:cls.HEADER_SIZE + payload_size]
+        if len(payload) != payload_size:
+            raise ValueError("Payload size mismatch")
+        if zlib.crc32(payload) != checksum:
+            raise ValueError("Data corruption detected (checksum mismatch)")
+        return cls._parse_payload(payload)
+
+    @classmethod
+    def _create_payload(cls, presentation) -> bytes:
+        names = list(presentation.automata)
+        metadata = json.dumps({
+            "padding_symbol": presentation.padding_symbol,
+            "max_states": presentation.max_states,
+            "names": names,
+        }).encode('utf-8')
+        chunks = [struct.pack("I", len(metadata)), metadata]
+        for name in names:
+            blob = SparseTreeAutomatonSerializer.to_bytes(
+                presentation.automata[name])
+            chunks.append(struct.pack("I", len(blob)))
+            chunks.append(blob)
+        return b''.join(chunks)
+
+    @classmethod
+    def _parse_payload(cls, payload: bytes) -> 'TreeAutomaticPresentation':
+        metadata_len, = struct.unpack("I", payload[:4])
+        offset = 4
+        metadata = json.loads(payload[offset:offset + metadata_len])
+        offset += metadata_len
+
+        automata = {}
+        for name in metadata["names"]:
+            size, = struct.unpack("I", payload[offset:offset + 4])
+            offset += 4
+            automata[name] = SparseTreeAutomatonSerializer.from_bytes(
+                payload[offset:offset + size])
+            offset += size
+
+        # over a product alphabet the padding symbol is a tuple, and JSON has
+        # no tuples
+        padding_symbol = metadata["padding_symbol"]
+        if isinstance(padding_symbol, list):
+            padding_symbol = tuple(padding_symbol)
+        return TreeAutomaticPresentation(
+            automata, padding_symbol=padding_symbol,
+            enforce_consistency=False, max_states=metadata["max_states"])
+
+
+class TreeAutomaticPresentation(DeferredRelations):
     """A presentation of a structure by tree automata.
 
     :param automata: 'U' is the domain automaton (symbol arity 1); every other
@@ -81,8 +168,48 @@ class TreeAutomaticPresentation:
                 minimize(expand(self.automata['U'], arity, [i]))))
         return domain
 
-    def get_relation_symbols(self):
-        return list(self.automata.keys())
+    def automatic_presentation_to_file(self, filename: str) -> None:
+        """Write the presentation -- domain, every built relation, alphabet --
+        to a file. Deferred relations that have not been built are not stored;
+        call `materialize` first to include them."""
+        TreeAutomaticPresentationSerializer.serialize(self, filename)
+
+    @classmethod
+    def automatic_presentation_from_file(cls, filename: str):
+        """Read a presentation written by `automatic_presentation_to_file`.
+
+        The signature is not stored -- a codec is Python code, not data -- so
+        the result is a bare structure until `symbolic` is given one.
+        """
+        return TreeAutomaticPresentationSerializer.deserialize(filename)
+
+    def _install_relation(self, name, definition):
+        self.update(**{name: definition() if callable(definition)
+                       else definition})
+
+    def symbolic(self, signature=None):
+        """A symbolic interface to this structure: variables, relation and
+        function symbols that build first-order expressions with Python
+        operators instead of formula strings.
+
+        Elements are trees, so a signature's codec encodes Python values to
+        `Tree` objects. Enumeration is shortlex by node count, which orders by
+        encoding size rather than by any notion of value.
+
+        :param signature: declared functions, operators and element codec.
+        :return: a `autstr.symbolic.SymbolicContext`.
+        """
+        from autstr.symbolic.backends import TreeStructureBackend
+        from autstr.symbolic.context import SymbolicContext
+        if signature is None:
+            signature = self.default_signature()
+        return SymbolicContext(TreeStructureBackend(self), signature)
+
+    def default_signature(self):
+        """The signature `symbolic()` uses when none is given, or None for a
+        structure addressed through its relation symbols. See
+        `autstr.symbolic.operation_signature`."""
+        return None
 
     def update(self, **automata) -> None:
         """Install or replace relations. Values may be automata (saturated
@@ -103,14 +230,72 @@ class TreeAutomaticPresentation:
         if isinstance(phi, str):
             phi = logic.Expression.fromstring(phi)
         phi = phi.simplify()
+        self._materialize_for(phi)
         return not self._build_automaton(phi).is_empty()
 
-    def evaluate(self, phi) -> SparseTreeAutomaton:
+    def evaluate(self, phi, updates: Optional[Dict[str, Union[
+            SparseTreeAutomaton, str]]] = None) -> SparseTreeAutomaton:
         """Automaton of all satisfying assignments (tapes = sorted free
-        variables; padding-saturated form)."""
+        variables; padding-saturated form).
+
+        :param phi: the first-order formula.
+        :param updates: relations to install for this evaluation only. Values
+            may be automata or formula strings over the current signature, and
+            are prepared exactly as at construction time -- so a spliced
+            automaton is padding-saturated and domain-restricted before any
+            projection sees it.
+        """
         if isinstance(phi, str):
             phi = logic.Expression.fromstring(phi)
-        return self._build_automaton(optimize_query(phi))
+        phi = optimize_query(phi)
+        self._materialize_for(phi)
+        if not updates:
+            return self._build_automaton(phi)
+
+        prepared = {}
+        for name, value in updates.items():
+            if name == 'U':
+                raise ValueError("cannot replace the domain automaton")
+            if isinstance(value, SparseTreeAutomaton):
+                prepared[name] = self._prepare_automaton(value)
+            else:
+                query = optimize_query(logic.Expression.fromstring(value))
+                prepared[name] = self._prepare_automaton(
+                    self._build_automaton(query))
+
+        backup = self.automata
+        self.automata = dict(self.automata, **prepared)
+        try:
+            return self._build_automaton(phi)
+        finally:
+            # Restore even if the build raises; otherwise a failed query would
+            # leave the temporary relations installed on the presentation.
+            self.automata = backup
+
+    def _operand_automaton(self, psi, free_operand, free_vars
+                           ) -> SparseTreeAutomaton:
+        """A connective's operand, placed into the enclosing formula's tape
+        order.
+
+        A sentence has no tapes to place: it collapses to the all/none marker,
+        whose single tape is a placeholder rather than a variable, so renaming
+        it into the enclosing arity is meaningless (and, when the enclosing
+        formula is itself a sentence, impossible — there is no tape to rename
+        to). It is remade at the enclosing arity instead: false becomes the
+        empty relation, true the full one, which over a structure is the
+        product of domains rather than every tree.
+        """
+        sta = self._build_automaton(psi)
+        arity = max(len(free_vars), 1)
+        if free_operand:
+            return expand(sta, arity, [free_vars.index(v)
+                                       for v in free_operand])
+        if sta.is_empty():
+            return tree_zero(arity, self.base_alphabet)
+        # a true sentence: the marker convention at arity 1, so that an
+        # enclosing sentence stays a marker; the domain otherwise
+        return tree_one(1, self.base_alphabet) if not free_vars \
+            else self._domain_product(arity)
 
     def _build_automaton(self, phi) -> SparseTreeAutomaton:
         if isinstance(phi, str):
@@ -155,10 +340,8 @@ class TreeAutomaticPresentation:
             free_vars = get_free_elementary_vars(phi)
             free_l = get_free_elementary_vars(phi.first)
             free_r = get_free_elementary_vars(phi.second)
-            left = expand(self._build_automaton(phi.first), len(free_vars),
-                          [free_vars.index(v) for v in free_l])
-            right = expand(self._build_automaton(phi.second), len(free_vars),
-                           [free_vars.index(v) for v in free_r])
+            left = self._operand_automaton(phi.first, free_l, free_vars)
+            right = self._operand_automaton(phi.second, free_r, free_vars)
             if isinstance(phi, logic.AndExpression):
                 return minimize(left.intersection(right))
             return minimize(left.union(right))

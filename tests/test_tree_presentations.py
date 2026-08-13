@@ -3,11 +3,13 @@ import random
 import numpy as np
 import pytest
 
-from autstr.buildin.presentations import BuechiArithmeticZ
+from autstr.arithmetic import BuechiArithmeticZ
 from autstr.sparse_automata import SparseDFA
 from autstr.sparse_tree_automata import Tree
 from autstr.tree_presentations import TreeAutomaticPresentation
-from autstr.utils.tree_automata_tools import from_string_dfa, string_chain
+from autstr.utils.tree_automata_tools import (
+    equivalent, from_string_dfa, minimize, string_chain,
+)
 from test_tree_automata import random_sta  # noqa: F401 (import path check)
 
 
@@ -139,3 +141,56 @@ class TestBuechiCrossValidation:
             t_got = t_rel.accepts(string_chain(word))
             assert s_got == want, (x, y, z)
             assert t_got == want, (x, y, z)
+
+
+class TestSentencesUnderConnectives:
+    """A sentence has no free variables, so it evaluates to the all/none
+    marker: an arity-1 automaton, non-empty exactly when the sentence is true.
+    Placing it into an enclosing formula is therefore not a tape renaming --
+    attempting one raised IndexError, and for two sentences there was no tape
+    to rename to at all. The tree engine had the same gap as the string one,
+    and answers the same way.
+    """
+
+    CONNECTIVES = {'&': lambda a, b: a and b,
+                   '|': lambda a, b: a or b,
+                   '->': lambda a, b: (not a) or b,
+                   '<->': lambda a, b: a == b}
+
+    @pytest.mark.parametrize("connective", list(CONNECTIVES))
+    @pytest.mark.parametrize("left,right", [(True, True), (True, False),
+                                            (False, True), (False, False)])
+    def test_two_sentences(self, engines, connective, left, right):
+        _, trees = engines
+        true, false = 'all x.(exists y.(Lt(x,y)))', 'exists x.(all y.(Lt(x,y)))'
+        phi = (f'({true if left else false}) {connective} '
+               f'({true if right else false})')
+        assert trees.check(phi) == self.CONNECTIVES[connective](left, right)
+
+    def test_a_sentence_beside_an_open_formula(self, engines):
+        _, trees = engines
+        true, false = 'all x.(exists y.(Lt(x,y)))', 'exists x.(all y.(Lt(x,y)))'
+        assert trees.check(f'({true}) & Lt(y,z)')
+        assert not trees.check(f'({false}) & Lt(y,z)')
+        assert trees.check(f'({false}) | Lt(y,z)')
+
+    def test_the_two_engines_agree(self, engines):
+        """Both engines answer a sentence with a marker and place it into a
+        connective the same way, so the same formula must come out the same on
+        the same structure."""
+        strings, trees = engines
+        true, false = 'all x.(exists y.(Lt(x,y)))', 'exists x.(all y.(Lt(x,y)))'
+        for phi in [f'({true}) & ({false})', f'({true}) | ({false})',
+                    f'({false}) -> ({true})', f'({true}) <-> ({true})',
+                    f'({false}) <-> ({true})', f'not (({true}) & ({false}))']:
+            assert strings.check(phi) == trees.check(phi), phi
+
+    def test_a_true_operand_is_the_domain_not_every_tree(self, engines):
+        """A subformula's automaton is a relation over the domain. The marker
+        is not -- it accepts every tree -- so a true sentence beside an open
+        formula must contribute the product of domains instead."""
+        _, trees = engines
+        true = 'all x.(exists y.(Lt(x,y)))'
+        filled = trees.evaluate(f'({true}) | Lt(y,z)')
+        assert equivalent(minimize(filled),
+                          minimize(trees._domain_product(2)))

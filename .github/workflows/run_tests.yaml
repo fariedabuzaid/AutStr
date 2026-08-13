@@ -29,4 +29,7 @@ jobs:
           pip install -e ".[graphs,test]"
 
       - name: Run the test suite
-        run: pytest -q
+        # -n auto: one worker per core. The tests are independent and
+        # CPU-bound, so this divides wall time; the floor is the slowest
+        # single test (see `--durations`).
+        run: pytest -q -n auto

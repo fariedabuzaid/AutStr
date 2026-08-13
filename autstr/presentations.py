@@ -3,13 +3,13 @@ from typing import Dict, Optional, Union, List
 
 from autstr.sparse_automata import SparseDFA, SparseDFASerializer
 from autstr.utils.automata_tools import pad, unpad, projection, expand, stack
-from autstr.buildin.automata import zero, one  
+from autstr.utils.automata_tools import zero, one  
 from autstr.utils.logic import get_free_elementary_vars, optimize_query
 
 import json
+import re
 import struct
 import zlib
-from typing import Dict
 
 class AutomaticPresentationSerializer:
     MAGIC = b'APRS'
@@ -105,14 +105,83 @@ class AutomaticPresentationSerializer:
             dfa_bytes = bytes(dfa_bytes_list)
             automata[name] = SparseDFASerializer.from_bytes(dfa_bytes)
         
-        # Reconstruct presentation
+        # Reconstruct presentation. Over a product alphabet the padding symbol
+        # is a tuple, and JSON has no tuples, so it comes back as a list.
+        padding_symbol = metadata["padding_symbol"]
+        if isinstance(padding_symbol, list):
+            padding_symbol = tuple(padding_symbol)
         return AutomaticPresentation(
             automata,
-            padding_symbol=metadata["padding_symbol"],
+            padding_symbol=padding_symbol,
             enforce_consistency=False
         )
 
-class AutomaticPresentation:
+class DeferredRelations:
+    """Relations declared up front and built on first use.
+
+    Equality is definable in most presentations here -- from ``Leq`` in a
+    lattice, from ``Subset`` on set-valued elements, from the operation in a
+    group -- but defining it costs an automaton construction that most queries
+    never need, and for the wider graph classes that construction is
+    expensive. So such a relation is *registered* rather than built, and
+    materializes when something asks for it.
+
+    `materialize()` forces the construction, which is what you want before
+    pickling or otherwise reusing a structure, and every constructor that
+    registers deferred relations takes an ``eager`` flag for the same purpose.
+
+    Subclasses say where their relations live (`_relations`) and how to install
+    one (`_install_relation`). A definition is either a formula string over the
+    existing signature or a callable returning an automaton.
+    """
+
+    def _declare_deferred(self, definitions: Dict[str, object],
+                          eager: bool = False) -> None:
+        self._deferred = dict(definitions)
+        if eager:
+            self.materialize()
+
+    @property
+    def _relations(self) -> dict:
+        return self.automata
+
+    def _install_relation(self, name: str, definition) -> None:
+        raise NotImplementedError
+
+    def get_relation_symbols(self) -> List[str]:
+        """All relation symbols, including any not yet built."""
+        names = list(self._relations.keys())
+        names += [n for n in getattr(self, '_deferred', ())
+                  if n not in self._relations]
+        return names
+
+    def relation(self, name: str):
+        """The automaton for `name`, building it if it was deferred."""
+        deferred = getattr(self, '_deferred', {})
+        if name not in self._relations and name in deferred:
+            self._install_relation(name, deferred[name])
+        return self._relations.get(name)
+
+    def materialize(self, *names: str):
+        """Build the named deferred relations now, or all of them. Returns
+        self, so it chains onto a constructor."""
+        for name in (names or tuple(getattr(self, '_deferred', ()))):
+            self.relation(name)
+        return self
+
+    def _materialize_for(self, phi) -> None:
+        """Build any deferred relation the formula mentions."""
+        deferred = getattr(self, '_deferred', None)
+        if not deferred:
+            return
+        text = str(phi)
+        for name in list(deferred):
+            if name not in self._relations and re.search(
+                    rf'\b{re.escape(name)}\b', text):
+                self.relation(name)
+
+
+class AutomaticPresentation(DeferredRelations):
     """
     A presentation of a possibly infinite structure by finite state machines.
     """
@@ -143,13 +212,34 @@ class AutomaticPresentation:
     def automatic_presentation_from_file(cls, filename: str):
         return AutomaticPresentationSerializer.deserialize(filename)
 
-    def get_relation_symbols(self) -> List[str]:
-        """
-        Returns list of all defined relation symbols. The symbol 'U' must always be defined and denotes the Universe.
+    def _install_relation(self, name, definition):
+        """Build a deferred relation: a formula over the current signature, or
+        a callable returning an automaton."""
+        self.update(**{name: definition() if callable(definition)
+                       else definition})
 
-        :return: list of all defined relation symbols.
+    def symbolic(self, signature=None):
+        """A symbolic interface to this structure: variables, relation and
+        function symbols that build first-order expressions with Python
+        operators instead of formula strings.
+
+        :param signature: declared functions, operators and element codec.
+            Relation arities are read from the automata, so a structure with
+            no functions needs no signature at all.
+        :return: a `autstr.symbolic.SymbolicContext`.
         """
-        return list(self.automata.keys())
+        from autstr.symbolic.backends import StructureBackend
+        from autstr.symbolic.context import SymbolicContext
+        if signature is None:
+            signature = self.default_signature()
+        return SymbolicContext(StructureBackend(self), signature)
+
+    def default_signature(self):
+        """The signature `symbolic()` uses when none is given, or None for a
+        structure that declares no operators and is addressed through its
+        relation symbols. Structures that know their own vocabulary override
+        this; see `autstr.symbolic.operation_signature`."""
+        return None
 
     def update(self, **kwargs) -> None:
         for key in kwargs:
@@ -160,10 +250,15 @@ class AutomaticPresentation:
                 self.automata[key] = self._prepare_automaton(self._build_automaton(query))
 
     def _prepare_automaton(self, dfa: SparseDFA) -> SparseDFA:
-        """Applies restriction to the universe and padding to the automaton"""
+        """Restrict every tape to the universe, then saturate with padding.
+
+        Every tape, not all but the last: a relation is a relation over L(U)^k,
+        and quantifiers restrict a bound variable to `U`, so a relation that
+        still holds of a non-element makes universal sentences come out false
+        on encodings that are not elements at all."""
         arity = dfa.symbol_arity  # Get arity from symbol_arity attribute
         domain = self.automata['U']
-        for i in range(arity-1):
+        for i in range(arity):
             domain_i = expand(domain, new_arity=arity, pos=[i]).minimize()
             dfa = dfa.intersection(domain_i).minimize()
         return pad(dfa, self.padding_symbol).minimize()
@@ -180,6 +275,30 @@ class AutomaticPresentation:
             ).minimize()
         return domain
 
+    def _operand_automaton(self, psi, free_operand: List[str],
+                           free_vars: List[str], verbose=False) -> SparseDFA:
+        """A connective's operand, placed into the enclosing formula's tape
+        order.
+
+        A sentence has no tapes to place: it collapses to the all/none marker,
+        whose single tape is a placeholder rather than a variable, so renaming
+        it into the enclosing arity is meaningless (and, when the enclosing
+        formula is itself a sentence, impossible — there is no tape to rename
+        to). It is remade at the enclosing arity instead: false becomes the
+        empty relation, true the full one, which over a structure is the
+        product of universes rather than every word.
+        """
+        dfa = self._build_automaton(psi, verbose=verbose, init=False)
+        arity = max(len(free_vars), 1)
+        if free_operand:
+            return expand(dfa, arity, [free_vars.index(v) for v in free_operand])
+        if dfa.is_empty():
+            return zero(symbol_arity=arity, base_alphabet=self.sigma)
+        # a true sentence: the marker convention at arity 1, so that an
+        # enclosing sentence stays a marker; the domain otherwise
+        return one(base_alphabet=self.sigma) if not free_vars \
+            else self._domain_product(arity)
+
     def check(self, phi: logic.Expression | str) -> bool:
         """Checks if a given first-order formula holds on the presented structure. Free variables are assumed be
         implicitly existentially quantified.
@@ -190,21 +309,38 @@ class AutomaticPresentation:
         if isinstance(phi, str):
             phi = logic.Expression.fromstring(phi)
         phi = phi.simplify()
+        self._materialize_for(phi)
         return not self._build_automaton(phi).is_empty()
 
-    def evaluate(self, phi: Union[str, logic.Expression], updates: Optional[Dict[str, Union[SparseDFA, str]]] = None) -> SparseDFA:
+    def evaluate(self, phi: Union[str, logic.Expression],
+                 updates: Optional[Dict[str, Union[SparseDFA, str]]] = None,
+                 prepared_updates: Optional[Dict[str, SparseDFA]] = None) -> SparseDFA:
         """Evaluates a given first-order query on the presented structure. Returns a presentation of the set of all
         satisfying assignments.
 
         :param phi: the first order formula.
         :param updates: Temporarily update the relations for the evaluation
+        :param prepared_updates: like `updates`, for automata already known to
+            be restricted to the universe -- results this presentation produced
+            itself. They are only re-padded, skipping the domain intersection
+            that `_prepare_automaton` would otherwise redo on every tape.
         :returns: The truth value of the formula, if the formula where all free variables are existentially quantified.
         """
         if isinstance(phi, str):
             phi = logic.Expression.fromstring(phi)
         phi = optimize_query(phi)
+        self._materialize_for(phi)
+        if prepared_updates:
+            updates = dict(updates or {})
+            for key, dfa in prepared_updates.items():
+                updates[key] = pad(dfa, self.padding_symbol).minimize()
+            prepared = set(prepared_updates)
+        else:
+            prepared = set()
         if updates is not None:
             for key in updates:
+                if key in prepared:
+                    continue
                 if isinstance(updates[key], str):
                     query = optimize_query(logic.Expression.fromstring(updates[key]))
                     updates[key] = self._prepare_automaton(self._build_automaton(query))
@@ -213,13 +349,18 @@ class AutomaticPresentation:
             automata_backup = self.automata
             self.automata = dict(self.automata, **updates)
 
-        if len(get_free_elementary_vars(phi)) > 0:
-            dfa_phi = unpad(self._build_automaton(phi), self.padding_symbol).minimize()
-        else:   
-            dfa_phi = self._build_automaton(phi)
-
-        if updates is not None:
-            self.automata = automata_backup
+        try:
+            if len(get_free_elementary_vars(phi)) > 0:
+                dfa_phi = unpad(self._build_automaton(phi),
+                                self.padding_symbol).minimize()
+            else:
+                dfa_phi = self._build_automaton(phi)
+        finally:
+            # Restore even if the build raises: otherwise a failed query would
+            # leave the spliced relations installed, and every later
+            # evaluation would silently answer against them.
+            if updates is not None:
+                self.automata = automata_backup
 
         return dfa_phi
 
@@ -255,7 +396,12 @@ class AutomaticPresentation:
                 domain = self._domain_product(len(free_vars) - 1)
                 result = projection(dfa_rec, pos).minimize().complement().minimize().intersection(domain).minimize()
             else:
-                result = one() if dfa_rec.is_empty() else zero()
+                # A sentence collapses to the all/none marker, which must carry
+                # this structure's alphabet: an enclosing connective intersects
+                # it with the domain, and a size-1 default would mismatch any
+                # product-alphabet presentation.
+                result = one(base_alphabet=self.sigma) if dfa_rec.is_empty() \
+                    else zero(base_alphabet=self.sigma)
 
             if verbose:
                 print(f'{str(phi)}: {result.num_states} states')
@@ -274,7 +420,8 @@ class AutomaticPresentation:
                 else:
                     if verbose:
                         print(f'{str(phi)}: 1 state')
-                    return zero() if dfa_rec.is_empty() else one()
+                    return zero(base_alphabet=self.sigma) if dfa_rec.is_empty() \
+                        else one(base_alphabet=self.sigma)
             else:
                 result = dfa_rec
 
@@ -305,8 +452,8 @@ class AutomaticPresentation:
             free_l = get_free_elementary_vars(left)
             free_r = get_free_elementary_vars(right)
 
-            dfa_l = expand(self._build_automaton(left, verbose=verbose, init=False), len(free_vars), pos=[free_vars.index(v) for v in free_l])
-            dfa_r = expand(self._build_automaton(right, verbose=verbose, init=False), len(free_vars), pos=[free_vars.index(v) for v in free_r])
+            dfa_l = self._operand_automaton(left, free_l, free_vars, verbose)
+            dfa_r = self._operand_automaton(right, free_r, free_vars, verbose)
 
             result = dfa_l.intersection(dfa_r).minimize()
             if verbose:
@@ -321,8 +468,8 @@ class AutomaticPresentation:
             free_l = get_free_elementary_vars(left)
             free_r = get_free_elementary_vars(right)
 
-            dfa_l = expand(self._build_automaton(left, verbose=verbose, init=False), len(free_vars), pos=[free_vars.index(v) for v in free_l])
-            dfa_r = expand(self._build_automaton(right, verbose=verbose, init=False), len(free_vars), pos=[free_vars.index(v) for v in free_r])
+            dfa_l = self._operand_automaton(left, free_l, free_vars, verbose)
+            dfa_r = self._operand_automaton(right, free_r, free_vars, verbose)
 
             result = dfa_l.union(dfa_r).minimize()
             if verbose:
@@ -356,3 +503,24 @@ class AutomaticPresentation:
             return result
 
         raise ValueError(f"Unsupported expression type: {type(phi)}")
+
+
+class CompiledPresentation(AutomaticPresentation):
+    """A presentation whose automata are compiled by a builder function.
+
+    Subclasses set `_BUILD` to that function and declare their vocabulary in
+    `default_signature`, so the structure can be constructed with no arguments
+    and addressed symbolically with no setup. The builder's automata are
+    adopted as they are rather than passed to `AutomaticPresentation.__init__`,
+    which would restrict and pad relations the builder already restricted and
+    padded.
+    """
+
+    #: the builder, as a staticmethod on the subclass
+    _BUILD = None
+
+    def __init__(self) -> None:
+        built = type(self)._BUILD()
+        self.padding_symbol = built.padding_symbol
+        self.automata = built.automata
+        self.sigma = built.sigma

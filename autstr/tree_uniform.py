@@ -156,6 +156,16 @@ class UniformlyTreeAutomaticClass(UniformlyAutomaticClass):
 
     # evaluate(), _relativize(), _variable_names() and get_relation_symbols()
     # are inherited: they operate on formulas and on self.presentation only.
+    #
+    # symbolic() is inherited for the same reason, and needs no tree-specific
+    # backend: `symbolic.backends.ClassBackend` reads `class_automata` for the
+    # arities and otherwise delegates to check/check_implicit/evaluate_implicit
+    # /get_structure, all of which this class provides. Everything that would
+    # have to know about trees -- constants, enumeration, finiteness -- has no
+    # advice-free meaning over a class and is refused there for both engines,
+    # and `get_structure` hands back a TreeAutomaticPresentation whose own
+    # `symbolic()` supplies them. See tests/test_tree_uniform.py
+    # ::TestSymbolicInterface, which pins this against the string class.
 
     def check(self, phi: Union[str, logic.Expression], advice: Tree,
               **assignments) -> bool:

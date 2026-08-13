@@ -20,12 +20,16 @@ combinations are pairwise `apply` on the diagrams, complementation relabels
 acceptance and touches no diagram at all, and hash-consing makes two states
 with the same transition function share one node.
 """
+import json
+import struct
+import zlib
+from collections import defaultdict, deque
 from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 import numpy as np
 
 from autstr.mtbdd import NONE, STORE, num_bits, var_tables
-from autstr.utils.misc import encode_symbol
+from autstr.utils.misc import alphabet_from_json, encode_symbol
 
 
 # ====================================================================
@@ -531,7 +535,207 @@ class SparseTreeAutomaton:
         reach = self.reachable_states()
         return not bool((reach & self.is_accepting).any())
 
+    def _transitions(self, available: np.ndarray):
+        """Yield ``(left, right, targets)`` for every child pair both of whose
+        children are available, ``BOT`` included. Unlisted pairs fall to the
+        global default, so they are enumerated too -- which is why this is
+        quadratic in the number of available states and reserved for the
+        analyses below rather than the hot pipeline."""
+        base = self.num_states + 1
+        listed = {int(k): int(n) for k, n in
+                  zip(self.pair_keys, self.pair_nodes)}
+        usable = [int(s) for s in np.flatnonzero(available)] + [self.BOT]
+        for left in usable:
+            for right in usable:
+                node = listed.get(left * base + right)
+                if node is None:
+                    yield left, right, (self.default_state,)
+                else:
+                    yield left, right, self.store.terminals(node)
+
+    def co_reachable_states(self, available: Optional[np.ndarray] = None
+                            ) -> np.ndarray:
+        """Boolean mask of states that can occur in an accepting run: a state
+        is co-reachable if it is accepting (as the root) or it is a child in
+        some transition whose target is co-reachable and whose sibling subtree
+        exists. The top-down companion to `reachable_states`."""
+        if available is None:
+            available = self.reachable_states()
+        co = self.is_accepting.copy()
+        transitions = list(self._transitions(available))
+        while True:
+            new = False
+            for left, right, targets in transitions:
+                if not any(t < self.num_states and co[t] for t in targets):
+                    continue
+                for child in (left, right):
+                    if child < self.num_states and not co[child]:
+                        co[child] = True
+                        new = True
+            if not new:
+                return co
+
+    def is_finite(self) -> bool:
+        """Whether the automaton accepts finitely many trees.
+
+        A state that can occur strictly below itself pumps: the context
+        between the two occurrences can be repeated without bound. So the
+        language is infinite exactly when the "child of" graph, restricted to
+        states that are both reachable and co-reachable, has a cycle.
+        """
+        available = self.reachable_states()
+        usable = available & self.co_reachable_states(available)
+        if not usable.any():
+            return True                          # empty language
+
+        successors = defaultdict(set)
+        indegree = defaultdict(int)
+        nodes = set(int(s) for s in np.flatnonzero(usable))
+        for left, right, targets in self._transitions(available):
+            for target in targets:
+                if target >= self.num_states or not usable[target]:
+                    continue
+                for child in (left, right):
+                    if child >= self.num_states or not usable[child]:
+                        continue
+                    if target not in successors[child]:
+                        successors[child].add(target)
+                        indegree[target] += 1
+
+        # Kahn's algorithm: anything left over sits on a cycle.
+        queue = deque(n for n in nodes if indegree[n] == 0)
+        removed = 0
+        while queue:
+            node = queue.popleft()
+            removed += 1
+            for target in successors[node]:
+                indegree[target] -= 1
+                if indegree[target] == 0:
+                    queue.append(target)
+        return removed == len(nodes)
+
     def __repr__(self):
         return (f"SparseTreeAutomaton({self.num_states} states, "
                 f"{len(self.pair_keys)} pairs, {self.num_nodes} nodes, "
                 f"default={self.default_state})")
+
+
+# ====================================================================
+# Serialization
+# ====================================================================
+#
+# [Header]  magic 'STAU', version, reserved, CRC32 of payload, payload size
+# [Payload] metadata (24 bytes), base alphabet (JSON), acceptance array,
+#           the packed pair keys, then the shared sub-DAG of the transition
+#           diagrams: var / lo / hi / term arrays and one root per pair.
+#
+# The diagrams are what makes this worth storing: a relation over a
+# convolution alphabet too wide to enumerate still writes out in the size of
+# its decision diagrams, exactly as on the string side.
+
+class SparseTreeAutomatonSerializer:
+    """Binary serialization for `SparseTreeAutomaton`.
+
+    The tree counterpart of `autstr.sparse_automata.SparseDFASerializer`, and
+    the same payload idea: the compiled form is a sorted table of child pairs
+    with one diagram root each, so storing it is storing the pair keys plus
+    the sub-DAG below their roots.
+    """
+
+    MAGIC = b'STAU'
+    VERSION = 1
+    HEADER_FORMAT = "4sB3sII"
+    HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
+    #: num_states, num_nodes, num_pairs, default_state, symbol_arity, alphabet
+    METADATA_FORMAT = "IIIIII"
+    METADATA_SIZE = struct.calcsize(METADATA_FORMAT)
+
+    @classmethod
+    def serialize(cls, automaton: 'SparseTreeAutomaton', filename: str) -> None:
+        with open(filename, 'wb') as handle:
+            handle.write(cls.to_bytes(automaton))
+
+    @classmethod
+    def deserialize(cls, filename: str) -> 'SparseTreeAutomaton':
+        with open(filename, 'rb') as handle:
+            return cls.from_bytes(handle.read())
+
+    @classmethod
+    def to_bytes(cls, automaton: 'SparseTreeAutomaton') -> bytes:
+        payload = cls._create_payload(automaton)
+        header = struct.pack(cls.HEADER_FORMAT, cls.MAGIC, cls.VERSION,
+                             b'\0\0\0', zlib.crc32(payload), len(payload))
+        return header + payload
+
+    @classmethod
+    def from_bytes(cls, data: bytes) -> 'SparseTreeAutomaton':
+        if len(data) < cls.HEADER_SIZE:
+            raise ValueError("Data too short for header")
+        magic, version, _, checksum, payload_size = struct.unpack(
+            cls.HEADER_FORMAT, data[:cls.HEADER_SIZE])
+        if magic != cls.MAGIC:
+            raise ValueError("Invalid SparseTreeAutomaton format")
+        if version != cls.VERSION:
+            raise ValueError(
+                f"Unsupported SparseTreeAutomaton version: {version}")
+        payload = data[cls.HEADER_SIZE:cls.HEADER_SIZE + payload_size]
+        if len(payload) != payload_size:
+            raise ValueError("Payload size mismatch")
+        if zlib.crc32(payload) != checksum:
+            raise ValueError("SparseTreeAutomaton data corruption detected")
+        return cls._parse_payload(payload)
+
+    @classmethod
+    def _create_payload(cls, automaton: 'SparseTreeAutomaton') -> bytes:
+        var, lo, hi, term, roots = STORE.export(automaton.pair_nodes.tolist())
+        alphabet_json = json.dumps(
+            sorted(automaton.base_alphabet_frozen)).encode('utf-8')
+        metadata = struct.pack(
+            cls.METADATA_FORMAT,
+            automaton.num_states,
+            len(var),
+            len(automaton.pair_keys),
+            automaton.default_state,
+            automaton.symbol_arity,
+            len(alphabet_json),
+        )
+        return b''.join([
+            metadata,
+            alphabet_json,
+            np.asarray(automaton.is_accepting, dtype=np.uint8).tobytes(),
+            np.asarray(automaton.pair_keys, dtype=np.int64).tobytes(),
+            var.astype(np.int64).tobytes(),
+            lo.astype(np.int64).tobytes(),
+            hi.astype(np.int64).tobytes(),
+            term.astype(np.int64).tobytes(),
+            np.asarray(roots, dtype=np.int64).tobytes(),
+        ])
+
+    @classmethod
+    def _parse_payload(cls, payload: bytes) -> 'SparseTreeAutomaton':
+        (num_states, num_nodes, num_pairs, default_state, symbol_arity,
+         alphabet_len) = struct.unpack(cls.METADATA_FORMAT,
+                                       payload[:cls.METADATA_SIZE])
+        offset = cls.METADATA_SIZE
+        base_alphabet = alphabet_from_json(payload[offset:offset + alphabet_len])
+        offset += alphabet_len
+
+        is_accepting = np.frombuffer(payload, dtype=np.uint8, count=num_states,
+                                     offset=offset).astype(bool)
+        offset += num_states
+
+        arrays = []
+        for count in (num_pairs, num_nodes, num_nodes, num_nodes, num_nodes,
+                      num_pairs):
+            arrays.append(np.frombuffer(payload, dtype=np.int64, count=count,
+                                        offset=offset))
+            offset += count * 8
+        pair_keys, var, lo, hi, term, roots = arrays
+
+        return SparseTreeAutomaton(
+            num_states, default_state,
+            is_accepting=is_accepting,
+            symbol_arity=symbol_arity,
+            base_alphabet=base_alphabet,
+            pair_keys=pair_keys,
+            pair_nodes=STORE.import_nodes(var, lo, hi, term, roots))

@@ -70,6 +70,7 @@ from autstr import chain_ring as cr
 from autstr.sparse_tree_automata import SparseTreeAutomaton, Tree
 from autstr.tree_presentations import TreeAutomaticPresentation
 from autstr.tree_uniform import UniformlyTreeAutomaticClass, sta_from_delta
+from autstr.uniform import SymbolicClassWrapper
 
 PAD = '*'
 NOP = 'n'
@@ -261,9 +262,14 @@ class TreeWidthGraph:
 # The uniformly tree-automatic class
 # ====================================================================
 
-class TreeWidthClass:
+class TreeWidthClass(SymbolicClassWrapper):
     """The uniformly tree-automatic class of graphs of tree-width <= w,
     presented over set-valued elements (MSO0 style)."""
+
+    #: elements are vertex sets and E is the edge relation, not equality
+    GRAPH = None
+    #: extensional equality of sets
+    EQUALITY = 'Subset(x,y) and Subset(y,x)'
 
     def __init__(self, w: int, max_states: Optional[int] = None):
         if w < 0:
@@ -291,6 +297,7 @@ class TreeWidthClass:
             'E': self._edge_automaton(),
         }, padding_symbol=PAD, max_states=max_states)
 
+        self._declare_equality(getattr(self, '_eager_equality', False))
     # ---------------- the automata ----------------
 
     def _advice_letter(self, a):
@@ -677,7 +684,7 @@ class CliqueWidthGraph:
         return cls(Tree(_join_symbol(0, 3), tree), 4)  # close the cycle
 
 
-class CliqueWidthClass:
+class CliqueWidthClass(SymbolicClassWrapper):
     """The uniformly tree-automatic class of graphs of clique-width <= k,
     presented over set-valued elements (MSO0 style).
 
@@ -690,6 +697,11 @@ class CliqueWidthClass:
     other label j. A bottom-up automaton therefore only has to remember the
     current label of each marked vertex, and whether the join has happened.
     """
+
+    #: elements are vertex sets and E is the edge relation, not equality
+    GRAPH = None
+    #: extensional equality of sets
+    EQUALITY = 'Subset(x,y) and Subset(y,x)'
 
     def __init__(self, k: int, max_states: Optional[int] = None):
         if not 2 <= k <= 9:
@@ -712,6 +724,7 @@ class CliqueWidthClass:
             'E': self._edge_automaton(),
         }, padding_symbol=PAD, max_states=max_states)
 
+        self._declare_equality(getattr(self, '_eager_equality', False))
     # ---------------- letters ----------------
 
     def _kind(self, a):
@@ -1110,7 +1123,7 @@ class RankWidthGraph:
                    [(i, left + j) for i in range(left) for j in range(right)])
 
 
-class RankWidthClass:
+class RankWidthClass(SymbolicClassWrapper):
     """The uniformly tree-automatic class of graphs of rank-width <= r,
     presented over set-valued elements (MSO0 style: Sing, Subset, E).
 
@@ -1139,6 +1152,11 @@ class RankWidthClass:
     automaton. The flat letter alphabet caps r at 2: it grows as 2^{3r^2}
     binary letters, unlike the factored letters used by the group classes.
     """
+
+    #: elements are vertex sets and E is the edge relation, not equality
+    GRAPH = None
+    #: extensional equality of sets
+    EQUALITY = 'Subset(x,y) and Subset(y,x)'
 
     def __init__(self, r: int, max_states: Optional[int] = None):
         if r < 1:

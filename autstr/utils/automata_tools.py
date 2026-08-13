@@ -1,14 +1,13 @@
 import heapq
 import numpy as np
 from collections import deque
-from typing import Callable, Dict, Generator, List, Set
+from typing import Callable, Dict, Generator, List, Optional, Set, Tuple
 import itertools as it
 
 from autstr.mtbdd import NONE, var_tables
 from autstr.sparse_automata import (
     SparseDFA, SparseNFA, _determinize_set_nfa, reduce_set_nfa,
 )
-from autstr.buildin.automata import one
 from autstr.utils.misc import decode_symbol, encode_symbol, complement
 
 
@@ -108,6 +107,122 @@ def unpad(dfa: SparseDFA, padding_symbol: int = -1) -> SparseDFA:
         dfa.num_states, is_accepting=new_accepting,
         start_state=dfa.start_state, symbol_arity=arity,
         base_alphabet=base_alphabet, nodes=dfa.nodes).minimize()
+
+def shortlex_order(base_alphabet, padding_symbol) -> SparseDFA:
+    """The binary automaton for ``x <= y`` in shortlex order: shorter words
+    first, ties broken by the alphabet's own order, trailing padding ignored.
+
+    Shortlex is a well-order, so every non-empty set of elements has a unique
+    least member -- which is exactly what picks the canonical representative of
+    an equivalence class for a quotient interpretation.
+    """
+    letters = sorted(base_alphabet)
+    frozen = frozenset(base_alphabet)
+    pad = padding_symbol
+    # Length is the primary key, so a lexicographic verdict on the common
+    # prefix stays *provisional* -- a later length difference (one word padding
+    # while the other runs on) overrides it. Hence five states, not three:
+    # the two provisional verdicts are distinct from the two final ones.
+    EQ, XLESS, XGREATER, ACCEPT, REJECT = range(5)
+    default = [EQ, XLESS, XGREATER, ACCEPT, REJECT]
+
+    def target(state, a, b):
+        if state in (ACCEPT, REJECT):
+            return state
+        if a == pad and b == pad:                 # both ended: verdict stands
+            return state
+        if a == pad:                              # x shorter -> x < y, final
+            return ACCEPT
+        if b == pad:                              # x longer -> x > y, final
+            return REJECT
+        if state != EQ:                           # lex already decided
+            return state
+        return XLESS if a < b else XGREATER if a > b else EQ
+
+    symbols = [[] for _ in range(5)]
+    targets = [[] for _ in range(5)]
+    for state in range(5):
+        for a in letters:
+            for b in letters:
+                t = target(state, a, b)
+                if t != default[state]:
+                    symbols[state].append(encode_symbol((a, b), frozen))
+                    targets[state].append(t)
+
+    width = max(len(row) for row in symbols)
+    def pad_row(row):
+        return row + [-1] * (width - len(row))
+    return SparseDFA(
+        num_states=5,
+        default_states=np.array(default, dtype=np.int64),
+        exception_symbols=np.array([pad_row(r) for r in symbols],
+                                   dtype=np.int64),
+        exception_states=np.array([pad_row(r) for r in targets],
+                                  dtype=np.int64),
+        is_accepting=[True, True, False, True, False], start_state=EQ,
+        symbol_arity=2, base_alphabet=set(base_alphabet))
+
+
+def fold_tapes(dfa: SparseDFA, k: int) -> SparseDFA:
+    """Group every `k` consecutive tapes of a convolution into one tape over
+    the product alphabet Sigma^k.
+
+    An automaton reading ``k * r`` tapes over Sigma becomes one reading ``r``
+    tapes whose letters are k-tuples -- the fold that turns the many-tape
+    output of a k-dimensional interpretation into a structure whose elements
+    are k-tuples. The diagram is unchanged in spirit (no state is added); only
+    the alphabet is regrouped, and lexicographic tuple order matches
+    `encode_symbol`, so membership lines up.
+    """
+    import itertools
+    if dfa.symbol_arity % k:
+        raise ValueError(
+            f"arity {dfa.symbol_arity} is not a multiple of k={k}")
+    store = dfa.store
+    product_alphabet = set(
+        itertools.product(sorted(dfa.base_alphabet_frozen), repeat=k))
+    nodes = [store.fold_tapes(int(node), dfa.symbol_arity, dfa.m, dfa.bits, k)
+             for node in dfa.nodes.tolist()]
+    return SparseDFA(
+        dfa.num_states, is_accepting=dfa.is_accepting,
+        start_state=dfa.start_state,
+        symbol_arity=dfa.symbol_arity // k,
+        base_alphabet=product_alphabet,
+        nodes=np.array(nodes, dtype=np.int64))
+
+
+def canonical(dfa: SparseDFA, padding_symbol: int = -1) -> SparseDFA:
+    """Keep only the canonical convolution of each tuple: words in which no
+    position is padding on *every* tape.
+
+    `pad` and `unpad` deliberately leave the all-padding self-loops in place,
+    so a relation automaton accepts every tuple in infinitely many spellings --
+    the convolution followed by any number of all-padding columns. That is
+    invisible to membership and to enumeration (`iterate_language` skips the
+    all-padding symbol), but it makes every non-empty relation look infinite to
+    a word-level cycle test. Restricting to canonical words first is what makes
+    finiteness and counting questions about *tuples* rather than about words.
+    """
+    arity = dfa.symbol_arity
+    base_alphabet = dfa.base_alphabet
+    if padding_symbol == -1:
+        padding_symbol = sorted(base_alphabet)[0]
+    pad_enc = encode_symbol((padding_symbol,) * arity, base_alphabet)
+
+    # State 0 accepts anything until the all-padding symbol drops it into the
+    # non-accepting sink 1.
+    no_padding = SparseDFA(
+        num_states=2,
+        default_states=np.array([0, 1], dtype=np.int64),
+        exception_symbols=np.array([[pad_enc], [-1]], dtype=np.int64),
+        exception_states=np.array([[1], [-1]], dtype=np.int64),
+        is_accepting=np.array([True, False], dtype=bool),
+        start_state=0,
+        symbol_arity=arity,
+        base_alphabet=base_alphabet,
+    )
+    return dfa.intersection(no_padding).minimize()
+
 
 def product(dfa: SparseDFA, n: int) -> SparseDFA:
     """Create the n-fold Cartesian product of the automaton's language."""
@@ -423,15 +538,19 @@ def iterate_language(dfa: SparseDFA, decoder: Callable = None,
     heap = LengthLexHeap()
     for state in start_set:
         if state in nonempty:
-            # Represent words as tuple of empty strings
-            heap.push((tuple(["" for _ in range(arity)]), state))
-    
+            # One tape per argument, each a tuple of letters. Letters are
+            # kept as they are rather than concatenated into a string: an
+            # interpreted structure's alphabet is a product alphabet, whose
+            # letters are themselves tuples, and str() would flatten them
+            # into unparseable text.
+            heap.push((tuple([() for _ in range(arity)]), state))
+
     def cat(word, symbol):
-        """Concatenate symbol to word based on direction."""
+        """Extend a tape by one letter, on the side we are building from."""
         if backward:
-            return str(symbol) + word
+            return (symbol,) + word
         else:
-            return word + str(symbol)
+            return word + (symbol,)
         
     def push(heap, word_tuple, sym_enc, next_state):
         """Push a new word onto the heap with the given extension symbol and next state."""
@@ -629,3 +748,265 @@ def lsbf_Z_automaton(z: int) -> SparseDFA:
         symbol_arity=1,
         base_alphabet={"*", "0", "1"}  # "*"=0, "0"=1, "1"=2
     )
+
+def partial_dfa(base_alphabet: Set, arity: int,
+                transitions: Dict[str, Dict[tuple, str]],
+                initial: str, final: Set[str]) -> SparseDFA:
+    """A DFA over `arity` tapes from a *partial* transition table.
+
+    Every symbol tuple a state does not list goes to a rejecting sink, which is
+    what an automaton authored by hand almost always wants: the interesting
+    transitions are few and the alphabet — a product of k copies of the base —
+    is large, so spelling the table out in full costs ``|Σ|^k`` entries per
+    state to say "reject" over and over.
+
+    :param base_alphabet: the base alphabet, padding symbol included.
+    :param arity: number of tapes; the automaton reads `arity`-tuples.
+    :param transitions: ``{state: {symbol tuple: target state}}``. Its keys are
+        the states, in the order they are numbered.
+    :param initial: the start state.
+    :param final: the accepting states.
+    :return: a minimized `SparseDFA`.
+    """
+    states = list(transitions)
+    if initial not in states:
+        raise ValueError(f"the start state {initial!r} has no row in the table")
+    unknown = {target for row in transitions.values() for target in row.values()}
+    unknown |= set(final)
+    unknown -= set(states)
+    if unknown:
+        raise ValueError(f"states without a row in the table: {sorted(unknown)}")
+
+    sink = len(states)                       # the implicit rejecting state
+    index = {state: i for i, state in enumerate(states)}
+    rows = [sorted((encode_symbol(symbol, base_alphabet), index[target])
+                   for symbol, target in transitions[state].items())
+            for state in states]
+    width = max([len(row) for row in rows], default=0)
+
+    exception_symbols = np.full((sink + 1, width), -1, dtype=np.int32)
+    exception_states = np.full((sink + 1, width), -1, dtype=np.int32)
+    for i, row in enumerate(rows):
+        exception_symbols[i, :len(row)] = [symbol for symbol, _ in row]
+        exception_states[i, :len(row)] = [target for _, target in row]
+
+    is_accepting = np.zeros(sink + 1, dtype=bool)
+    for state in final:
+        is_accepting[index[state]] = True
+
+    return SparseDFA(
+        num_states=sink + 1,
+        default_states=np.full(sink + 1, sink, dtype=np.int32),
+        exception_symbols=exception_symbols,
+        exception_states=exception_states,
+        is_accepting=is_accepting,
+        start_state=index[initial],
+        symbol_arity=arity,
+        base_alphabet=set(base_alphabet),
+    ).minimize()
+
+
+# --------------------------------------------------------------------------
+# Basic automata the constructions above build on: fixed and relative word
+# lengths, and the two constant languages.
+# --------------------------------------------------------------------------
+
+def length_automaton(n: int, base_alphabet: Set[int]) -> SparseDFA:
+    """
+    Creates an automaton that recognizes all words over base_alphabet with length exactly n.
+
+    :param n: The exact word length
+    :param base_alphabet: Set of integer symbols
+    :return: SparseDFA recognizing words of length n
+    """
+    # States: 0 (start), 1, 2, ..., n (accepting), n+1 (dead)
+    num_states = n + 2
+    # Default transitions: move to next state or dead state
+    default_states = np.array([i + 1 for i in range(n)] + [n + 1, n + 1], dtype=np.int32)
+    # No exceptions needed (same behavior for all symbols)
+    exception_symbols = np.full((num_states, 0), -1, dtype=np.int32)
+    exception_states = np.full((num_states, 0), -1, dtype=np.int32)
+    # Only state n is accepting
+    is_accepting = np.array([False] * n + [True, False])
+    start_state = 0
+
+    return SparseDFA(
+        num_states=num_states,
+        default_states=default_states,
+        exception_symbols=exception_symbols,
+        exception_states=exception_states,
+        is_accepting=is_accepting,
+        start_state=start_state,
+        symbol_arity=1,
+        base_alphabet=base_alphabet
+    )
+
+def k_longer_automaton(k: int, r: int, base_alphabet: Set[int], padding_symbol: int) -> SparseDFA:
+    """
+    Creates an automaton recognizing (r+1)-tuples where the last word is at least k letters 
+    longer than the other r words.
+
+    :param k: Minimal length difference
+    :param r: Number of reference words
+    :param base_alphabet: Set of integer symbols
+    :param padding_symbol: Padding symbol integer
+    :return: SparseDFA for the k-longer condition
+    """
+    # State mapping: [-1, 0, 1, ..., k] -> [0, 1, 2, ..., k+1]
+    state_mapping = {s: i for i, s in enumerate(range(-1, k+1))}
+    num_states = len(state_mapping)
+    sorted_alphabet = sorted(base_alphabet)
+    arity = r + 1
+    
+    # Precompute all symbol tuples and their encodings
+    symbol_tuples = list(it.product(sorted_alphabet, repeat=arity))
+    symbol_encodings = [encode_symbol(t, base_alphabet) for t in symbol_tuples]
+    
+    # Initialize DFA components
+    default_states = np.full(num_states, state_mapping[-1], dtype=np.int32)  # Default to dead state
+    exception_list = [[] for _ in range(num_states)]
+    
+    # Build transitions
+    for state in range(-1, k+1):
+        state_idx = state_mapping[state]
+        for t, enc in zip(symbol_tuples, symbol_encodings):
+            # Compute next state
+            if state == -1:
+                next_state = -1  # Stay in dead state
+            else:
+                if all(x == padding_symbol for x in t[:-1]) and t[-1] != padding_symbol:
+                    next_state = min(state + 1, k)  # Count extra length
+                elif t[-1] == padding_symbol:
+                    next_state = -1  # Reject if padding the last word
+                elif state == 0:
+                    next_state = 0  # Wait for other words to end
+                else:
+                    next_state = -1  # Reject otherwise
+            
+            next_state_idx = state_mapping[next_state]
+            if next_state_idx != state_mapping[-1]:
+                exception_list[state_idx].append((enc, next_state_idx))
+    
+    # Find max exceptions needed
+    max_exceptions = max(len(ex_list) for ex_list in exception_list) if exception_list else 0
+    
+    # Build exception arrays
+    exception_symbols = np.full((num_states, max_exceptions), -1, dtype=np.int32)
+    exception_states = np.full((num_states, max_exceptions), -1, dtype=np.int32)
+
+    for i, ex_list in enumerate(exception_list):
+        if ex_list:
+            syms, states = zip(*ex_list)
+            exception_symbols[i, :len(syms)] = syms
+            exception_states[i, :len(states)] = states
+    
+    # Final states: state k (meaning we've counted k extra symbols)
+    is_accepting = np.array([i == state_mapping[k] for i in range(num_states)])
+    
+    return SparseDFA(
+        num_states=num_states,
+        default_states=default_states,
+        exception_symbols=exception_symbols,
+        exception_states=exception_states,
+        is_accepting=is_accepting,
+        start_state=state_mapping[0],
+        symbol_arity=arity,
+        base_alphabet=base_alphabet
+    )
+
+
+def zero(symbol_arity: int = 1, base_alphabet: Optional[Set[int]] = None) -> SparseDFA:
+    """Automaton that rejects all inputs."""
+    base_alphabet = base_alphabet or {0}
+    return SparseDFA(
+        num_states=1,
+        default_states=np.array([0], dtype=np.int32),
+        exception_symbols=np.full((1, 0), -1, dtype=np.int32),
+        exception_states=np.full((1, 0), -1, dtype=np.int32),
+        is_accepting=np.array([False]),
+        start_state=0,
+        symbol_arity=symbol_arity,
+        base_alphabet=base_alphabet
+    )
+
+def one(symbol_arity: int = 1, base_alphabet: Optional[Set[int]] = None) -> SparseDFA:
+    """Automaton that accepts all inputs."""
+    base_alphabet = base_alphabet or {0}
+    return SparseDFA(
+        num_states=1,
+        default_states=np.array([0], dtype=np.int32),
+        exception_symbols=np.full((1, 0), -1, dtype=np.int32),
+        exception_states=np.full((1, 0), -1, dtype=np.int32),
+        is_accepting=np.array([True]),
+        start_state=0,
+        symbol_arity=symbol_arity,
+        base_alphabet=base_alphabet
+    )
+
+
+def create_sparse_dfa(states: List[str], input_symbols: Set[Tuple[str]], 
+                     transitions: Dict[str, Dict[Tuple[str], str]], 
+                     initial_state: str, final_states: Set[str]) -> SparseDFA:
+    """Convert a traditional DFA description to a SparseDFA."""
+    # Map states to integers
+    state_to_index = {s: i for i, s in enumerate(states)}
+    num_states = len(states)
+    
+    # Determine base alphabet and arity
+    base_alphabet = set()
+    for sym in input_symbols:
+        for char in sym:
+            base_alphabet.add(char)
+    arity = len(next(iter(input_symbols))) if input_symbols else 0
+    
+    # Create state arrays
+    default_states = []
+    exception_symbols = []
+    exception_states = []
+    is_accepting = np.array([state in final_states for state in states], dtype=bool)
+    
+    # Build symbol mapping
+    symbol_map = {}
+    for symbol in input_symbols:
+        symbol_map[symbol] = encode_symbol(symbol, frozenset(base_alphabet))
+    
+    # Process each state
+    for state in states:
+        # Find most common transition
+        next_states = [transitions[state][sym] for sym in input_symbols]
+        default_target = max(set(next_states), key=next_states.count)
+        default_states.append(state_to_index[default_target])
+        
+        # Collect exceptions
+        exceptions = []
+        for symbol, next_state in transitions[state].items():
+            if next_state != default_target:
+                sym_enc = symbol_map[symbol]
+                next_idx = state_to_index[next_state]
+                exceptions.append((sym_enc, next_idx))
+        
+        # Sort exceptions by symbol for consistency
+        exceptions.sort(key=lambda x: x[0])
+        exception_symbols.append([e[0] for e in exceptions])
+        exception_states.append([e[1] for e in exceptions])
+    
+    # Pad exceptions
+    max_exceptions = max(len(e) for e in exception_symbols) if exception_symbols else 0
+    padded_ex_syms = np.full((num_states, max_exceptions), -1, dtype=np.int32)
+    padded_ex_states = np.full((num_states, max_exceptions), -1, dtype=np.int32)
+
+    for i in range(num_states):
+        if exception_symbols[i]:
+            padded_ex_syms[i, :len(exception_symbols[i])] = exception_symbols[i]
+            padded_ex_states[i, :len(exception_states[i])] = exception_states[i]
+
+    return SparseDFA(
+        num_states=num_states,
+        default_states=np.array(default_states, dtype=np.int32),
+        exception_symbols=padded_ex_syms,
+        exception_states=padded_ex_states,
+        is_accepting=is_accepting,
+        start_state=state_to_index[initial_state],
+        symbol_arity=arity,
+        base_alphabet=base_alphabet
+    ).minimize()

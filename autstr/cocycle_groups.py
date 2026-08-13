@@ -37,6 +37,7 @@ from autstr import chain_ring as cr
 from autstr.sparse_tree_automata import SparseTreeAutomaton, Tree
 from autstr.tree_presentations import TreeAutomaticPresentation
 from autstr.tree_uniform import UniformlyTreeAutomaticClass, sta_from_delta
+from autstr.uniform import SymbolicClassWrapper
 
 PAD = '*'
 
@@ -315,7 +316,7 @@ def scattered_sites(p: int, m: int, d: int = 1) -> Tuple[CocycleSites, Dict]:
 # The claim-and-verify automaton: the six-register protocol
 # ====================================================================
 
-class CocycleRankWidthGroups:
+class CocycleRankWidthGroups(SymbolicClassWrapper):
     """The uniformly tree-automatic class of distributed-center class-2
     groups of tensor cut-rank <= r over R = Z/p^d. The bottom-up
     automaton's state is six R^r registers (plus three scratch slots)::

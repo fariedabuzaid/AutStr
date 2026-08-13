@@ -1,803 +1,335 @@
-from __future__ import annotations
+"""Büchi arithmetic, over the naturals and over the integers.
 
-from abc import ABC, abstractmethod
-from copy import deepcopy, copy
-from typing import List, Union, Tuple, Dict
-import math
+:math:`(\\mathbb{N}, +, <, \\mid_2)` and :math:`(\\mathbb{Z}, +, <, \\mid_2)`
+presented in base 2, where ``x \\mid_2 y`` says that `y` is a power of two
+dividing `x`. Adding that predicate to Presburger arithmetic is what makes the
+structure *Büchi* arithmetic: it can talk about the binary expansion of a
+number, and it remains decidable.
 
-from autstr.buildin.automata import k_longer_automaton
-from autstr.sparse_automata import SparseDFA
-from autstr.utils.automata_tools import iterate_language, lsbf_Z_automaton
-from autstr.buildin.presentations import BuechiArithmeticZ
-from autstr.utils.misc import get_unique_id
-from autstr.utils.misc import encode_symbol, decode_symbol
+    >>> Z = BuechiArithmeticZ().symbolic()
+    >>> x, y, z = Z.vars("x y z")
+    >>> ((x + y).eq(z) & z.lt(100)).check()
+    True
 
+Both presentations are compiled from a handful of small automata the first time
+they are constructed; the derived relations (order, equality, negation) are
+first-order definitions over those.
+"""
+from typing import List
 
-class Term(ABC):
-    """
-    Abstract class representing a term over the (base 2) Büchi arithmetic over the integers :math:`\\mathbb{Z}`
-    """
-    arithmetic = BuechiArithmeticZ()
+import itertools as it
 
-    def __init__(self):
-        self.presentation = None
-
-    @abstractmethod
-    def update_presentation(self, recursive=True) -> None:
-        """
-        Updates the internal presentation of the term.
-
-        :param recursive: If True, recursively updates the presentation of all sub-relations
-        :return:
-        """
-        raise NotImplementedError
-
-    def evaluate(self) -> SparseDFA:
-        """
-        Returns automatic presentation of the relation.
-
-        :return:
-        """
-        if self.presentation is None:
-            self.update_presentation()
-
-        return self.presentation
-
-    @abstractmethod
-    def get_variables(self) -> List[str]:
-        """
-        Get all free variables of a term.
-
-        :return:
-        """
-        raise NotImplementedError
-
-    def substitute(self, allow_collision: bool = False, inplace=False, **kwargs) -> Term:
-        if not inplace:
-            result = deepcopy(self)
-            result._substitute(allow_collision, inplace=True)
-            return result
-        else:
-            self._substitute_inplace(allow_collision)
-            return self
-
-    @abstractmethod
-    def _substitute_inplace(self, allow_collision: bool = False, **kwargs) -> Term:
-        """
-        Substitute variable names in the relation.
-
-        :param allow_collision: if True, does not check collision with quantified
-        :param inplace: if True, performs the substitution inplace. Note that this will have side effects on all terms
-            in which self appears.
-        :param kwargs: dictionary of variable names and their substitution terms.
-        :return:
-        """
-        raise NotImplementedError
+from autstr.presentations import (
+    AutomaticPresentation, CompiledPresentation,
+)
+from autstr.utils.automata_tools import create_sparse_dfa
 
 
-class RelationalAlgebraTerm(Term, ABC):
-    def __and__(self, other: RelationalAlgebraTerm) -> IntersectionRATerm:
-        """
-        Intersection
+def _build_buechi_arithmetic() -> AutomaticPresentation:
+    """Büchi arithmetic over the natural numbers, compiled from scratch."""
+    # Universe automaton - only accepts valid binary numbers (no '*')
+    universe = create_sparse_dfa(
+        states={'i', '0', '0+', '1', '*'},
+        input_symbols={('0',), ('1',), ('*',)},
+        transitions={
+            'i': {('0',): '0', ('1',): '1', ('*',): '*'},
+            '0': {('0',): '0+', ('1',): '1', ('*',): '*'},
+            '0+': {('0',): '0+', ('1',): '1', ('*',): '*'},
+            '1': {('0',): '0+', ('1',): '1', ('*',): '*'},
+            '*': {('0',): '*', ('1',): '*', ('*',): '*'},
+        },
+        initial_state='i',
+        final_states={'0', '1'}
+    )
 
-        :param other:
-        :return: A term that presents the intersection of self and other
-        """
-        return IntersectionRATerm(self, other)
+    addition = create_sparse_dfa(
+        states={0, 1, 2},
+        input_symbols={('0', '0', '0'), ('0', '0', '1'), ('0', '0', '*'), ('0', '1', '0'), ('0', '1', '1'),
+                       ('0', '1', '*'), ('0', '*', '0'), ('0', '*', '1'), ('0', '*', '*'),
+                       ('1', '0', '0'), ('1', '0', '1'), ('1', '0', '*'), ('1', '1', '0'), ('1', '1', '1'),
+                       ('1', '1', '*'), ('1', '*', '0'), ('1', '*', '1'), ('1', '*', '*'),
+                       ('*', '0', '0'), ('*', '0', '1'), ('*', '0', '*'), ('*', '1', '0'), ('*', '1', '1'),
+                       ('*', '1', '*'), ('*', '*', '0'), ('*', '*', '1'), ('*', '*', '*'),
+                       },
+        transitions={
+            0: {
+                ('0', '0', '0'): 0, ('0', '0', '1'): 2, ('0', '0', '*'): 2, ('0', '1', '0'): 2, ('0', '1', '1'): 0,
+                ('0', '1', '*'): 2, ('0', '*', '0'): 0, ('0', '*', '1'): 2, ('0', '*', '*'): 2,
+                ('1', '0', '0'): 2, ('1', '0', '1'): 0, ('1', '0', '*'): 2, ('1', '1', '0'): 1, ('1', '1', '1'): 2,
+                ('1', '1', '*'): 2, ('1', '*', '0'): 2, ('1', '*', '1'): 0, ('1', '*', '*'): 2,
+                ('*', '0', '0'): 0, ('*', '0', '1'): 2, ('*', '0', '*'): 2, ('*', '1', '0'): 2, ('*', '1', '1'): 0,
+                ('*', '1', '*'): 2, ('*', '*', '0'): 2, ('*', '*', '1'): 2, ('*', '*', '*'): 2,
+            },
+            1: {
+                ('0', '0', '0'): 2, ('0', '0', '1'): 0, ('0', '0', '*'): 2, ('0', '1', '0'): 1, ('0', '1', '1'): 2,
+                ('0', '1', '*'): 2, ('0', '*', '0'): 2, ('0', '*', '1'): 0, ('0', '*', '*'): 2,
+                ('1', '0', '0'): 1, ('1', '0', '1'): 2, ('1', '0', '*'): 2, ('1', '1', '0'): 2, ('1', '1', '1'): 1,
+                ('1', '1', '*'): 2, ('1', '*', '0'): 1, ('1', '*', '1'): 2, ('1', '*', '*'): 2,
+                ('*', '0', '0'): 2, ('*', '0', '1'): 0, ('*', '0', '*'): 2, ('*', '1', '0'): 1, ('*', '1', '1'): 2,
+                ('*', '1', '*'): 2, ('*', '*', '0'): 2, ('*', '*', '1'): 0, ('*', '*', '*'): 2,
+            },
+            2: {
+                ('0', '0', '0'): 2, ('0', '0', '1'): 2, ('0', '0', '*'): 2, ('0', '1', '0'): 2, ('0', '1', '1'): 2,
+                ('0', '1', '*'): 2, ('0', '*', '0'): 2, ('0', '*', '1'): 2, ('0', '*', '*'): 2,
+                ('1', '0', '0'): 2, ('1', '0', '1'): 2, ('1', '0', '*'): 2, ('1', '1', '0'): 2, ('1', '1', '1'): 2,
+                ('1', '1', '*'): 2, ('1', '*', '0'): 2, ('1', '*', '1'): 2, ('1', '*', '*'): 2,
+                ('*', '0', '0'): 2, ('*', '0', '1'): 2, ('*', '0', '*'): 2, ('*', '1', '0'): 2, ('*', '1', '1'): 2,
+                ('*', '1', '*'): 2, ('*', '*', '0'): 2, ('*', '*', '1'): 2, ('*', '*', '*'): 2,
+            },
+        },
+        initial_state=0,
+        final_states={0}
+    )
 
-    def __or__(self, other: RelationalAlgebraTerm) -> UnionRATerm:
-        """
-        Union
+    input_symbols = {a for a in it.product(['0', '1', '*'], repeat=2)}
+    weak_div = create_sparse_dfa(
+        states={'0', '1', 'e'},
+        input_symbols=input_symbols,
+        transitions={
+            '0': {
+                a: '0' if a == ('0', '0') else '1' if a == ('0', '1') or a == ('1', '1') else 'e' for a in input_symbols
+            },
+            '1': {
+                a: 'e' if a[1] != '*' else '1' for a in input_symbols
+            },
+            'e': {a: 'e' for a in input_symbols}
+        },
+        initial_state='0',
+        final_states={'1'}
+    )
+    
 
-        :param other:
-        :return: A term that presents the union of self and other
-        """
-        return UnionRATerm(self, other)
+    # Create presentation
+    presentation = AutomaticPresentation({'U': universe, 'A': addition, 'B': weak_div})
 
-    def __invert__(self):
-        """
-        Complement
+    # Add bootstrap remaining relations
+    presentation.update(Z='A(x,x,x)')
+    presentation.update(Eq='exists z.(Z(z) and A(x,z,y))')
+    presentation.update(Pt='B(x,x)')
+    presentation.update(Lt='exists z.(not Z(z) and A(x, z, y))')
+    presentation.update(Gt='exists z.(not Z(z) and A(y, z, x))')
+    
+    return presentation
 
-        :return: A term that presents the complement of the current relation
-        """
-        return ComplementRATerm(self)
+def _build_buechi_arithmetic_Z() -> AutomaticPresentation:
+    """Büchi arithmetic over the integers, compiled from scratch."""
+    # Universe automaton
+    universe_states = ['-1', 'i+', 'i', '0', '0+', '1', '*']
+    universe_symbols = {('0',), ('1',), ('*',)}
+    universe_trans = {
+        '-1': {('0',): 'i', ('1',): 'i+', ('*',): '*'},
+        'i+': {('0',): '0+', ('1',): '1', ('*',): '*'},
+        'i': {('0',): '0', ('1',): '1', ('*',): '*'},
+        '0': {('0',): '0+', ('1',): '1', ('*',): '*'},
+        '0+': {('0',): '0+', ('1',): '1', ('*',): '*'},
+        '1': {('0',): '0+', ('1',): '1', ('*',): '*'},
+        '*': {('0',): '*', ('1',): '*', ('*',): '*'},
+    }
+    universe = create_sparse_dfa(
+        universe_states, universe_symbols, universe_trans, '-1', {'0', '1'}
+    )
+    
+    # Addition automaton (intermediate)
+    add_states = [-1, 0, 1, 2]
+    add_symbols = set(it.product(['0', '1', '*'], repeat=3))
+    add_trans = {
+        -1: {a: 0 if '*' not in a else 2 for a in add_symbols},
+        0: {
+            ('0','0','0'): 0, ('0','0','1'): 2, ('0','0','*'): 2,
+            ('0','1','0'): 2, ('0','1','1'): 0, ('0','1','*'): 2,
+            ('0','*','0'): 0, ('0','*','1'): 2, ('0','*','*'): 2,
+            ('1','0','0'): 2, ('1','0','1'): 0, ('1','0','*'): 2,
+            ('1','1','0'): 1, ('1','1','1'): 2, ('1','1','*'): 2,
+            ('1','*','0'): 2, ('1','*','1'): 0, ('1','*','*'): 2,
+            ('*','0','0'): 0, ('*','0','1'): 2, ('*','0','*'): 2,
+            ('*','1','0'): 2, ('*','1','1'): 0, ('*','1','*'): 2,
+            ('*','*','0'): 2, ('*','*','1'): 2, ('*','*','*'): 2,
+        },
+        1: {
+            ('0','0','0'): 2, ('0','0','1'): 0, ('0','0','*'): 2,
+            ('0','1','0'): 1, ('0','1','1'): 2, ('0','1','*'): 2,
+            ('0','*','0'): 2, ('0','*','1'): 0, ('0','*','*'): 2,
+            ('1','0','0'): 1, ('1','0','1'): 2, ('1','0','*'): 2,
+            ('1','1','0'): 2, ('1','1','1'): 1, ('1','1','*'): 2,
+            ('1','*','0'): 1, ('1','*','1'): 2, ('1','*','*'): 2,
+            ('*','0','0'): 2, ('*','0','1'): 0, ('*','0','*'): 2,
+            ('*','1','0'): 1, ('*','1','1'): 2, ('*','1','*'): 2,
+            ('*','*','0'): 2, ('*','*','1'): 0, ('*','*','*'): 2,
+        },
+        2: {s: 2 for s in add_symbols}
+    }
+    addition_intermediate = create_sparse_dfa(add_states, add_symbols, add_trans, -1, {0})
+    
+    # Weak division automaton
+    div_states = ['-1', '0', '1', 'e']
+    div_symbols = set(it.product(['0', '1', '*'], repeat=2))
+    div_trans = {
+        '-1': {a: '0' if a[1] == '0' else 'e' for a in div_symbols},
+        '0': {
+            a: '0' if a == ('0','0') 
+            else '1' if a in {('0','1'), ('1','1')} 
+            else 'e' for a in div_symbols
+        },
+        '1': {
+            a: 'e' if a[1] != '*' else '1' for a in div_symbols
+        },
+        'e': {a: 'e' for a in div_symbols}
+    }
+    weak_div = create_sparse_dfa(div_states, div_symbols, div_trans, '-1', {'1'})
+    
+    # N0 automaton
+    n0_states = [-1, 0, 1]
+    n0_symbols = {('0',), ('1',), ('*',)}
+    n0_trans = {
+        -1: {('0',): 1, ('1',): 0, ('*',): 0},
+        0: {s: 0 for s in n0_symbols},
+        1: {s: 1 for s in n0_symbols}
+    }
+    N0 = create_sparse_dfa(n0_states, n0_symbols, n0_trans, -1, {1})
+    
+    # Create presentation
+    presentation = AutomaticPresentation({
+        'U': universe, 
+        'A0': addition_intermediate, 
+        'B': weak_div, 
+        'N0': N0
+    })
+    presentation.update(Z='A0(x,x,x)')
+    
+    # Define addition formula
+    c000 = '(N0(x) and N0(y) and N0(z) and A0(x, y, z))'
+    c001 = '(N0(x) and N0(y) and not N0(z) and exists a z0.(Z(z0) and A0(x,y,a) and A0(a,z,z0)))'
+    c010 = '(N0(x) and not N0(y) and N0(z) and A0(z, y, x))'
+    c011 = '(N0(x) and not N0(y) and not N0(z) and A0(z, x, y))'
+    c100 = '(not N0(x) and N0(y) and N0(z) and A0(x, z, y))'
+    c101 = '(not N0(x) and N0(y) and not N0(z) and A0(z, y, x))'
+    c110 = '(not N0(x) and not N0(y) and N0(z) and exists a z0.(Z(z0) and A0(x,y,a) and A0(a,z,z0)))'
+    c111 = '(not N0(x) and not N0(y) and not N0(z) and A0(x,y,z))'
+    phi_A = ' or '.join([c000, c001, c010, c011, c100, c101, c110, c111])
+    presentation.update(A=phi_A)
+    
+    presentation.update(Eq='exists z.(Z(z) and A(x,z,y))')
+    presentation.update(Pt='B(x,x) and N0(x)')
+    presentation.update(Lt='exists z.(N0(z) and not Z(z) and A(x, z, y))')
+    presentation.update(Gt='exists z.(N0(z) and not Z(z) and A(y, z, x))')
+    presentation.update(Neg='exists z.(Z(z) and A(x,y,z))')
+    
+    # Delete auxiliary relation
+    del presentation.automata['A0']
+    
+    return presentation
 
-    def __contains__(self, item):
-        """
-        Check if a tuple is in the relation.
 
-        :param item:
-        :return:
-        """
-        signs = [str(int(x < 0)) for x in item]
-        words = list(format(abs(n), 'b')[::-1] for n in item)
-        words = [sign + b for sign, b in zip(signs, words)]
-        l_max = max([len(w) for w in words])
-        for i, w in enumerate(words):
-            if len(w) < l_max:
-                difference = l_max - len(w)
-                words[i] = w + ('*' * difference)
+# --------------------------------------------------------------------------
+# The presentations. Each declares its own vocabulary, so `symbolic()` takes
+# no argument; see `CompiledPresentation`.
+# --------------------------------------------------------------------------
 
-        input_word = [tuple(w[i] for w in words) for i in range(l_max)]
-        return self.evaluate().accepts(input_word)
+class BuechiArithmetic(CompiledPresentation):
+    """Büchi arithmetic over the natural numbers: :math:`(\\mathbb{N}, +, <,
+    \\mid_2)` in base 2.
 
-    def drop(self, variables: List[Union[str, VariableETerm]]) -> DropRATerm:
-        """
-        Drop variables.
+        >>> N = BuechiArithmetic()
+        >>> x, y = N.symbolic().vars("x y")
+        >>> ((x + y).eq(12) & x.lt(y)).check()
+        True
 
-        :param variables: The variables to drop
-        :return: projection of the current relation onto the variables self.get_variables without variables
-        """
-        return DropRATerm(self, variables)
-
-    def ex(self, variables: List[Union[str, VariableETerm]]):
-        """
-        Create Existential quantification term
-        :param variables: The variables that should be quantified
-        :return: projection of the current relation onto the variables self.get_variables without variables
-        """
-        return DropRATerm(self, variables)
-
-    def exinf(self, variable: Union[str, VariableETerm]):
-        """
-        Represents the relation of the form :math:`\\{\\bar{x} | \\exists \\infty\\text{-many } y: R(\\bar{x}, y)\\}`
-        for some base relation :math:`R`.
-
-        :param variable: Variable that should be :math:`\\exists^\\infty`-quantified
-        :return:
-        """
-        return ExInfRATerm(self, variable)
-
-    def isempty(self) -> bool:
-        """
-        Checks if the current relation is empty.
-
-        :return: True, if self presents an empty relation
-        """
-        if self.presentation is None:
-            self.update_presentation()
-
-        return self.presentation.is_empty()
-
-    def isfinite(self) -> bool:
-        """
-        checks if the number of solutions is finite.
-
-        :return: True, if the relation contains only finitely many tuples
-        """
-        if self.presentation is None:
-            self.update_presentation()
-
-        return self.presentation.is_finite()
-
-    def __iter__(self):
-        """
-        Iterates all solutions by successively enumerating all solution tuples smaller than :math:`(2^n,...,2^n)` in
-        lexicographic order. The procedure guarantees that every solution tuple is enumerated exactly once.
-
-        :return:
-        """
-        if self.presentation is None:
-            self.update_presentation()
-
-        for t in iterate_language(self.presentation, backward=True, padding_symbol='*'):
-            yield tuple(
-                int(
-                    n.replace('*', '')[:-1], base=2
-                ) if n.replace('*', '')[-1] == '0' else -int(
-                    n.replace('*', '')[:-1], base=2
-                ) for n in t
-            )
-
-
-class ExInfRATerm(RelationalAlgebraTerm):
-    def __init__(self, term: RelationalAlgebraTerm, variable: Union[str, VariableETerm]):
-        super().__init__()
-        self.subterm = term
-        self.variable = str(variable)
-
-    def update_presentation(self, recursive=True) -> None:
-        if recursive:
-            self.subterm.update_presentation(recursive)
-
-        sub_presentation = self.subterm.evaluate()
-        k_distance = sub_presentation.num_states + 1
-        inf_witness = k_longer_automaton(k_distance, len(self.subterm.get_variables()) - 1, self.arithmetic.sigma, self.arithmetic.padding_symbol)
-        arithmetic = deepcopy(self.arithmetic)
-        T, L = get_unique_id(arithmetic.get_relation_symbols(), 2)
-        arithmetic.update(**{T: self.subterm.evaluate(), L: inf_witness})
-
-        psi_T = T + '(' + ','.join(self.subterm.get_variables()) + ')'
-        args_psi_L = ','.join([v for v in self.subterm.get_variables() if v != self.variable]) + ',' + self.variable
-        psi_L = L + '(' + args_psi_L + ')'
-
-        phi = f'exists {self.variable}.({psi_L} and {psi_T})'
-
-        self.presentation = arithmetic.evaluate(phi)
-
-    def get_variables(self) -> List[str]:
-        variables = [v for v in self.subterm.get_variables() if v != self.variable]
-        variables.sort()
-        return variables
-
-    def _substitute_inplace(self, allow_collision: bool = False, **kwargs) -> None:
-        kw_rec = copy(kwargs)
-
-        if self.variable in kwargs:
-            del kw_rec[self.variable]
-
-        if not allow_collision:
-            if self.variable in kwargs.values():
-                v_new = get_unique_id(self.subterm.get_variables(), 1)
-                self.variable = v_new
-                self.subterm._substitute_inplace(**{str(self.variable): v_new})
-
-        self.subterm._substitute_inplace(**kw_rec)
-        self.presentation = None
-
-        return self
-
-class BaseRATerm(RelationalAlgebraTerm):
-    """
-    Represents a term of the form :math:`R(t_1,...,t_n)` for elementary terms :math:`t_1,...,t_n`
+    ``B(x, y)`` holds iff `y` is a power of two dividing `x`; it is spelled
+    ``.divided_by_power`` rather than bound to ``|``, which on formulas already
+    means union.
     """
 
-    def _substitute_inplace(self, allow_collision: bool = False, **kwargs) -> BaseRATerm:
+    _BUILD = staticmethod(_build_buechi_arithmetic)
 
-        kwargs = {
-            str(x): ElementaryTerm.to_term(kwargs[x]) for x in kwargs
-        }
-        for i, t in enumerate(self.terms):
-            if str(t) in kwargs.keys():
-                self.terms[i] = kwargs[str(t)]
-            else:
-                t._substitute_inplace(allow_collision, **kwargs)
+    #: base-2 encoding: the magnitude, least significant bit first
+    PADDING = '*'
 
-        self.presentation = None
+    @staticmethod
+    def encode(n: int) -> List[str]:
+        """The word encoding a natural number: binary, least significant bit
+        first."""
+        if n < 0:
+            raise ValueError(f"not a natural number: {n}")
+        return list(format(n, 'b')[::-1])
 
-        return self
+    @staticmethod
+    def decode(word) -> int:
+        """The natural number encoded by a word, ignoring padding."""
+        digits = ''.join(word).replace(BuechiArithmetic.PADDING, '')
+        return int(digits[::-1] or '0', base=2)
 
-    def __init__(self, relation_symbol, terms):
-        super(BaseRATerm, self).__init__()
-        self.R = relation_symbol
-        self.terms = [ConstantETerm(t) if isinstance(t, int) else t for t in terms]
-
-    def get_variables(self) -> List[str]:
-        variables = []
-        for t in self.terms:
-            variables = variables + t.get_variables()
-        variables = list(set(variables))
-        variables.sort()
-        return variables
-
-    def update_presentation(self, recursive=True, **kwargs) -> None:
-        if recursive:
-            for t in self.terms:
-                t.update_presentation(recursive)
-
-        phi, update = self.to_fo()
-
-        update = {R: update[R].evaluate() for R in update}
-        arithmetic = deepcopy(self.arithmetic)
-        arithmetic.update(**update)
-        self.presentation = arithmetic.evaluate(phi)
-
-    def to_fo(self) -> Tuple[str, Dict[str, ElementaryTerm]]:
-        """
-        Creates the a translation of the atomic formula :math:`R(t_1(\\bar{x}), ..., t_n(\\bar{x}))` into a relational first-order formula
-        with new
-        predicates for :math:`T_1,..., T_n` for the graphs of :math:`t_1,...,t_n`. The result will be of shape
-        :math:`\\exists y_1,...,y_n.(T_1(\\bar{x}, y_1) \\wedge ... \\wedge T_n(\\bar{x}, y_n) \\wedge R(y_1,...y_n))`.
-        The method guarantees that the newly created relation symbols :math:`T_1,...,T_n`
-        do not collide with already defined relation symbols.
-
-        :return: The relational formula and the mapping of new relation symbols to terms
-        """
-        phi = self.R + '({})'
-
-        arithmetic = deepcopy(self.arithmetic)
-
-        unique_vars = get_unique_id(self.get_variables(), len(self.terms))
-        unique_rels = get_unique_id(arithmetic.get_relation_symbols(), len(self.terms))
-
-        final_vars = []
-
-        updates = {}
-        for R, t, x in zip(unique_rels, self.terms, unique_vars):
-            if isinstance(t, VariableETerm):
-                phi.format(t.get_name())
-                final_vars.append(t.get_name())
-            else:
-                final_vars.append(x)
-                guard = R + '(' + ','.join(t.get_variables() + [x]) + ')'
-                phi = f'exists {x}.({guard} and {phi})'
-                updates[R] = t
-
-        phi = phi.format(','.join(final_vars))
-
-        return phi, updates
+    def default_signature(self):
+        """``+`` as addition, with the order, equality and divisibility as
+        methods, and naturals written as Python integers."""
+        from autstr.symbolic import FunctionCodec, Signature
+        signature = Signature(codec=FunctionCodec(self.encode, self.decode))
+        signature.function('+', graph='A', out=2)
+        signature.operator('+', '+')
+        signature.operator('eq', 'Eq')
+        signature.operator('lt', 'Lt')
+        signature.operator('gt', 'Gt')
+        signature.operator('divided_by_power', 'B')
+        return signature
 
 
-class BinaryRATerm(RelationalAlgebraTerm, ABC):
-    """
-    Abstract class that represents binary relational algebra terms.
+class BuechiArithmeticZ(CompiledPresentation):
+    """Büchi arithmetic over the integers: :math:`(\\mathbb{Z}, +, <, \\mid_2)`
+    in base 2.
+
+        >>> Z = BuechiArithmeticZ()
+        >>> x, y, z = Z.symbolic().vars("x y z")
+        >>> ((x + y).eq(z) & z.lt(100)).check()
+        True
+        >>> (3, 4, 7) in (x + y).eq(z)
+        True
+
+    Integers are written directly wherever a term is expected -- ``x + 5``,
+    ``x.lt(100)`` -- and solutions come back as Python integers. Anything the
+    operators do not cover is reachable through `SymbolicContext.rel`.
     """
 
-    def _substitute_inplace(self, allow_collision: bool = False, **kwargs) -> BinaryRATerm:
-        self.left._substitute_inplace(allow_collision, **kwargs)
-        self.right._substitute_inplace(allow_collision, **kwargs)
-        self.presentation = None
+    _BUILD = staticmethod(_build_buechi_arithmetic_Z)
+
+    #: base-2 encoding: a sign symbol, then the magnitude, least significant
+    #: bit first
+    SIGN_POSITIVE = '0'
+    SIGN_NEGATIVE = '1'
+    PADDING = '*'
+
+    @staticmethod
+    def encode(n: int) -> List[str]:
+        """The word encoding an integer: sign symbol, then magnitude bits least
+        significant first."""
+        sign = (BuechiArithmeticZ.SIGN_POSITIVE if n >= 0
+                else BuechiArithmeticZ.SIGN_NEGATIVE)
+        return [sign] + list(format(abs(n), 'b')[::-1])
+
+    @staticmethod
+    def decode(word) -> int:
+        """The integer encoded by a word, ignoring padding."""
+        word = ''.join(word).replace(BuechiArithmeticZ.PADDING, '')
+        if not word:
+            raise ValueError("empty encoding")
+        magnitude = int(word[1:][::-1] or '0', base=2)
+        return (magnitude if word[0] == BuechiArithmeticZ.SIGN_POSITIVE
+                else -magnitude)
+
+    def default_signature(self):
+        """``+`` as addition and unary ``-`` as negation, with the order,
+        equality and divisibility as methods, and integers written as Python
+        integers."""
+        from autstr.symbolic import FunctionCodec, Signature
+        signature = Signature(codec=FunctionCodec(self.encode, self.decode))
+        signature.function('+', graph='A', out=2)
+        signature.function('neg', graph='Neg', out=1)
+        signature.operator('+', '+')
+        signature.operator('-', 'neg')
+        signature.operator('eq', 'Eq')
+        signature.operator('lt', 'Lt')
+        signature.operator('gt', 'Gt')
+        # B(x, y): y is a power of two dividing x. Spelled out as a method
+        # rather than bound to `|`, which on formulas already means union.
+        signature.operator('divided_by_power', 'B')
+        return signature
 
-        return self
 
-    def get_variables(self) -> List[str]:
-        result = list(set(self.left.get_variables() + self.right.get_variables()))
-        result.sort()
-        return result
-
-    def __init__(self, left: RelationalAlgebraTerm, right: RelationalAlgebraTerm):
-        super().__init__()
-        self._template = None
-        self.left = left
-        self.right = right
-
-    def update_presentation(self, recursive=True) -> None:
-        """
-        Builds presentation from the two sub-relations and combines then through a logical formula
-
-        :param recursive: If True, call update_presentation for all sub-terms
-        :return:
-        """
-        if recursive:
-            self.left.update_presentation(recursive=recursive)
-            self.right.update_presentation(recursive=recursive)
-
-        arithmetic = deepcopy(self.arithmetic)
-        R0, R1 = get_unique_id(arithmetic.get_relation_symbols(), 2)
-        psi_R0 = R0 + '(' + ','.join(self.left.get_variables()) + ')'
-        psi_R1 = R1 + '(' + ','.join(self.right.get_variables()) + ')'
-        phi = self._template.format(psi_R0, psi_R1)
-        arithmetic.update(**{R0: self.left.evaluate(), R1: self.right.evaluate()})
-        self.presentation = arithmetic.evaluate(phi)
-
-
-class IntersectionRATerm(BinaryRATerm):
-    """
-    Intersection of two relations.
-    """
-
-    def __init__(self, left: RelationalAlgebraTerm, right: RelationalAlgebraTerm):
-        super(IntersectionRATerm, self).__init__(left, right)
-        self._template = "(({} and {}))"
-
-
-class UnionRATerm(BinaryRATerm):
-    """
-    Union of two relations.
-    """
-
-    def __init__(self, left: RelationalAlgebraTerm, right: RelationalAlgebraTerm):
-        super().__init__(left, right)
-        self._template = "(({} or {}))"
-
-
-class ComplementRATerm(RelationalAlgebraTerm):
-    """
-    The complement of a relation
-    """
-
-    def _substitute_inplace(self, allow_collision: bool = False, **kwargs) -> ComplementRATerm:
-        self.relation._substitute_inplace(allow_collision, **kwargs)
-        self.presentation = None
-
-        return self
-
-    def __init__(self, relation: RelationalAlgebraTerm):
-        super().__init__()
-        self.relation = relation
-
-    def update_presentation(self, recursive=True) -> None:
-        if recursive:
-            self.relation.update_presentation(recursive)
-
-        arithmetic = deepcopy(self.arithmetic)
-        R0 = get_unique_id(arithmetic.get_relation_symbols(), 1)
-        psi_R0 = R0 + '(' + ','.join(self.relation.get_variables()) + ')'
-        phi = f'not ({psi_R0})'
-        arithmetic.update(**{R0: self.relation.evaluate()})
-        self.presentation = arithmetic.evaluate(phi)
-
-    def get_variables(self) -> List[str]:
-        return self.relation.get_variables()
-
-
-class DropRATerm(RelationalAlgebraTerm):
-    """
-    Relation of the shape :math:`\\{(x_1,...,x_n) | (x_1,...,x_n,y_1,...,y_m) \\in R\\}` where :math:`y_1,\\ldots,y_m`
-    are the dropped variables.
-    """
-
-    def _substitute_inplace(self, allow_collision: bool = False, **kwargs) -> None:
-        kwrec = copy(kwargs)
-        for x in self.variables:
-            if x in kwargs:
-                del kwrec[x]
-
-        if not allow_collision:
-            for i, v in enumerate(self.variables):
-                if str(v) in kwargs.values():
-                    v_new = get_unique_id(self.relation.get_variables(), 1)
-                    self.variables[i] = v_new
-                    self.relation._substitute_inplace(**{str(v): v_new})
-
-        self.relation._substitute_inplace(**kwrec)
-        self.presentation = None
-
-        return self
-
-    def update_presentation(self, recursive: bool = True) -> None:
-        if recursive:
-            self.relation.update_presentation()
-
-        ex_args = ' '.join(self.variables)
-        R_args = ','.join(self.relation.get_variables())
-        arithmetic = deepcopy(self.arithmetic)
-        R0 = get_unique_id(arithmetic.get_relation_symbols(), 1)
-
-        phi = f'exists {ex_args}.({R0}({R_args}))'
-        arithmetic.update(**{R0: self.relation.evaluate()})
-        self.presentation = arithmetic.evaluate(phi)
-
-    def get_variables(self) -> List[str]:
-        result = [v for v in self.relation.get_variables() if v not in self.variables]
-        result.sort()
-        return result
-
-    def __init__(self, relation, variables):
-        super().__init__()
-        self.relation = relation
-        self.variables = [
-            str(x) for x in variables
-        ]
-
-
-class ElementaryTerm(Term, ABC):
-    """
-    Elementary term. These terms are evaluated in the base structure, i.e. the yield integers.
-    """
-    @classmethod
-    def to_term(self, x: Union[str, int, ElementaryTerm]) -> ElementaryTerm:
-        """
-        Classmethod for converting str and int into variables and constants, respectively.
-
-        :param x: The input parameter
-        :return: the term tht presents x
-        """
-        return VariableETerm(x) if isinstance(x, str) else ConstantETerm(x) if isinstance(x, int) else x
-
-    def __init__(self):
-        super().__init__()
-        self.presentation = None
-
-    def eq(self, other: ElementaryTerm) -> BaseRATerm:
-        """
-        Creates the relation :math:`\\textrm{self} == \\textrm{other}`.
-
-        :param other: the rhs of the equality
-        :return:
-        """
-        return BaseRATerm('Eq', [self, other])
-
-    def lt(self, other) -> BaseRATerm:
-        """
-        Creates the relation :math:`\\textrm{self} < \\textrm{other}`.
-
-        :param other: The term on the rhs
-        :return:
-        """
-        return BaseRATerm('Lt', [self, other])
-
-    def gt(self, other) -> BaseRATerm:
-        """
-        Creates the relation :math:`\\textrm{other} < \\textrm{self}`.
-
-        :param other: The term on the lhs
-        :return:
-        """
-        return BaseRATerm('Gt', [self, other])
-
-    def evaluate(self) -> SparseDFA:
-        if self.presentation is None:
-            self.update_presentation()
-
-        return self.presentation
-
-    def __add__(self, other) -> AdditionETerm:
-        """
-        Creates the term :math:`\textrm{self} + \\textrm{other}`.
-
-        :param other:
-        :return:
-        """
-        if isinstance(other, int):
-            other = ConstantETerm(other)
-
-        return AdditionETerm(self, other)
-
-    def __radd__(self, other):
-        """
-        Creates a term that is equivalent to :math:`\\textrm{other} + \textrm{self}`. Uses commutativity.
-
-        :param other:
-        :return:
-        """
-        return self.__add__(other)
-
-    def __neg__(self):
-        """
-        Creates the term :math:`-\\textrm{self}`.
-
-        :return:
-        """
-        return NegatedETerm(self)
-
-    def __sub__(self, other):
-        """
-        Creates the term :math:`\\textrm{self} + (-\\textrm{other})`.
-
-        :param other:
-        :return:
-        """
-        return self + (-other)
-
-    def __rsub__(self, other):
-        """
-        creates the term :math:`\\textrm{other} + (-\\textrm{self})`.
-
-        :param other:
-        :return:
-        """
-        return other + (-self)
-
-    def __mul__(self, other) -> AdditionETerm:
-        """
-        Creates a term that is equivalent to :math:`\\textrm{self}\\cdot \\textrm{other}` in linear arithmetic.
-        Note that other needs to be a constant.
-        The method creates a nested addition and guarantees to create only :math:`O(\\log_2(\\textrm{other}))`
-        many distinct terms on object level.
-
-        :param other: The constant to multiply with
-        :return: term that expresses the other-fold summation of self
-        """
-        if isinstance(other, int):
-            # Reduce number of unique terms by base 2 decomposition
-            positive = (other >= 0)
-            other = abs(other)
-            if other == 0:
-                n_bits = 1
-            else:
-                n_bits = math.floor(math.log(other, 2)) + 1
-            power_multiples = None
-            term = None
-            for _ in range(n_bits):
-                if power_multiples is None:
-                    power_multiples = [self]
-                else:
-                    power_multiples.append(power_multiples[-1] + power_multiples[-1])
-                if other % 2 == 1:
-                    if term is None:
-                        term = power_multiples[-1]
-                    else:
-                        term = term + power_multiples[-1]
-                    other = int((other - 1) / 2)
-                else:
-                    other = int(other / 2)
-
-            if positive:
-                return term
-            else:
-                return -term
-        else:
-            raise ValueError('Can multiply only with natural numbers')
-
-    def __rmul__(self, other):
-        """
-        Creates a term equivalent to :math:`other \\cdot self`. Uses commutativity.
-
-        :param other: The Constant to multiply
-        :return:
-        """
-        return self.__mul__(other)
-
-    def __or__(self, other):
-        """
-        creates a relational algebra term that represents self | other. The semantics of | is given as :math:`x | y` iff
-        :math:`y = 2^n` for some :math:`n` and :math:`y` divides :math:`x`.
-
-        :param other:
-        :return:
-        """
-        if isinstance(other, int):
-            other = ConstantETerm(other)
-        return BaseRATerm(relation_symbol="B", terms=[self, other])
-
-    @abstractmethod
-    def update_presentation(self, recursive: bool = True, **kwargs) -> None:
-        raise NotImplementedError
-
-
-class ConstantETerm(ElementaryTerm):
-    def _substitute_inplace(self, allow_collision: bool = False, **kwargs):
-        return self
-
-    def get_variables(self) -> List[str]:
-        return []
-
-    def update_presentation(self, recursive=True, **kwargs) -> None:
-        self.presentation = lsbf_Z_automaton(self.n)
-
-    def __init__(self, n: int):
-        super().__init__()
-        self.n = n
-
-    def __hash__(self):
-        return self.n
-
-
-class VariableETerm(ElementaryTerm):
-    def _substitute_inplace(self, allow_collision: bool = False, **kwargs) -> VariableETerm:
-        return self
-
-    def update_presentation(self, recursive=True, **kwargs) -> None:
-        arithmetic = deepcopy(self.arithmetic)
-        self.presentation = arithmetic.automata['Eq']
-
-    def get_variables(self) -> List[str]:
-        return [self.get_name()]
-
-    def get_name(self) -> str:
-        return self.name
-
-    def __eq__(self, other) -> bool:
-        """
-        equality is based on the name of the variable.
-
-        :param other: The other Variable
-        :return:
-        """
-        if isinstance(other, VariableETerm):
-            return self.name == other.name
-        elif isinstance(str):
-            return self.name == other
-        else:
-            return False
-
-    def __init__(self, name: str):
-        """
-        Initialization.
-
-        :param name: The name of the variable
-        """
-        super().__init__()
-        self.name = name
-
-    def __hash__(self):
-        return int.from_bytes(self.name.encode(), 'little')
-
-    def __str__(self):
-        return self.name
-
-class NegatedETerm(ElementaryTerm):
-    def __init__(self, term: ElementaryTerm):
-        super().__init__()
-        self.subterm = term
-
-    def update_presentation(self, recursive: bool = True, **kwargs) -> None:
-        if recursive:
-            self.subterm.update_presentation(recursive)
-
-        arithmetic = deepcopy(self.arithmetic)
-        T = get_unique_id(arithmetic.get_relation_symbols())
-        input_args = self.subterm.get_variables()
-        y, t = get_unique_id(input_args, 2)
-
-        if not isinstance(self.subterm, VariableETerm):
-            tau = T + '(' + ','.join(input_args + [t]) + ')'
-            phi = f'exists {t}.({tau} and Neg({t}, {y}))'
-        else:
-            phi = 'Neg(x, y)'
-
-        arithmetic.update(**{T: self.subterm.evaluate()})
-
-        self.presentation = arithmetic.evaluate(phi)
-
-    def get_variables(self) -> List[str]:
-        return self.subterm.get_variables()
-
-    def _substitute_inplace(self, allow_collision: bool = False, **kwargs) -> Term:
-        return self.subterm._substitute_inplace(self, allow_collision, **kwargs)
-
-
-class AdditionETerm(ElementaryTerm):
-    def _substitute_inplace(self, allow_collision: bool = False, **kwargs) -> AdditionETerm:
-        kwargs = {
-            str(x): ElementaryTerm.to_term(kwargs[x]) for x in kwargs
-        }
-        if str(self.left) in kwargs:
-            self.left = kwargs[str(self.left)]
-        else:
-            self.left._substitute_inplace(allow_collision, **kwargs)
-
-        if str(self.right) in kwargs:
-            self.right = kwargs[str(self.right)]
-        else:
-            self.right._substitute_inplace(allow_collision, **kwargs)
-
-        self.presentation = None
-
-        return self
-
-    def update_presentation(self, recursive=True, **kwargs) -> None:
-        if recursive:
-            self.left.update_presentation()
-            self.right.update_presentation()
-
-        left_is_var = isinstance(self.left, VariableETerm)
-        right_is_var = isinstance(self.right, VariableETerm)
-
-        phi = 'A({}, {}, {})'
-
-        x0, y0, z = get_unique_id(self.get_variables(), 3)
-        arithmetic = deepcopy(self.arithmetic)
-        R0, R1 = get_unique_id(arithmetic.get_relation_symbols(), 2)
-
-        if left_is_var:
-            x = self.left.get_name()
-        else:
-            x = x0
-            left_vars = self.left.get_variables()
-            left_vars.sort()
-            args = ','.join(left_vars + [x0])
-            psi = f'{R0}({args})'
-
-            phi = f'exists {x0}.({psi} and {phi})'
-
-        if right_is_var:
-            y = self.right.get_name()
-        else:
-            y = y0
-            right_vars = self.right.get_variables()
-            right_vars.sort()
-            args = ','.join(right_vars + [y0])
-            psi = f"{R1}({args})"
-
-            phi = f'exists {y0}.({psi} and {phi})'
-
-        phi = phi.format(x, y, z)
-        arithmetic = deepcopy(self.arithmetic)
-        updates = {R0: self.left.evaluate(), R1: self.right.evaluate()}
-        arithmetic.update(**updates)
-        self.presentation = arithmetic.evaluate(
-            phi
-        )
-
-    def get_variables(self) -> List[str]:
-        """
-        Get ordered list of all free variables in the term.
-
-        :return:
-        """
-        result = list(set(self.left.get_variables() + self.right.get_variables()))
-        result.sort()
-        return result
-
-    def __eq__(self, other) -> bool:
-        if isinstance(other, AdditionETerm):
-            return self.left == other.left and self.right == other.right
-        else:
-            return False
-
-    def __init__(self, left: ElementaryTerm, right: ElementaryTerm):
-        super().__init__()
-        self.left = left
-        self.right = right

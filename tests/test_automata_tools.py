@@ -8,10 +8,12 @@ import itertools as it
 import random
 
 import numpy as np
+import pytest
 
 from autstr.sparse_automata import SparseDFA
 from autstr.utils.automata_tools import (
-    expand, pad, permute_tapes, projection, unpad,
+    expand, fold_tapes, pad, partial_dfa, permute_tapes, projection,
+    shortlex_order, unpad,
 )
 
 
@@ -155,3 +157,112 @@ class TestScratchStoreCollection:
                 assert swept.num_states == plain.num_states, (trial, tape)
                 for word in words(m, MAX_LENGTH):
                     assert run(swept, word) == run(plain, word), (trial, tape)
+
+
+class TestFoldTapes:
+    """Grouping every k tapes into one product-alphabet tape must preserve the
+    accepted language. Contiguous mixed-radix grouping means a symbol's integer
+    code is unchanged by the fold, so the folded automaton run on the same
+    codes must agree with the original — a real test where m is not a power of
+    two, since then the diagram is genuinely rebuilt over fewer bits."""
+
+    def test_preserves_the_language(self):
+        # the alphabet grows as m**(k*r), so sample words rather than enumerate
+        rng = random.Random(2024)
+        for _ in range(30):
+            m = rng.randint(2, 3)                 # 3 is not a power of two
+            k = rng.randint(2, 3)
+            r = rng.randint(1, 2)
+            arity = k * r
+            symbols = m ** arity
+            dfa = random_dfa(rng, rng.randint(1, 4), m, arity)
+            folded = fold_tapes(dfa, k)
+            assert folded.symbol_arity == r
+            # a contiguous mixed-radix regroup leaves the integer code unchanged
+            for _ in range(60):
+                word = [rng.randrange(symbols)
+                        for _ in range(rng.randint(0, 5))]
+                assert run(folded, word) == run(dfa, word), (m, k, r, word)
+
+    def test_k_one_is_a_noop_on_the_language(self):
+        rng = random.Random(5)
+        dfa = random_dfa(rng, 3, 3, 2)
+        assert fold_tapes(dfa, 1).symbol_arity == 2
+
+    def test_arity_must_be_divisible(self):
+        rng = random.Random(6)
+        dfa = random_dfa(rng, 2, 2, 3)
+        with pytest.raises(ValueError, match="multiple"):
+            fold_tapes(dfa, 2)
+
+
+class TestShortlexOrder:
+    """x <= y in shortlex order: shorter words first, ties by the alphabet's
+    order, trailing padding ignored. Length is the primary key, so a
+    lexicographic verdict must stay overridable by a later length difference."""
+
+    def test_matches_the_reference(self):
+        PAD = 0
+        def reference(x, y):
+            sx = list(x)
+            while sx and sx[-1] == PAD:
+                sx.pop()
+            sy = list(y)
+            while sy and sy[-1] == PAD:
+                sy.pop()
+            if len(sx) != len(sy):
+                return len(sx) < len(sy)
+            return sx <= sy
+
+        rng = random.Random(0)
+        for _ in range(25):
+            m = rng.randint(2, 4)
+            letters = list(range(1, m + 1))          # 1..m real; 0 is padding
+            order = shortlex_order(set(letters) | {PAD}, PAD)
+            for _ in range(200):
+                x = [rng.choice(letters) for _ in range(rng.randint(0, 5))]
+                y = [rng.choice(letters) for _ in range(rng.randint(0, 5))]
+                n = max(len(x), len(y))
+                conv = list(zip(x + [PAD] * (n - len(x)),
+                                y + [PAD] * (n - len(y))))
+                assert order.accepts(conv) == reference(x, y), (x, y)
+
+    def test_length_dominates_lexicographic(self):
+        # [b] vs [a, a] with a < b: the shorter [b] must be the smaller, even
+        # though b > a lexicographically at the first position
+        order = shortlex_order({0, 1, 2}, 0)          # 0 pad, letters 1, 2
+        assert order.accepts([(2, 1), (0, 1)])        # [2] < [1,1]  (shorter)
+        assert not order.accepts([(1, 1), (1, 0)])    # [1,1] not <= [1]
+
+
+class TestPartialDFA:
+    """A transition table with the rejecting majority left out."""
+
+    def test_unlisted_symbols_reject(self):
+        # accepts exactly the word 'ab' over {a, b}
+        dfa = partial_dfa({'a', 'b'}, 1,
+                          {'0': {('a',): '1'}, '1': {('b',): '2'}, '2': {}},
+                          initial='0', final={'2'})
+        assert dfa.accepts([('a',), ('b',)])
+        for word in [[], [('a',)], [('b',), ('a',)], [('a',), ('b',), ('a',)]]:
+            assert not dfa.accepts(word), word
+
+    def test_a_product_alphabet_needs_only_the_listed_pairs(self):
+        # the diagonal over a 3-letter alphabet: 3 entries, not 9
+        letters = {'a', 'b', 'c'}
+        table = {'s': {(letter, letter): 's' for letter in letters}}
+        diagonal = partial_dfa(letters, 2, table, 's', {'s'})
+        assert diagonal.accepts([('a', 'a'), ('c', 'c')])
+        assert not diagonal.accepts([('a', 'a'), ('c', 'b')])
+
+    def test_an_unreachable_start_state_is_rejected(self):
+        with pytest.raises(ValueError, match="start state"):
+            partial_dfa({'a'}, 1, {'s': {}}, initial='t', final={'s'})
+
+    def test_a_target_without_a_row_is_rejected(self):
+        with pytest.raises(ValueError, match="without a row"):
+            partial_dfa({'a'}, 1, {'s': {('a',): 'gone'}}, 's', {'s'})
+
+    def test_an_accepting_state_without_a_row_is_rejected(self):
+        with pytest.raises(ValueError, match="without a row"):
+            partial_dfa({'a'}, 1, {'s': {}}, 's', {'other'})

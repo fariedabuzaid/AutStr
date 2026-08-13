@@ -1,149 +1,255 @@
-from autstr.arithmetic import VariableETerm as Var
+"""Büchi arithmetic through the symbolic interface."""
+from itertools import islice
 
-class TestArithmetic:
-    def test_neg(self):
-        x = Var('x')
-        y = Var('y')
+import pytest
 
-        expr = (-x).eq(y)
+from autstr.arithmetic import BuechiArithmetic, BuechiArithmeticZ
+from autstr.powerset import MSO0
 
-        assert not (expr.isfinite())
-        assert not (expr.isempty())
+encode, decode = BuechiArithmeticZ.encode, BuechiArithmeticZ.decode
 
-        for a, b in expr:
-            if a > 10:
-                break
 
-            b0 = -a
-            assert b0 == b
+@pytest.fixture(scope='module')
+def Z():
+    return BuechiArithmeticZ().symbolic()
 
-    def test_add(self):
-        x = Var('x')
-        y = Var('y')
-        z = Var('z')
 
-        expr = (x + y).eq(z)
+@pytest.fixture(scope='module')
+def N():
+    return BuechiArithmetic().symbolic()
 
-        assert not (expr.isfinite())
-        assert not (expr.isempty())
 
-        for a, b, c in expr:
-            if c > 10:
-                break
+@pytest.fixture(scope='module')
+def sets():
+    return MSO0().symbolic()
 
-            cp = a + b
-            assert (cp == c)
 
-    def test_mul(self):
-        x = Var('x')
-        y = Var('y')
+def bounded(formula, limit=6):
+    """Solutions whose entries all stay within +/- limit, taken from a prefix
+    of the length-lexicographic enumeration."""
+    return [t for t in islice(iter(formula), 400)
+            if all(abs(v) <= limit for v in t)]
 
-        expr = (2 * x).eq(y)
 
-        assert not (expr.isfinite())
-        assert not (expr.isempty())
+# ----------------------------------------------------------------------
+# encoding
+# ----------------------------------------------------------------------
 
-        for a, b in expr:
-            if a > 5:
-                break
+@pytest.mark.parametrize('n', [0, 1, 2, 7, 8, 255, -1, -2, -9, -256])
+def test_encode_decode_roundtrip(n):
+    assert decode(encode(n)) == n
 
-            bp = 2 * a
-            assert (bp == b)
 
-    def test_sub(self):
-        x = Var('x')
-        y = Var('y')
-        z = Var('z')
+def test_decode_ignores_padding():
+    assert decode(encode(13) + ['*', '*']) == 13
 
-        expr = (x - y).eq(z)
 
-        assert not (expr.isfinite())
-        assert not (expr.isempty())
+# ----------------------------------------------------------------------
+# terms
+# ----------------------------------------------------------------------
 
-        for a, b, c in expr:
-            if a > 10:
-                break
+def test_addition(Z):
+    x, y, z = Z.vars('x y z')
+    formula = (x + y).eq(z)
+    assert not formula.is_empty()
+    assert not formula.is_finite()
+    for a, b, c in bounded(formula):
+        assert a + b == c
 
-            c0 = a - b
-            assert (c0 == c)
 
-    def test_lt(self):
-        x = Var('x')
+def test_negation(Z):
+    x, y = Z.vars('x y')
+    formula = (-x).eq(y)
+    for a, b in bounded(formula):
+        assert b == -a
 
-        expr = x.lt(10)
 
-        assert not (expr.isfinite())
-        assert not (expr.isempty())
+def test_subtraction(Z):
+    x, y, z = Z.vars('x y z')
+    for a, b, c in bounded((x - y).eq(z)):
+        assert a - b == c
 
-        for a, in expr:
-            condition = a < 10
-            assert (condition)
-            if abs(a) > 5:
-                break
 
-    def test_composite_relations(self):
-        x = Var('x')
-        y = Var('y')
-        z = Var('z')
+def test_integer_multiple(Z):
+    x, y = Z.vars('x y')
+    for a, b in bounded((2 * x).eq(y)):
+        assert b == 2 * a
 
-        constrains = (x + y).eq(z)
 
-        assert not (constrains.isfinite())
-        assert not (constrains.isempty())
+def test_larger_integer_multiple(Z):
+    x, y = Z.vars('x y')
+    relation = x.times(11).eq(y).evaluate()
+    assert relation.contains(x=3, y=33)
+    assert not relation.contains(x=3, y=32)
 
-        for a, b, c in constrains:
-            condition = a + b == c
-            assert (condition)
 
-            if max([a, b, c]) > 3:
-                break
+def test_python_integers_are_constants(Z):
+    x, = Z.vars('x')
+    formula = x.lt(10)
+    assert not formula.is_empty()
+    assert not formula.is_finite()
+    for (a,) in bounded(formula):
+        assert a < 10
 
-        constrains = constrains & z.gt(0) & z.lt(3)
-        assert not (constrains.isfinite())
-        assert not (constrains.isempty())
 
-        for a, b, c in constrains:
-            condition = (a + b == c) and (c > 0) and (c < 3)
-            assert (condition)
+# ----------------------------------------------------------------------
+# relations
+# ----------------------------------------------------------------------
 
-            if abs(max([a, b])) > 3:
-                break
+def test_order(Z):
+    x, y = Z.vars('x y')
+    relation = x.lt(y).evaluate()
+    assert relation.contains(x=-3, y=2)
+    assert not relation.contains(x=2, y=-3)
+    assert not relation.contains(x=2, y=2)
 
-        constrains = constrains.drop(['z'])
 
-        for a, b in constrains:
-            condition = 0 < a + b < 3
-            assert (condition)
+def test_power_of_two_divisibility(Z):
+    x, y = Z.vars('x y')
+    relation = x.divided_by_power(y).evaluate()
+    assert relation.contains(x=12, y=4)     # 4 = 2^2 divides 12
+    assert not relation.contains(x=12, y=8)  # 8 does not divide 12
+    assert not relation.contains(x=12, y=3)  # 3 is not a power of two
 
-            if abs(max([a, b])) > 3:
-                break
 
-        constrains = ~constrains
+def test_relations_reachable_by_name(Z):
+    x, = Z.vars('x')
+    N0 = Z.rel('N0')
+    relation = N0(x).evaluate()
+    assert relation.contains(x=5)
+    assert not relation.contains(x=-5)
 
-        for a, b in constrains:
-            condition = 0 >= a + b or a + b >= 3
-            assert (condition)
 
-            if abs(max([a, b])) > 3:
-                break
+# ----------------------------------------------------------------------
+# relational algebra
+# ----------------------------------------------------------------------
 
-    def test_exinf(self):
-        x = Var('x')
-        y = Var('y')
+def test_conjunction_and_projection(Z):
+    x, y, z = Z.vars('x y z')
+    constraints = (x + y).eq(z) & z.gt(0) & z.lt(3)
+    for a, b, c in bounded(constraints):
+        assert a + b == c and 0 < c < 3
 
-        expr = x.eq(y).exinf('y')
-        assert (expr.isempty())
+    projected = constraints.drop(['z'])
+    assert projected.variables() == ['x', 'y']
+    for a, b in bounded(projected):
+        assert 0 < a + b < 3
 
-        expr = x.lt(y).exinf('y')
-        assert not (expr.isempty())
-        assert not (expr.isfinite())
+    for a, b in bounded(~projected):
+        assert not 0 < a + b < 3
 
-    def test_contains(self):
-        x = Var('x')
-        y = Var('y')
-        z = Var('z')
 
-        expr = (x + y).eq(z)
-        assert ((1, 1, 2) in expr)
-        assert not ((10, 2, 13) in expr)
+def test_membership(Z):
+    x, y, z = Z.vars('x y z')
+    formula = (x + y).eq(z)
+    assert (1, 1, 2) in formula
+    assert (10, 2, 13) not in formula
+    assert formula.contains(x=10, y=2, z=12)
 
+
+def test_exinf(Z):
+    x, y = Z.vars('x y')
+    # exactly one y equals each x
+    assert x.eq(y).exinf('y').is_empty()
+    # unboundedly many exceed it
+    assert not x.lt(y).exinf('y').is_empty()
+
+
+def test_universal_quantification(Z):
+    x, y = Z.vars('x y')
+    assert (x + y).eq(0).drop(y).all(x).check()      # every integer has an inverse
+    assert x.lt(y).implies(~y.lt(x)).all([x, y]).check()
+
+
+def test_finiteness_is_about_tuples(Z):
+    x, y = Z.vars('x y')
+    assert (x.eq(3) & y.eq(4)).is_finite()
+    assert (x.gt(0) & x.lt(5)).is_finite()
+    assert not x.lt(y).is_finite()
+
+
+def test_enumeration_yields_integers(Z):
+    x, y = Z.vars('x y')
+    formula = (x + y).eq(4) & x.gt(0) & x.lt(y)
+    assert sorted(islice(iter(formula), 5)) == [(1, 3)]
+
+
+# ----------------------------------------------------------------------
+# the naturals: the same interface, without negation
+# ----------------------------------------------------------------------
+
+@pytest.mark.parametrize('n', [0, 1, 2, 7, 8, 255])
+def test_natural_encode_decode_roundtrip(n):
+    assert BuechiArithmetic.decode(BuechiArithmetic.encode(n)) == n
+
+
+def test_naturals_reject_negatives():
+    with pytest.raises(ValueError):
+        BuechiArithmetic.encode(-1)
+
+
+def test_naturals_add(N):
+    x, y = N.vars('x y')
+    relation = (x + y).eq(12).evaluate()
+    assert relation.contains(x=5, y=7)
+    assert not relation.contains(x=5, y=8)
+
+
+def test_naturals_have_a_least_element(N):
+    x, y = N.vars('x y')
+    # unbounded above, but 0 has nothing below it -- the difference from Z
+    assert x.lt(y).drop(y).all(x).check()
+    assert not y.lt(x).drop(y).all(x).check()
+
+
+# ----------------------------------------------------------------------
+# MSO0: finite sets as Python sets
+# ----------------------------------------------------------------------
+
+@pytest.mark.parametrize('s', [set(), {0}, {1}, {0, 2}, {0, 1, 2}, {5}])
+def test_set_encode_decode_roundtrip(s):
+    assert MSO0.decode(MSO0.encode(s)) == s
+
+
+def test_set_encoding_is_canonical():
+    # the universe rejects trailing zeros, so {0} is `1`, not `100`
+    assert MSO0.encode({0}) == ['1']
+    assert MSO0.encode({0, 2}) == ['1', '0', '1']
+    assert MSO0.encode(set()) == []
+
+
+def test_set_operations(sets):
+    x, y, z = sets.vars('x y z')
+    assert ({0, 1}, {1, 2}, {0, 1, 2}) in (x + y).eq(z)      # union
+    assert ({0, 1}, {1, 2}, {1}) in (x * y).eq(z)            # intersection
+    assert ({0, 1}, {1, 2}, {0}) in (x - y).eq(z)            # difference
+
+
+def test_subset_and_singletons(sets):
+    x, y = sets.vars('x y')
+    assert ({0, 2}, {0, 1, 2}) in x.subset(y)
+    assert ({0, 2}, {0, 1}) not in x.subset(y)
+    assert ({1},) in x.sing()
+    assert ({0, 1},) not in x.sing()
+    assert ({1}, {0, 1, 2}) in x.member_of(y)
+
+
+def test_enumeration_yields_sets(sets):
+    x, y = sets.vars('x y')
+    solutions = list(islice(iter((x + y).eq({0, 1}) & x.subset(y)), 3))
+    assert all(isinstance(a, set) and a | b == {0, 1} for a, b in solutions)
+
+
+def test_min_and_max_are_empty_on_the_empty_set(sets):
+    """The empty set has no least or greatest member, so both relations are
+    empty there. This is pinned because the formula used to carry a disjunct
+    claiming to handle the case, which no set could satisfy: `Subset` is
+    reflexive, so `forall z. not Subset(z, x)` fails at z = x."""
+    x, y = sets.vars('x y')
+    Min, Max = sets.rel('Min'), sets.rel('Max')
+
+    assert (x.eq(set()) & Min(x, y)).is_empty()
+    assert (x.eq(set()) & Max(x, y)).is_empty()
+    # and they still name the least and greatest member of a nonempty set
+    assert ({1, 3}, {1}) in Min(x, y)
+    assert ({1, 3}, {3}) in Max(x, y)

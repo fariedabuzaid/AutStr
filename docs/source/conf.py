@@ -59,6 +59,10 @@ _media_dst.mkdir(exist_ok=True)
 for _img in sorted((_here.parent / 'media').glob('*.png')):
     shutil.copyfile(_img, _media_dst / _img.name)
 
+# Copy the changelog into the source tree so it has a page of its own; it
+# lives at the repository root, where GitHub and PyPI look for it.
+shutil.copyfile(_here.parent.parent / 'CHANGELOG.md', _here / 'changelog.md')
+
 nb_execution_mode = 'force'
 nb_execution_timeout = 900
 nb_execution_raise_on_error = True
