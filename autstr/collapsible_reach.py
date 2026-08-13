@@ -644,23 +644,162 @@ class Relations:
                     table[('same', None, labels)] = 'accept'
         return partial_tree_automaton(self.alphabet, 4, table, {'accept'})
 
-    def without_scaffolding(self, checker: SparseTreeAutomaton
-                            ) -> SparseTreeAutomaton:
+    def without_scaffolding(self, checker: SparseTreeAutomaton,
+                            annotated: int = 0) -> SparseTreeAutomaton:
         """A four-tape checker as a relation on two configurations.
 
         The annotation is required to be the real one — that is what the
         annotation automaton says — and then both it and the guess are
         quantified away, leaving the alphabet to be narrowed back to the one
         the configurations are written in.
+
+        :param annotated: which configuration the annotation belongs to. The
+            words a run passes through are those of the *longer* of the two,
+            which is the first tape where letters come off and the second
+            where they go on.
         """
         from autstr.utils.tree_automata_tools import (
             attach_padding, expand, minimize, project, restrict_alphabet,
         )
         annotated = minimize(expand(minimize(attach_padding(
-            self.annotation.automaton(self.alphabet), PAD)), 4, [0, 2]))
+            self.annotation.automaton(self.alphabet), PAD)), 4,
+            [annotated, 2]))
         result = minimize(minimize(
             attach_padding(checker, PAD)).intersection(annotated))
         for tape in (3, 2):
             result = minimize(attach_padding(
                 project(result, tape, PAD), PAD))
         return restrict_alphabet(result, self.encoding.alphabet)
+
+    def looping(self, annotation: str, guess: str) -> bool:
+        """Whether the guess is a high loop of the word this node names."""
+        pair = self.guessed(guess)
+        summary = self.summary_of(annotation)
+        return pair is not None and summary is not None and \
+            pair in summary.hloop
+
+    def push_moves(self, annotation: str, label: str) -> Relation:
+        """The transitions that write `label` on a stack whose topmost word is
+        the one `annotation` names.
+
+        A pop is guarded by the letter it takes off, so a node can check it
+        alone; a push is guarded by the letter already on top, which is the one
+        *above* the letter written — and which is not this node's label when
+        the letter goes below a separator. The summary knows it either way: it
+        carries the topmost symbol of the word it names.
+        """
+        summary = self.summary_of(annotation)
+        written, _, level = label.rpartition(':')
+        if summary is None or summary.symbol is None or not level.isdigit():
+            return frozenset()
+        return self.summaries.moves(summary.symbol,
+                                    ('push', written, int(level)))
+
+    def c(self) -> SparseTreeAutomaton:
+        """``C``: the topmost word gains letters, and the run never dips below
+        where it started.
+
+        B read backwards, and the same tree shape with the two configurations
+        exchanged: the second one's last path is longer by a tail, and the
+        first carries the one separator the second loses. The run is a high
+        loop and a push at each letter gained — the loop belonging to the node
+        that names its word, the push to the node above, which is where the
+        letter it writes is still on top.
+        """
+        table = {}
+        annotations = list(self.annotation.names.values())
+        marks = [(label, annotation)
+                 for label in self.encoding.nodes for annotation in annotations]
+        letters = [label for label in self.encoding.letters]
+        states = self.system.states
+
+        def chain(kind, label, first, final):
+            return f'{kind}|{label}|{first}|{final}'
+
+        for label, annotation in marks:
+            for left in (None, 'same'):
+                for right in (None, 'same'):
+                    table[(left, right, (label, label, annotation, self.NONE))] \
+                        = 'same'
+        # the separator the first tree carries, where its last word ends, and
+        # the one the second loses
+        table[(None, None, (SEP, PAD, PAD, self.NONE))] = 'added'
+        for annotation in annotations:
+            table[(None, None, (PAD, SEP, annotation, self.NONE))] = 'cut'
+
+        # a letter the run pushes. The node checks the high loop of its own
+        # word; the push that put the letter there is checked by its parent.
+        for label, annotation in marks:
+            if label not in letters:
+                continue
+            for guess in self.guesses:
+                if not self.looping(annotation, guess):
+                    continue
+                first, last = self.guessed(guess)
+                symbols = (PAD, label, annotation, guess)
+                table[(None, None, symbols)] = chain('chain', label, first, last)
+                table[('cut', None, symbols)] = \
+                    chain('cutchain', label, first, last)
+                for below in letters:
+                    moves = self.push_moves(annotation, below)
+                    for entered, final in moves:
+                        if entered != last:
+                            continue
+                        for kind in ('chain', 'cutchain'):
+                            for deepest in states:
+                                table[(chain(kind, below, final, deepest), None,
+                                       symbols)] = \
+                                    chain(kind, label, first, deepest)
+
+        # a separator the second tree loses, on the way down the tail
+        for annotation in annotations:
+            symbols = (PAD, SEP, annotation, self.NONE)
+            for label in letters:
+                for first in states:
+                    for final in states:
+                        table[(chain('chain', label, first, final), None,
+                               symbols)] = chain('cutchain', label, first, final)
+                        table[(None, chain('chain', label, first, final),
+                               symbols)] = chain('cutchain', label, first, final)
+
+        # where the tail begins: one more high loop, then the push that starts
+        # it -- both belonging to this node, which both trees keep
+        for label, annotation in marks:
+            summary = self.summary_of(annotation)
+            plain = (label, label, annotation, self.NONE)
+            for below in letters:
+                moves = self.push_moves(annotation, below)
+                for entered, final in moves:
+                    for start in states:
+                        if (start, entered) not in summary.hloop:
+                            continue
+                        for kind, done in (('chain', 'done'),
+                                           ('cutchain', 'cutdone')):
+                            for deepest in states:
+                                source = chain(kind, below, final, deepest)
+                                target = f'{done} {start} {deepest}'
+                                table[(source, None, plain)] = target
+                                table[('same', source, plain)] = target
+                                table[(None, source, plain)] = target
+            for first in states:
+                for final in states:
+                    for kind in ('done', 'cutdone'):
+                        below_state = f'{kind} {first} {final}'
+                        table[(below_state, None, plain)] = below_state
+                        table[('same', below_state, plain)] = below_state
+                        table[(None, below_state, plain)] = below_state
+                    grown = f'grown {first} {final}'
+                    table[(f'cutdone {first} {final}', 'added', plain)] = grown
+                    table[(grown, None, plain)] = grown
+                    table[('same', grown, plain)] = grown
+                    table[(None, grown, plain)] = grown
+
+        for source in states:
+            for target in states:
+                labels = (f'<{source}>', f'<{target}>', Annotation.START,
+                          self.NONE)
+                for kind in ('done', 'grown'):
+                    table[(f'{kind} {source} {target}', None, labels)] = 'accept'
+                if source == target:
+                    table[('same', None, labels)] = 'accept'
+        return partial_tree_automaton(self.alphabet, 4, table, {'accept'})

@@ -568,3 +568,91 @@ class TestRelationB:
         assert not self.holds(relations, relation,
                               Configuration('0', tall),
                               Configuration('0', Stack((tall.words[0],))))
+
+
+def c_oracle(system, source, target, bound=3000):
+    """``C``: a run to a longer topmost word that never dips below where it
+    started."""
+    if not drops_to(target.stack, source.stack):
+        return False
+    if source == target:
+        return True
+    forbidden = {stack for stack in substacks(source.stack)
+                 if stack != source.stack}
+    seen, frontier, steps = {source}, deque([source]), 0
+    while frontier and steps < bound:
+        configuration = frontier.popleft()
+        steps += 1
+        for _, successor in system.step(configuration):
+            if successor.stack in forbidden:
+                continue                        # never below where it started
+            if successor == target:
+                return True
+            if successor in seen:
+                continue
+            if successor.stack.width > 4 or \
+                    max(map(len, successor.stack.words)) > 6:
+                continue
+            seen.add(successor)
+            frontier.append(successor)
+    return False
+
+
+class TestRelationC:
+    """``C`` — the topmost word gains letters, and the run never dips below
+    where it started. B read backwards, with one asymmetry that matters: a pop
+    is guarded by the letter it removes, but a push by the letter already on
+    top, which is the one *above* the letter written."""
+
+    CASES = {
+        'push and pop back': [('0', None, 'u', '1', 'push a 1'),
+                              ('1', None, 'p', '0', 'pop 1')],
+        'a loop before each push': [('0', None, 'c', '1', 'clone'),
+                                    ('1', None, 'o', '0', 'pop 2'),
+                                    ('0', None, 'u', '2', 'push a 1'),
+                                    ('2', 'a', 'v', '0', 'push b 1')],
+    }
+
+    def relation(self, rules):
+        system = Level2CPS(rules, symbols=SYMBOLS)
+        relations = Relations(system)
+        return system, relations, relations.without_scaffolding(
+            relations.c(), annotated=1)
+
+    def holds(self, relations, relation, source, target):
+        return relation.accepts(convolve_trees(
+            [encode_configuration(source), encode_configuration(target)],
+            frozenset(relations.encoding.alphabet), PAD))
+
+    @pytest.mark.parametrize("case", sorted(CASES))
+    def test_against_the_search(self, case):
+        system, relations, relation = self.relation(self.CASES[case])
+        configurations = [Configuration(state, stack)
+                          for stack in walk_stacks(7, 8)
+                          for state in system.states]
+        for source in configurations:
+            for target in configurations:
+                assert self.holds(relations, relation, source, target) == \
+                    c_oracle(system, source, target), (source, target)
+
+    def test_it_is_reflexive(self):
+        system, relations, relation = self.relation(
+            self.CASES['push and pop back'])
+        for stack in walk_stacks(3, 6):
+            for state in system.states:
+                configuration = Configuration(state, stack)
+                assert self.holds(relations, relation, configuration,
+                                  configuration)
+
+    def test_a_letter_pushed_below_a_separator(self):
+        """The letter goes onto the last word, which the tree hangs under a
+        separator — so the symbol guarding the push is not the separator's but
+        the nearest letter above it, which the annotation knows."""
+        system, relations, relation = self.relation(
+            self.CASES['push and pop back'])
+        word = (Letter('⊥'), Letter('a'))
+        twice = Stack((word, word))
+        longer = Stack((word, word + (Letter('a'),)))
+        assert self.holds(relations, relation,
+                          Configuration('0', twice),
+                          Configuration('1', longer))
