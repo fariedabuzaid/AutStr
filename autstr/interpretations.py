@@ -22,20 +22,26 @@ engine minimizes away a sparse domain's redundancy) but a bounded ×k
 symbol-width overhead, intrinsic to representing tuples.
 
 Quotient interpretations (elements as classes of a definable equivalence) are
-supported at every dimension: pass ``quotient=ε``, and the universe is
-restricted to the shortlex-least representative of each class.
+supported at every dimension and on either engine: pass ``quotient=ε``, and the
+universe is restricted to one representative per class.
 
 **Both engines.** The source may be an `AutomaticPresentation` or a
 `TreeAutomaticPresentation`, and the result is a presentation of the same kind;
 the orchestration is identical because both engines encode a convolution letter
 the same way. Over trees an element of a k-dimensional interpretation is a
 k-tuple of trees, which *is* one tree over k-tuples — the same fold, since the
-tree convolution already overlays the shapes. Quotients are the exception: over
-trees the representatives exist and are regular, but reaching them takes a
-different construction from the string engine's "least element of the class",
-because no tree-automatic order is well-founded. Name the representatives with
-a formula and restrict the domain instead; `_quotient` says why in full, with
-the reference for building them properly.
+tree convolution already overlays the shapes.
+
+Only the choice of representative differs. Over words it is the shortlex-least
+element of the class, and shortlex is a well-order, so that element exists.
+Over trees no automatic order is well-founded — growing a tree at the position
+where two differ makes it *smaller* — so a class need have no least element at
+all, and the representative is instead the least *description*: a member that
+reaches only so far past the positions the whole class shares. That is Kuske
+and Weidner's construction; `_tree_representatives` gives it in full, including
+why the expensive half of their proof is not needed here. It is the one part of
+this module that can blow up — provably so — and it is worth passing
+``max_states`` to the source presentation before asking for a large one.
 """
 from __future__ import annotations
 
@@ -51,6 +57,7 @@ from autstr.utils.logic import get_free_elementary_vars
 #: structure and drops from the result
 _EQUIV = '_Equiv'
 _LE = '_Le'
+_REP = '_Rep'
 
 @dataclass(frozen=True)
 class _Engine:
@@ -67,9 +74,9 @@ class _Engine:
     permute_tapes: Callable
     fold_tapes: Callable
     presentation: Callable
-    #: a well-order on encodings, or None where the engine has none — the
-    #: quotient construction needs one to pick class representatives
-    well_order: Optional[Callable]
+    #: given the interpreted presentation carrying the equivalence as
+    #: `_EQUIV`, the automaton of one representative per class
+    representatives: Callable
 
 
 def _engine_for(source) -> _Engine:
@@ -83,7 +90,7 @@ def _engine_for(source) -> _Engine:
             presentation=lambda automata, padding: TreeAutomaticPresentation(
                 automata, padding_symbol=padding,
                 max_states=source.max_states),
-            well_order=None)
+            representatives=_tree_representatives)
 
     from autstr.utils import automata_tools as words
     return _Engine(
@@ -92,7 +99,7 @@ def _engine_for(source) -> _Engine:
         fold_tapes=words.fold_tapes,
         presentation=lambda automata, padding: AutomaticPresentation(
             automata, padding_symbol=padding),
-        well_order=words.shortlex_order)
+        representatives=_string_representatives)
 
 
 Formula = Union[str, logic.Expression]
@@ -122,12 +129,13 @@ def interpret(source, domain: RelationSpec,
     :param dimension: k — elements are k-tuples of source elements.
     :param quotient: an equivalence formula ε(x̄, ȳ) (a binary relation over
         elements, so ``2 · dimension`` free variables). When given, elements
-        are its equivalence classes: the universe is restricted to the
-        shortlex-least representative of each class, and the relations are read
-        on those representatives. The caller must ensure ε really is an
-        equivalence and that every relation is ε-invariant. **String engine
-        only so far** — see `_quotient` for what the tree engine would need,
-        and for what to write instead meanwhile.
+        are its equivalence classes: the universe is restricted to one
+        representative of each class, and the relations are read on those
+        representatives. The caller must ensure ε really is an equivalence and
+        that every relation is ε-invariant. Over words the representative is
+        the shortlex-least member of the class; over trees it is the least
+        description, which is the same idea made to work without a well-order,
+        and which may cost exponentially many states (`_tree_representatives`).
     :return: a fresh presentation of the same kind as `source`. For k > 1 its
         alphabet is the source alphabet's k-fold product.
     """
@@ -162,68 +170,115 @@ def _quotient(source, domain: RelationSpec,
               equivalence: RelationSpec, engine: _Engine):
     """Interpret with a quotient, in two stages: first the plain (k-dim)
     interpretation carrying the equivalence as a relation, then a
-    one-dimensional interpretation restricting the universe to the
-    shortlex-least representative of each class.
+    one-dimensional interpretation restricting the universe to one
+    representative per class.
 
-    The representative predicate is first-order over the equivalence and a
-    shortlex well-order on the element encoding — ``x`` is canonical iff it is
-    ``<=`` every element equivalent to it — so the whole thing stays inside the
-    engine.
-
-    That last step is what the tree engine does not have. It is *not* that
-    representatives fail to exist: every tree-automatic equivalence has a
-    regular complete system of representatives (Colcombet & Löding 2007), and
-    one is computable in polynomial space with ``2^O(|A|)`` states (Kuske &
-    Weidner, *Size and computation of injective tree automatic presentations*,
-    MFCS 2011, Thm. 3.1). What fails is *this* way of getting them.
-
-    Taking the least element of a class needs a well-founded order, and the
-    tree-automatic order does not qualify. There is a tree-automatic linear
-    order — compare at the lexicographically least position where two trees
-    differ, counting an absent position as larger — but growing a tree at that
-    position makes it *smaller*, so an infinite descending chain is easy to
-    write down and a class need have no least element. Shortlex avoids this
-    over words only because the convolution aligns positions, which makes
-    length the primary key for free; a tree convolution aligns shapes instead,
-    and comparing two trees' sizes is not a finite-state property at all.
-
-    Kuske and Weidner get round it by not minimizing over the whole class.
-    Their *shadow* of a class is the set of positions present in every member,
-    and a *description* is a member whose subtrees below the shadow's frontier
-    are no taller than the equivalence automaton has states. That set is
-    non-empty and finite for every class, so its least element under the linear
-    order exists — and the exponential price is unavoidable: they also show a
-    structure where every automaton recognizing a complete system of
-    representatives has exponentially many states.
-
-    Until that is built, a caller who wants a quotient over trees names the
-    representatives instead: pick a formula ρ(x̄) true of exactly one element
-    per class and interpret with ``domain=δ ∧ ρ``, which is the same
-    construction with the choice made explicit.
+    Both engines end up here; they differ only in how a class is made to name
+    exactly one of its members, which is `_string_representatives` or
+    `_tree_representatives`.
     """
-    if engine.well_order is None:
-        raise NotImplementedError(
-            f"the {engine.name} engine does not build quotient representatives "
-            f"yet: they exist and are regular, but reaching them needs the "
-            f"shadow construction of Kuske & Weidner (MFCS 2011) rather than "
-            f"the least element of a class, since no tree-automatic order is "
-            f"well-founded. Restrict the domain to a definable set of "
-            f"representatives instead (see the documentation of this "
-            f"construction)")
-    if _EQUIV in relations or _LE in relations:
-        raise ValueError(f"{_EQUIV!r} and {_LE!r} are reserved for the "
-                         f"quotient construction")
+    reserved = (_EQUIV, _LE, _REP)
+    clash = [name for name in reserved if name in relations]
+    if clash:
+        raise ValueError(f"{', '.join(map(repr, clash))} "
+                         f"{'is' if len(clash) == 1 else 'are'} reserved for "
+                         f"the quotient construction")
     raw = interpret(source, domain, {**relations, _EQUIV: equivalence},
                     dimension)
-    raw.update(**{_LE: engine.well_order(raw.sigma, raw.padding_symbol)})
+    raw.update(**{_REP: engine.representatives(raw)})
 
-    representative = f'all y.({_EQUIV}(x,y) -> {_LE}(x,y))'
     specs: Dict[str, RelationSpec] = {}
     for name in relations:
         arity = raw.relation(name).symbol_arity
         args = [f'v{i}' for i in range(arity)]
         specs[name] = (f'{name}({",".join(args)})', args)
-    return interpret(raw, (representative, ['x']), specs)
+    return interpret(raw, (f'{_REP}(x)', ['x']), specs)
+
+
+def _string_representatives(raw):
+    """The shortlex-least element of each class.
+
+    Shortlex is a well-order, so a class has exactly one least member, and
+    being least is first-order over the equivalence and the order — which
+    keeps the whole construction inside the engine.
+    """
+    from autstr.utils import automata_tools as words
+    raw.update(**{_LE: words.shortlex_order(raw.sigma, raw.padding_symbol)})
+    return raw.evaluate(f'all y.({_EQUIV}(x,y) -> {_LE}(x,y))')
+
+
+def _tree_representatives(raw):
+    """The least *description* of each class — Kuske and Weidner's
+    construction (*Size and computation of injective tree automatic
+    presentations*, MFCS 2011, §3).
+
+    Least element of the class will not do here. There is a tree-automatic
+    linear order (`autstr.utils.tree_automata_tools.tree_order`: compare at the
+    lexicographically least position where two trees differ, an absent
+    position counting as larger), but it is not well-founded — growing a tree
+    at that position makes it smaller — so a class need have no least member.
+    Shortlex escapes this over words only because the convolution aligns
+    positions, which makes length the primary key for free; a tree convolution
+    aligns shapes instead, and comparing two trees' sizes is not a finite-state
+    property at all.
+
+    So minimize over a finite part of the class instead. The *shadow* of a
+    class is the set of positions its members all have, and a *description* is
+    a member that reaches at most ``|A_∼|`` levels past it. Every class has
+    finitely many descriptions and at least one — below the shadow a subtree
+    can be pumped down to the height of the equivalence automaton without
+    leaving the class — so the least description exists, and picking it is the
+    choice this makes.
+
+    The shadow itself never has to be computed. A description is a member `u`
+    for which *some* set of positions `n` is contained in every member of the
+    class and has `u` within ``|A_∼|`` levels of it; both halves grow with `n`,
+    so the existential quantifier settles on the shadow by itself, and the
+    hard half of the paper's argument — recognizing that a set of positions
+    *contains* the shadow — is never needed. What is left is one formula::
+
+        u is a description of [t]  ≡  u ~ t ∧ ∃n. (∀s. t ~ s → dom(n) ⊆ dom(s))
+                                                 ∧ dom(u) ⊆ dom(n)·{1,2}^{≤k}
+
+    read over a scratch presentation whose universe is *every* tree, since `n`
+    ranges over sets of positions rather than over elements. The exponential
+    blowup Kuske and Weidner prove unavoidable lives in that ``∀s`` — it is a
+    projection followed by a complement, and the subset construction inside it
+    is the ``2^Q`` of their Lemma 3.4.
+
+    Expect the representatives themselves to be *large* trees, and much larger
+    than the smallest member of their class: the order prefers a tree that
+    grows, so the least description is as full as the description bound allows.
+    The automaton stays small; the elements it accepts do not.
+    """
+    from autstr.tree_presentations import TreeAutomaticPresentation, tree_one
+    from autstr.utils import tree_automata_tools as trees
+
+    equivalence = raw.relation(_EQUIV)
+    alphabet, padding = raw.base_alphabet, raw.padding_symbol
+    # how far past the shadow a description may reach: the pumping bound is
+    # the number of states of the equivalence automaton
+    depth = equivalence.num_states
+
+    scratch = TreeAutomaticPresentation(
+        {'U': tree_one(1, alphabet),
+         # the elements are one sort among the trees, the sets of positions
+         # another, so neither is the universe and nothing is restricted
+         'Dom': raw.automata['U'],
+         'Eqv': equivalence,
+         'Sub': trees.domain_within(alphabet, padding),
+         'Frg': trees.domain_within(alphabet, padding, depth),
+         'Lt': trees.tree_order(alphabet, padding, strict=True)},
+        padding_symbol=padding, enforce_consistency=False,
+        max_states=raw.max_states)
+    # `Desc(x,y)`: x is a description of y's class. The variables are named so
+    # that their sorted order — which is the tape order `evaluate` returns, and
+    # so the argument order of the installed relation — puts the description
+    # first.
+    scratch.update(Desc='Eqv(x,y) & exists n.('
+                        '(all s.(Eqv(y,s) -> Sub(n,s))) & Frg(x,n))')
+    return scratch.evaluate(
+        'Dom(x) & Desc(x,x) & (not exists u.(Desc(u,x) & Lt(u,x)))')
 
 
 def _fold_formula(source, spec: RelationSpec, k: int, engine: _Engine):
