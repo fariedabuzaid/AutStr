@@ -4,11 +4,13 @@ import numpy as np
 import pytest
 
 from autstr.utils.tree_automata_tools import k_deeper_automaton
-from autstr.sparse_tree_automata import SparseTreeAutomaton, Tree, tree_to_arrays
+from autstr.sparse_tree_automata import (
+    SparseTreeAutomaton, Tree, convolve_trees, tree_to_arrays,
+)
 from autstr.utils.misc import encode_symbol
 from autstr.utils.tree_automata_tools import (
-    attach_padding, equivalent, expand, fold_tapes, minimize,
-    partial_tree_automaton, project,
+    attach_padding, domain_within, equivalent, expand, fold_tapes, minimize,
+    partial_tree_automaton, project, tree_order,
 )
 from test_tree_automata import RefDTA, random_sta, random_tree
 
@@ -513,3 +515,100 @@ def random_labelled_tree(rng, letters, size=6):
     right = random_labelled_tree(rng, letters, size - 1 - rng.randint(0, 2)) \
         if rng.random() < 0.6 else None
     return Tree(rng.choice(letters), left, right)
+
+
+class TestTreeOrder:
+    """The tree-automatic linear order: compare at the lexicographically least
+    differing position, an absent position counting as larger."""
+
+    ALPHABET = {'*', 'a', 'b'}
+
+    @staticmethod
+    def positions(tree, prefix=''):
+        out = {prefix: tree.label}
+        if tree.left is not None:
+            out.update(TestTreeOrder.positions(tree.left, prefix + '1'))
+        if tree.right is not None:
+            out.update(TestTreeOrder.positions(tree.right, prefix + '2'))
+        return out
+
+    @staticmethod
+    def less(x, y):
+        """The definition, on trees."""
+        px, py = TestTreeOrder.positions(x), TestTreeOrder.positions(y)
+        differing = [p for p in set(px) | set(py) if px.get(p) != py.get(p)]
+        if not differing:
+            return False
+        p = min(differing)          # lexicographic on {1,2}* is plain string
+        return p not in py or (p in px and px[p] < py[p])
+
+    def test_against_the_definition(self):
+        rng = random.Random(2027)
+        trees = [random_labelled_tree(rng, ['a', 'b']) for _ in range(60)]
+        strict = tree_order(self.ALPHABET, '*', strict=True)
+        weak = tree_order(self.ALPHABET, '*')
+        for x in trees:
+            for y in trees[:25]:
+                convolution = convolve_trees([x, y], frozenset(self.ALPHABET),
+                                             '*')
+                want = self.less(x, y)
+                assert strict.accepts(convolution) == want, (x, y)
+                assert weak.accepts(convolution) == (
+                    want or self.positions(x) == self.positions(y))
+
+    def test_it_is_linear(self):
+        rng = random.Random(5)
+        trees = [random_labelled_tree(rng, ['a', 'b']) for _ in range(30)]
+        for x in trees:
+            for y in trees:
+                same = self.positions(x) == self.positions(y)
+                assert self.less(x, y) + self.less(y, x) + same == 1, (x, y)
+
+    def test_it_is_not_well_founded(self):
+        """Growing a tree at the position where two differ makes it smaller,
+        so a descending chain never stops — which is the whole reason the tree
+        quotient cannot take the least element of a class."""
+        chain = [Tree('a')]
+        for _ in range(5):
+            chain.append(Tree('a', chain[-1]))
+        strict = tree_order(self.ALPHABET, '*', strict=True)
+        for smaller, larger in zip(chain[1:], chain):
+            assert self.less(smaller, larger)
+            assert strict.accepts(convolve_trees(
+                [smaller, larger], frozenset(self.ALPHABET), '*'))
+
+
+class TestDomainWithin:
+    """``dom(x)`` inside ``dom(y)`` fringed by a few levels."""
+
+    ALPHABET = {'*', 'a', 'b'}
+
+    @staticmethod
+    def within(x, y, depth):
+        dy = set(TestTreeOrder.positions(y))
+        return all(any(p[:len(p) - k] in dy for k in range(depth + 1))
+                   for p in TestTreeOrder.positions(x))
+
+    @pytest.mark.parametrize("depth", [0, 1, 2, 3])
+    def test_against_the_definition(self, depth):
+        rng = random.Random(90 + depth)
+        trees = [random_labelled_tree(rng, ['a', 'b']) for _ in range(50)]
+        automaton = domain_within(self.ALPHABET, '*', depth)
+        for x in trees:
+            for y in trees[:20]:
+                convolution = convolve_trees([x, y], frozenset(self.ALPHABET),
+                                             '*')
+                assert automaton.accepts(convolution) == \
+                    self.within(x, y, depth), (depth, x, y)
+
+    def test_depth_zero_is_containment(self):
+        automaton = domain_within(self.ALPHABET, '*')
+        convolution = convolve_trees(
+            [Tree('a'), Tree('b', Tree('a'))], frozenset(self.ALPHABET), '*')
+        assert automaton.accepts(convolution)
+        assert not automaton.accepts(convolve_trees(
+            [Tree('b', Tree('a')), Tree('a')], frozenset(self.ALPHABET), '*'))
+
+    def test_a_negative_depth_is_refused(self):
+        with pytest.raises(ValueError, match="depth"):
+            domain_within(self.ALPHABET, '*', -1)

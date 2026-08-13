@@ -320,6 +320,118 @@ def project(sta: SparseTreeAutomaton, tape: int, padding_symbol,
 
 
 # ====================================================================
+# Orders and domains
+# ====================================================================
+
+def tree_order(base_alphabet, padding_symbol, strict: bool = False
+               ) -> SparseTreeAutomaton:
+    """The binary automaton for ``x <= y``: compare the two trees at the
+    lexicographically least position where they differ, an *absent* position
+    counting as larger than any letter.
+
+    Positions are ordered as the traversal visits them — a node, then its left
+    subtree, then its right — so the verdict of a node is its own letters', or,
+    where those agree, its left subtree's, or, where that is equal too, its
+    right subtree's.
+
+    This is a linear order on trees, and it is **not well-founded**: growing a
+    tree at the position where two differ makes it *smaller*, so an infinite
+    descending chain is easy to write down and a set of trees need have no
+    least member. That is the whole reason a quotient over trees cannot pick
+    the least element of a class the way the string engine's shortlex order
+    does; see `autstr.interpretations`.
+
+    :param strict: accept ``x < y`` rather than ``x <= y``.
+    """
+    letters = sorted(base_alphabet)
+    frozen = frozenset(base_alphabet)
+    equal, less, greater = 0, 1, 2
+
+    def verdict(left, right, a, b):
+        if a == padding_symbol and b == padding_symbol:
+            return equal                          # a region of pure padding
+        if a == padding_symbol:                   # x stops here, so x is larger
+            return greater
+        if b == padding_symbol:
+            return less
+        if a != b:
+            return less if a < b else greater
+        return left if left != equal else right   # this node agrees: descend
+
+    rows = [(left, right, (a, b),
+             verdict(equal if left == 3 else left,
+                     equal if right == 3 else right, a, b))
+            for left in (equal, less, greater, 3)     # 3 is the absent child
+            for right in (equal, less, greater, 3)
+            for a in letters for b in letters]
+
+    return minimize(SparseTreeAutomaton(
+        3, equal,
+        [row[0] for row in rows], [row[1] for row in rows],
+        [encode_symbol(row[2], frozen) for row in rows],
+        [row[3] for row in rows],
+        [not strict, True, False], 2, set(base_alphabet)))
+
+
+def domain_within(base_alphabet, padding_symbol, depth: int = 0
+                  ) -> SparseTreeAutomaton:
+    """The binary automaton for ``dom(x) ⊆ dom(y)·{1,2}^{≤depth}``: every
+    position of `x` lies at most `depth` levels below a position of `y`.
+
+    At ``depth = 0`` this is plain domain containment. Deeper, it is the
+    "fringe" relation the tree quotient construction needs: a description of an
+    equivalence class is a member that reaches only so far past the class's
+    shadow.
+
+    A tree's domain is prefix-closed, so `y`'s positions form a region hanging
+    from the root, and every position of `x` outside it is a fixed number of
+    levels below where that region stops. The automaton therefore carries, up
+    from the leaves, how far the deepest still-uncovered position of `x` is.
+    """
+    if depth < 0:
+        raise ValueError("depth must be >= 0")
+    letters = sorted(base_alphabet)
+    #: nothing of x is waiting to be covered, and y reaches into this subtree
+    covered = 'covered'
+    #: nothing of x is waiting, and neither is there any y here
+    empty = 'empty'
+    pending = [f'pending {i}' for i in range(depth + 1)]
+
+    def waiting(state):
+        """How far below this subtree's root its deepest uncovered position
+        is, or None when there is none."""
+        return pending.index(state) if state in pending else None
+
+    table = {}
+    for a in letters:
+        for b in letters:
+            for left in [None, covered, empty] + pending:
+                for right in [None, covered, empty] + pending:
+                    below = [waiting(child) for child in (left, right)
+                             if child is not None]
+                    below = [i + 1 for i in below if i is not None]
+                    if b != padding_symbol:       # y is here: it covers below
+                        if any(i > depth for i in below):
+                            continue              # too far below the region
+                        target = covered
+                    else:
+                        if covered in (left, right):
+                            continue              # y's positions are not
+                            # prefix-closed, so this is no convolution of trees
+                        if a != padding_symbol:
+                            below.append(0)       # x is here and uncovered
+                        if not below:
+                            target = empty
+                        elif max(below) > depth:
+                            continue              # no position above can cover
+                        else:
+                            target = pending[max(below)]
+                    table[(left, right, (a, b))] = target
+
+    return partial_tree_automaton(base_alphabet, 2, table, {covered, empty})
+
+
+# ====================================================================
 # Padding
 # ====================================================================
 
