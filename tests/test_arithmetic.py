@@ -3,12 +3,25 @@ from itertools import islice
 
 import pytest
 
-from autstr.arithmetic import decode, encode, integers
+from autstr.arithmetic import BuechiArithmetic, BuechiArithmeticZ
+from autstr.powerset import MSO0
+
+encode, decode = BuechiArithmeticZ.encode, BuechiArithmeticZ.decode
 
 
 @pytest.fixture(scope='module')
 def Z():
-    return integers()
+    return BuechiArithmeticZ().symbolic()
+
+
+@pytest.fixture(scope='module')
+def N():
+    return BuechiArithmetic().symbolic()
+
+
+@pytest.fixture(scope='module')
+def sets():
+    return MSO0().symbolic()
 
 
 def bounded(formula, limit=6):
@@ -159,3 +172,69 @@ def test_enumeration_yields_integers(Z):
     x, y = Z.vars('x y')
     formula = (x + y).eq(4) & x.gt(0) & x.lt(y)
     assert sorted(islice(iter(formula), 5)) == [(1, 3)]
+
+
+# ----------------------------------------------------------------------
+# the naturals: the same interface, without negation
+# ----------------------------------------------------------------------
+
+@pytest.mark.parametrize('n', [0, 1, 2, 7, 8, 255])
+def test_natural_encode_decode_roundtrip(n):
+    assert BuechiArithmetic.decode(BuechiArithmetic.encode(n)) == n
+
+
+def test_naturals_reject_negatives():
+    with pytest.raises(ValueError):
+        BuechiArithmetic.encode(-1)
+
+
+def test_naturals_add(N):
+    x, y = N.vars('x y')
+    relation = (x + y).eq(12).evaluate()
+    assert relation.contains(x=5, y=7)
+    assert not relation.contains(x=5, y=8)
+
+
+def test_naturals_have_a_least_element(N):
+    x, y = N.vars('x y')
+    # unbounded above, but 0 has nothing below it -- the difference from Z
+    assert x.lt(y).drop(y).all(x).check()
+    assert not y.lt(x).drop(y).all(x).check()
+
+
+# ----------------------------------------------------------------------
+# MSO0: finite sets as Python sets
+# ----------------------------------------------------------------------
+
+@pytest.mark.parametrize('s', [set(), {0}, {1}, {0, 2}, {0, 1, 2}, {5}])
+def test_set_encode_decode_roundtrip(s):
+    assert MSO0.decode(MSO0.encode(s)) == s
+
+
+def test_set_encoding_is_canonical():
+    # the universe rejects trailing zeros, so {0} is `1`, not `100`
+    assert MSO0.encode({0}) == ['1']
+    assert MSO0.encode({0, 2}) == ['1', '0', '1']
+    assert MSO0.encode(set()) == []
+
+
+def test_set_operations(sets):
+    x, y, z = sets.vars('x y z')
+    assert ({0, 1}, {1, 2}, {0, 1, 2}) in (x + y).eq(z)      # union
+    assert ({0, 1}, {1, 2}, {1}) in (x * y).eq(z)            # intersection
+    assert ({0, 1}, {1, 2}, {0}) in (x - y).eq(z)            # difference
+
+
+def test_subset_and_singletons(sets):
+    x, y = sets.vars('x y')
+    assert ({0, 2}, {0, 1, 2}) in x.subset(y)
+    assert ({0, 2}, {0, 1}) not in x.subset(y)
+    assert ({1},) in x.sing()
+    assert ({0, 1},) not in x.sing()
+    assert ({1}, {0, 1, 2}) in x.member_of(y)
+
+
+def test_enumeration_yields_sets(sets):
+    x, y = sets.vars('x y')
+    solutions = list(islice(iter((x + y).eq({0, 1}) & x.subset(y)), 3))
+    assert all(isinstance(a, set) and a | b == {0, 1} for a, b in solutions)

@@ -63,7 +63,7 @@ jobs:
           /tmp/smoke/bin/pip install --quiet dist/*.whl
           /tmp/smoke/bin/python -c "
           import autstr
-          from autstr.buildin.presentations import BuechiArithmeticZ
+          from autstr.arithmetic import BuechiArithmeticZ
           assert BuechiArithmeticZ().check('exists x.(A(x,x,x))')
           print('smoke test passed for', autstr.__version__)
           "

@@ -73,8 +73,6 @@ testpaths = ["tests"]
 [tool.setuptools.packages.find]
 include = ["autstr*"]
 
-[tool.setuptools.package-data]
-"autstr.buildin" = ["bin/*.autstr"]
 
 [tool.poetry-dynamic-versioning]
 enable = true

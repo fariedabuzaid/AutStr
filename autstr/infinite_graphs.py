@@ -135,7 +135,7 @@ class IntegerGrid:
         """The two-way integer path as a minimal presentation carrying only
         the domain, the ±1 edge, and equality — so the product folds those and
         nothing else."""
-        from autstr.buildin.presentations import BuechiArithmeticZ
+        from autstr.arithmetic import BuechiArithmeticZ
         from autstr.presentations import AutomaticPresentation
         z = BuechiArithmeticZ()
         z.update(E=f'exists o.(({_ONE}) & (A(x,o,y) | A(y,o,x)))')
@@ -145,7 +145,8 @@ class IntegerGrid:
 
     # -- element codec: an n-tuple <-> its nested-pair convolution ------
     def encode(self, point: Sequence[int]) -> list:
-        from autstr.arithmetic import encode as encode_int
+        from autstr.arithmetic import BuechiArithmeticZ
+        encode_int = BuechiArithmeticZ.encode
         point = tuple(point)
         if len(point) != self.n:
             raise ValueError(f"expected a {self.n}-tuple, got {point!r}")
@@ -161,7 +162,8 @@ class IntegerGrid:
         return word
 
     def decode(self, word) -> Tuple[int, ...]:
-        from autstr.arithmetic import decode as decode_int
+        from autstr.arithmetic import BuechiArithmeticZ
+        decode_int = BuechiArithmeticZ.decode
         coordinates = []
         current = list(word)
         for _ in range(self.n - 1):

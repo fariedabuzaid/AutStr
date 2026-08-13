@@ -8,8 +8,10 @@ own ground-truth oracle.
 """
 import pytest
 
-from autstr.arithmetic import decode, encode
-from autstr.buildin.presentations import BuechiArithmeticZ
+from autstr.arithmetic import BuechiArithmeticZ
+
+encode, decode = BuechiArithmeticZ.encode, BuechiArithmeticZ.decode
+from autstr.arithmetic import BuechiArithmeticZ
 from autstr.infinite_graphs import InfiniteGraph
 from autstr.symbolic import FunctionCodec
 

@@ -1,6 +1,6 @@
 import numpy as np
 
-from autstr.buildin.presentations import BuechiArithmeticZ
+from autstr.arithmetic import BuechiArithmeticZ
 from autstr.sparse_automata import SparseDFA, SparseDFASerializer
 
 

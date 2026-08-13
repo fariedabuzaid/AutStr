@@ -3,7 +3,7 @@ from typing import Dict, Optional, Union, List
 
 from autstr.sparse_automata import SparseDFA, SparseDFASerializer
 from autstr.utils.automata_tools import pad, unpad, projection, expand, stack
-from autstr.buildin.automata import zero, one  
+from autstr.utils.automata_tools import zero, one  
 from autstr.utils.logic import get_free_elementary_vars, optimize_query
 
 import json
@@ -499,3 +499,24 @@ class AutomaticPresentation(DeferredRelations):
             return result
 
         raise ValueError(f"Unsupported expression type: {type(phi)}")
+
+
+class CompiledPresentation(AutomaticPresentation):
+    """A presentation whose automata are compiled by a builder function.
+
+    Subclasses set `_BUILD` to that function and declare their vocabulary in
+    `default_signature`, so the structure can be constructed with no arguments
+    and addressed symbolically with no setup. The builder's automata are
+    adopted as they are rather than passed to `AutomaticPresentation.__init__`,
+    which would restrict and pad relations the builder already restricted and
+    padded.
+    """
+
+    #: the builder, as a staticmethod on the subclass
+    _BUILD = None
+
+    def __init__(self) -> None:
+        built = type(self)._BUILD()
+        self.padding_symbol = built.padding_symbol
+        self.automata = built.automata
+        self.sigma = built.sigma

@@ -3,7 +3,7 @@ from itertools import islice
 
 import pytest
 
-from autstr.buildin.presentations import BuechiArithmeticZ
+from autstr.arithmetic import BuechiArithmeticZ
 from autstr.symbolic import (
     CompileError, FunctionCodec, Signature, SymbolicSymbolError,
     graph_signature, order_signature, relational_signature,
@@ -330,9 +330,17 @@ def test_bare_structure_needs_no_signature():
 
 
 def test_constants_need_a_codec():
-    S = BuechiArithmeticZ().symbolic()
+    # a signature that declares no codec cannot turn a Python value into an
+    # element, even over a structure whose own signature would
+    S = BuechiArithmeticZ().symbolic(Signature())
     with pytest.raises(SymbolicSymbolError, match='no element codec'):
         S.const(3)
+
+
+def test_the_structures_own_signature_brings_a_codec():
+    S = BuechiArithmeticZ().symbolic()
+    x, = S.vars('x')
+    assert (3,) in x.eq(3)
 
 
 # ----------------------------------------------------------------------

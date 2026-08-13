@@ -10,10 +10,9 @@ import itertools
 
 import pytest
 
-from autstr.buildin.automata import zero
-from autstr.buildin.presentations import (
-    BuechiArithmetic, BuechiArithmeticZ, MSO0,
-)
+from autstr.utils.automata_tools import zero
+from autstr.arithmetic import BuechiArithmetic, BuechiArithmeticZ
+from autstr.powerset import MSO0
 from autstr.interpretations import interpret
 from autstr.presentations import AutomaticPresentation
 

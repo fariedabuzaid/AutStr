@@ -17,7 +17,7 @@ An `AutomaticPresentation` bundles automata for a domain and its relations, and
 decides first-order statements about the presented structure:
 
 ```python
-from autstr.buildin.presentations import BuechiArithmeticZ
+from autstr.arithmetic import BuechiArithmeticZ
 
 Z = BuechiArithmeticZ()          # (ℤ, +, <, |) as automata
 
@@ -41,10 +41,10 @@ relation symbols and function symbols that compose with ordinary Python
 operators.
 
 ```python
-from autstr.arithmetic import integers
+from autstr.arithmetic import BuechiArithmeticZ
 
-Z = integers()
-x, y, z = Z.vars('x y z')
+Z = BuechiArithmeticZ().symbolic()   # no arguments: the structure knows its own
+x, y, z = Z.vars('x y z')            # vocabulary
 
 phi = (x + y).eq(z) & z.lt(100)      # a relation over x, y, z
 phi.check()                          # satisfiable?                  — True
@@ -61,10 +61,11 @@ restores the names in results.
 
 What a structure offers is declared in a `Signature`: which relations are
 function graphs, which operators they bind to, and how Python values encode as
-elements.
+elements. Every structure in the library declares its own, which is why
+`symbolic()` above needed no argument. For a presentation you built yourself,
+write one:
 
 ```python
-from autstr.arithmetic import encode, decode
 from autstr.symbolic import Signature, FunctionCodec
 
 signature = (Signature(codec=FunctionCodec(encode, decode))
@@ -74,6 +75,11 @@ signature = (Signature(codec=FunctionCodec(encode, decode))
 
 S = my_presentation.symbolic(signature)
 ```
+
+`encode` and `decode` are the structure's own — a Python value to the word that
+represents it, and back — so results come out as the values you put in. Give a
+presentation a `default_signature` method returning this, and its `symbolic()`
+takes no argument either.
 
 Results carry their tape order as variable *names*, so membership and
 enumeration are keyed by name rather than position:
@@ -149,7 +155,7 @@ presentation encodes elements as strings and a word automaton reads them, a
 tree automaton — exactly the step from Büchi's theorem to Rabin's.
 `autstr.tree_uniform` hosts the classes whose advice is naturally a tree: a tree
 decomposition (bounded tree-width) or a k-expression (bounded clique-width), and
-Skolem arithmetic (ℕ, ·) in `autstr.buildin.tree_presentations`, where a number
+Skolem arithmetic (ℕ, ·) in `autstr.tree_arithmetic`, where a number
 is the tree of its prime exponents.
 
 The {doc}`graphs <notebooks/graphs>` and {doc}`groups <notebooks/groups>`
@@ -309,7 +315,7 @@ is **decidable**, and every definable relation is again automatic.
 
 ### A concrete encoding
 
-In the arithmetic package an integer is written **sign-magnitude, least-significant
+In Büchi arithmetic an integer is written **sign-magnitude, least-significant
 bit first**: the first symbol is a sign bit (`0` for non-negative, `1` for
 negative), followed by the binary digits of the magnitude from the lowest bit
 upward, with `*` padding the shorter arguments of a multi-tape relation so all

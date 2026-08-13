@@ -12,14 +12,14 @@ example changes; the file is committed so the README renders on GitHub.
 """
 from pathlib import Path
 
-from autstr.arithmetic import integers
+from autstr.arithmetic import BuechiArithmeticZ
 
 MEDIA = Path(__file__).resolve().parent.parent / "docs" / "media"
 
 
 def coprime_automaton(primes):
     """The DFA for {x > 1 : no p in `primes` divides x}."""
-    Z = integers()
+    Z = BuechiArithmeticZ().symbolic()
     x = Z.var("x")
     s = x.gt(1)
     for p in primes:
