@@ -151,7 +151,8 @@ Four capabilities cut across all of these:
   interpreted presentation: a domain formula, a formula per relation, elements as
   k-tuples, optionally quotiented by a definable equivalence. It is how the
   ordinals are built — three formulas over Büchi arithmetic, no automaton
-  authored.
+  authored. Quotients work over trees too, where no order is well-founded and
+  the representative of a class is its least *description* (Kuske & Weidner).
 - **Implicit evaluation** (`autstr.implicit`) — `check_implicit` /
   `evaluate_implicit` decide formulas and compute satisfying sets *without
   building a query automaton*, reaching members whose automata are far too large
