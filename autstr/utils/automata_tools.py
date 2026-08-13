@@ -538,15 +538,19 @@ def iterate_language(dfa: SparseDFA, decoder: Callable = None,
     heap = LengthLexHeap()
     for state in start_set:
         if state in nonempty:
-            # Represent words as tuple of empty strings
-            heap.push((tuple(["" for _ in range(arity)]), state))
-    
+            # One tape per argument, each a tuple of letters. Letters are
+            # kept as they are rather than concatenated into a string: an
+            # interpreted structure's alphabet is a product alphabet, whose
+            # letters are themselves tuples, and str() would flatten them
+            # into unparseable text.
+            heap.push((tuple([() for _ in range(arity)]), state))
+
     def cat(word, symbol):
-        """Concatenate symbol to word based on direction."""
+        """Extend a tape by one letter, on the side we are building from."""
         if backward:
-            return str(symbol) + word
+            return (symbol,) + word
         else:
-            return word + str(symbol)
+            return word + (symbol,)
         
     def push(heap, word_tuple, sym_enc, next_state):
         """Push a new word onto the heap with the given extension symbol and next state."""

@@ -105,10 +105,14 @@ class AutomaticPresentationSerializer:
             dfa_bytes = bytes(dfa_bytes_list)
             automata[name] = SparseDFASerializer.from_bytes(dfa_bytes)
         
-        # Reconstruct presentation
+        # Reconstruct presentation. Over a product alphabet the padding symbol
+        # is a tuple, and JSON has no tuples, so it comes back as a list.
+        padding_symbol = metadata["padding_symbol"]
+        if isinstance(padding_symbol, list):
+            padding_symbol = tuple(padding_symbol)
         return AutomaticPresentation(
             automata,
-            padding_symbol=metadata["padding_symbol"],
+            padding_symbol=padding_symbol,
             enforce_consistency=False
         )
 

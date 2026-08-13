@@ -1028,8 +1028,9 @@ class Level2CPG:
         return self.presentation.get_relation_symbols()
 
     def is_deterministic(self) -> bool:
-        """Whether every configuration has at most one successor — first-order,
-        and so decidable, even though reachability is not built here."""
+        """Whether every configuration has at most one successor — a
+        first-order property of the one-step relation, so it costs nothing
+        beyond `E`."""
         return self.presentation.check(
             'all x.(all y.(all z.((E(x,y) & E(x,z)) -> Eq(y,z))))')
 

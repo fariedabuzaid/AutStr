@@ -49,6 +49,17 @@ from autstr.utils.misc import decode_symbol, encode_symbol
 #   - Acceptance array
 #   - Transition diagrams: var / lo / hi / term arrays, then one root per state
 
+def _alphabet_from_json(raw) -> set:
+    """The base alphabet as stored in a payload.
+
+    JSON has no tuples, so a product alphabet's letters -- which is what an
+    interpreted structure of dimension > 1 has -- come back as lists. Restore
+    them, or the set() below raises on the first unhashable letter.
+    """
+    return {tuple(letter) if isinstance(letter, list) else letter
+            for letter in json.loads(raw)}
+
+
 class SparseDFASerializer:
     VERSION = 3  # diagram payload (v2 stored flat exception rows)
     HEADER_FORMAT = "4sB3sII"
@@ -132,7 +143,7 @@ class SparseDFASerializer:
         num_states, num_nodes, start_state, symbol_arity, alphabet_len = \
             struct.unpack(cls.METADATA_FORMAT, payload[:cls.METADATA_SIZE])
         offset = cls.METADATA_SIZE
-        base_alphabet = set(json.loads(payload[offset:offset + alphabet_len]))
+        base_alphabet = _alphabet_from_json(payload[offset:offset + alphabet_len])
         offset += alphabet_len
 
         is_accepting = np.frombuffer(payload, dtype=np.uint8, count=num_states,
@@ -157,7 +168,7 @@ class SparseDFASerializer:
         num_states, max_exceptions, start_state, symbol_arity, alphabet_len = \
             struct.unpack(cls.METADATA_FORMAT, payload[:cls.METADATA_SIZE])
         offset = cls.METADATA_SIZE
-        base_alphabet = set(json.loads(payload[offset:offset + alphabet_len]))
+        base_alphabet = _alphabet_from_json(payload[offset:offset + alphabet_len])
         offset += alphabet_len
 
         defaults = np.frombuffer(payload, dtype=np.uint32, count=num_states,
