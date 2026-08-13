@@ -43,7 +43,7 @@ top.
 through µ-calculus model checking on collapsible pushdown graphs, which is a
 decision procedure of its own. It is not needed: the decomposition lemmas the
 paper proves are already a closed system of rules, each saying how one kind of
-run is built from shorter ones —
+run is built from shorter ones::
 
     return      = high loop, then a pop, or a drop into the word below
                   followed by a return of it, or a pushed level 2 letter
@@ -54,7 +54,7 @@ run is built from shorter ones —
     1-loop      = loop, clone, loop, clone, …
     loop        = high loop, or high loop then low loop then high loop
 
-— and the least fixpoint of those rules is the summary. The rules refer to the
+The least fixpoint of those rules is the summary. The rules refer to the
 summaries of *longer* words, which is why this is one simultaneous fixpoint
 over the whole table rather than an induction on word length.
 
