@@ -238,3 +238,18 @@ def test_enumeration_yields_sets(sets):
     x, y = sets.vars('x y')
     solutions = list(islice(iter((x + y).eq({0, 1}) & x.subset(y)), 3))
     assert all(isinstance(a, set) and a | b == {0, 1} for a, b in solutions)
+
+
+def test_min_and_max_are_empty_on_the_empty_set(sets):
+    """The empty set has no least or greatest member, so both relations are
+    empty there. This is pinned because the formula used to carry a disjunct
+    claiming to handle the case, which no set could satisfy: `Subset` is
+    reflexive, so `forall z. not Subset(z, x)` fails at z = x."""
+    x, y = sets.vars('x y')
+    Min, Max = sets.rel('Min'), sets.rel('Max')
+
+    assert (x.eq(set()) & Min(x, y)).is_empty()
+    assert (x.eq(set()) & Max(x, y)).is_empty()
+    # and they still name the least and greatest member of a nonempty set
+    assert ({1, 3}, {1}) in Min(x, y)
+    assert ({1, 3}, {3}) in Max(x, y)

@@ -235,8 +235,12 @@ def _build_finite_powerset() -> AutomaticPresentation:
         Eq_set="Subset(x, y) and Subset(y, x)",
         Leq_sing="Lt_sing(x, y) or (Eq_set(x, y) and Sing(x) and Sing(y))",
         Gt_sing="not Leq_sing(x, y) and Sing(x) and Sing(y)",
-        Min="(forall z. not Subset(z, x)) or "  # Empty set case
-             "(Sing(y) and Subset(y, x) and forall z. (-(Sing(z) and Subset(z, x)) or Leq_sing(y, z)))",
+        # Min and Max name the least and greatest MEMBER of x, so both are
+        # empty on the empty set -- it has no members to be least. (An earlier
+        # disjunct here claimed to cover that case with `forall z. not
+        # Subset(z, x)`, which no set satisfies: Subset is reflexive, so z = x
+        # always refutes it.)
+        Min="Sing(y) and Subset(y, x) and forall z. (-(Sing(z) and Subset(z, x)) or Leq_sing(y, z))",
         Max="Sing(y) and Subset(y, x) and forall z. (-(Sing(z) and Subset(z, x)) or Leq_sing(z, y))",
         Intersect="forall a. (-Sing(a) or ((Subset(a, z) and (Subset(a, x) and Subset(a, y))) or (-Subset(a, z) and -(Subset(a, x) and Subset(a, y)))))",
         Union="forall a. (-Sing(a) or ((Subset(a, z) and (Subset(a, x) or Subset(a, y))) or (-Subset(a, z) and -(Subset(a, x) or Subset(a, y)))))",
