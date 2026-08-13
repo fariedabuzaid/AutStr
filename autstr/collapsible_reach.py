@@ -803,3 +803,87 @@ class Relations:
                 if source == target:
                     table[('same', None, labels)] = 'accept'
         return partial_tree_automaton(self.alphabet, 4, table, {'accept'})
+
+    def a_returns(self) -> SparseTreeAutomaton:
+        """``A`` as far as returns take it: the stack loses whole words, one
+        return each.
+
+        Kartzow's Lemma 4.11 decomposes a run of ``A`` into pieces that are
+        returns (F1), or a 1-loop followed by a level 2 collapse (F2), or a
+        1-loop followed by a pop that some later F2 closes off (F3). This
+        builds the F1 case. It is all of ``A`` for a system whose runs never
+        collapse on a level 2 link, since F2 and F3 both end in one; where they
+        can occur this under-approximates, and `collapses_on_links` says so.
+
+        The words the stack drops are the separators of the encoding, and the
+        run pops them from the last backwards — so within a subtree the chain
+        runs through the right child's separators, then the left child's, then
+        the node itself, which is reverse traversal order.
+        """
+        table = {}
+        annotations = list(self.annotation.names.values())
+        marks = [(label, annotation)
+                 for label in self.encoding.nodes for annotation in annotations]
+        states = self.system.states
+
+        for label, annotation in marks:
+            for left in (None, 'same'):
+                for right in (None, 'same'):
+                    table[(left, right, (label, label, annotation, self.NONE))] \
+                        = 'same'
+
+        # inside a word the first tree drops, nothing is guessed
+        for label, annotation in marks:
+            for left in (None, 'gone'):
+                for right in (None, 'gone'):
+                    table[(left, right, (label, PAD, annotation, self.NONE))] \
+                        = 'gone'
+
+        # a separator the first tree drops: one return of the word it names
+        for annotation in annotations:
+            summary = self.summary_of(annotation)
+            for guess in self.guesses:
+                pair = self.guessed(guess)
+                if pair is None or summary is None or pair not in summary.ret:
+                    continue
+                first, last = pair
+                symbols = (SEP, PAD, annotation, guess)
+                for left in (None, 'gone'):
+                    table[(left, None, symbols)] = f'ret {first} {last}'
+                    # the words to the right go first, this one after them
+                    for entered in states:
+                        table[(left, f'ret {entered} {first}', symbols)] = \
+                            f'ret {entered} {last}'
+
+        # a node both trees keep, below which words were dropped
+        for label, annotation in marks:
+            plain = (label, label, annotation, self.NONE)
+            for first in states:
+                for last in states:
+                    done = f'done {first} {last}'
+                    table[(f'ret {first} {last}', None, plain)] = done
+                    table[('same', f'ret {first} {last}', plain)] = done
+                    table[(None, f'ret {first} {last}', plain)] = done
+                    table[(done, None, plain)] = done
+                    table[('same', done, plain)] = done
+                    table[(None, done, plain)] = done
+
+        for source in states:
+            for target in states:
+                labels = (f'<{source}>', f'<{target}>', Annotation.START,
+                          self.NONE)
+                table[(f'done {source} {target}', None, labels)] = 'accept'
+                if source == target:
+                    table[('same', None, labels)] = 'accept'
+        return partial_tree_automaton(self.alphabet, 4, table, {'accept'})
+
+    def collapses_on_links(self) -> bool:
+        """Whether the system can collapse on a level 2 link at all — if it
+        cannot, `a_returns` is the whole of ``A``."""
+        pushes = {(rule.operation.symbol, rule.operation.level)
+                  for rule in self.system.rules
+                  if rule.operation.kind == 'push'}
+        if not any(level == 2 for _, level in pushes):
+            return False
+        return any(rule.operation.kind == 'collapse'
+                   for rule in self.system.rules)

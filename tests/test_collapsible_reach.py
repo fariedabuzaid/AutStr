@@ -656,3 +656,111 @@ class TestRelationC:
         assert self.holds(relations, relation,
                           Configuration('0', twice),
                           Configuration('1', longer))
+
+
+def pops_words_to(source, target):
+    """Is the target the source with whole words taken off?"""
+    current = source
+    while current is not None:
+        if current == target:
+            return True
+        current = current.pop2()
+    return False
+
+
+def a_oracle(system, source, target, bound=3000):
+    """``A``: a run that drops whole words and never dips below the target."""
+    if not pops_words_to(source.stack, target.stack):
+        return False
+    if source == target:
+        return True
+    forbidden = set(substacks(target.stack))
+    seen, frontier, steps = {source}, deque([source]), 0
+    while frontier and steps < bound:
+        configuration = frontier.popleft()
+        steps += 1
+        for _, successor in system.step(configuration):
+            if successor == target:
+                return True
+            if successor in seen or successor.stack in forbidden:
+                continue
+            if successor.stack.width > 4 or \
+                    max(map(len, successor.stack.words)) > 5:
+                continue
+            seen.add(successor)
+            frontier.append(successor)
+    return False
+
+
+class TestRelationAFromReturns:
+    """``A`` as far as returns take it.
+
+    Kartzow's decomposition allows three kinds of piece: a return, a 1-loop
+    then a level 2 collapse, and a 1-loop then a pop that a later collapse
+    closes off. Only the first is built here, which is all of ``A`` unless a
+    collapse drops *several* words at once — a single word's worth is already
+    inside a return, since the summaries count a pushed link collapsed after a
+    1-loop as one.
+    """
+
+    EXACT = {
+        'clone and pop': [('0', None, 'c', '1', 'clone'),
+                          ('1', None, 'o', '0', 'pop 2')],
+        'a loop before each pop': [('0', None, 'u', '1', 'push a 1'),
+                                   ('1', 'a', 'p', '0', 'pop 1'),
+                                   ('0', None, 'o', '0', 'pop 2')],
+        'a collapse over one word': [('0', None, 'u', '1', 'push a 2'),
+                                     ('1', 'a', 'x', '2', 'collapse')],
+    }
+    #: a collapse that drops every word the clones added — F2 and F3 territory
+    INCOMPLETE = [('0', None, 'c', '0', 'clone'),
+                  ('0', None, 'u', '1', 'push a 2'),
+                  ('1', None, 'k', '1', 'clone'),
+                  ('1', 'a', 'x', '2', 'collapse')]
+
+    def relation(self, rules):
+        system = Level2CPS(rules, symbols=SYMBOLS)
+        relations = Relations(system)
+        return system, relations, relations.without_scaffolding(
+            relations.a_returns())
+
+    def holds(self, relations, relation, source, target):
+        return relation.accepts(convolve_trees(
+            [encode_configuration(source), encode_configuration(target)],
+            frozenset(relations.encoding.alphabet), PAD))
+
+    @pytest.mark.parametrize("case", sorted(EXACT))
+    def test_it_is_exact_where_no_collapse_spans_words(self, case):
+        system, relations, relation = self.relation(self.EXACT[case])
+        configurations = [Configuration(state, stack)
+                          for stack in walk_stacks(5, 8, width=3, height=3)
+                          for state in system.states]
+        for source in configurations:
+            for target in configurations:
+                assert self.holds(relations, relation, source, target) == \
+                    a_oracle(system, source, target), (source, target)
+
+    def test_it_is_sound_where_it_is_not_complete(self):
+        """Where a collapse spans several words the runs are missed, but none
+        are invented — the relation stays inside the truth."""
+        system, relations, relation = self.relation(self.INCOMPLETE)
+        assert relations.collapses_on_links()
+        configurations = [Configuration(state, stack)
+                          for stack in walk_stacks(5, 8, width=3, height=3)
+                          for state in system.states]
+        missed = 0
+        for source in configurations:
+            for target in configurations:
+                got = self.holds(relations, relation, source, target)
+                want = a_oracle(system, source, target)
+                assert not (got and not want), (source, target)
+                missed += want and not got
+        assert missed, "this system is meant to show the gap"
+
+    def test_it_is_reflexive(self):
+        system, relations, relation = self.relation(self.EXACT['clone and pop'])
+        for stack in walk_stacks(3, 6):
+            for state in system.states:
+                configuration = Configuration(state, stack)
+                assert self.holds(relations, relation, configuration,
+                                  configuration)
