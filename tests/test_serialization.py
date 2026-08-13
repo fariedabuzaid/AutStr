@@ -3,6 +3,7 @@ import struct
 import zlib
 
 import numpy as np
+import pytest
 
 from autstr.arithmetic import BuechiArithmeticZ
 from autstr.sparse_automata import SparseDFA, SparseDFASerializer
@@ -133,3 +134,84 @@ class TestProductAlphabet:
             'all x.(all y.(Lt(x,y) -> exists z.(Lt(x,z) and Lt(z,y))))')
         assert _same_language(reloaded.automata['Lt'],
                               presentation.automata['Lt'], max_length=3)
+
+
+class TestTreeSerialization:
+    """The tree engine's counterpart.
+
+    The compiled form of a tree automaton is a sorted table of child pairs with
+    one decision-diagram root each, so storing it is storing the pair keys plus
+    the shared sub-DAG below those roots -- the same payload idea as the string
+    side, and the same reason for it: a relation over a convolution alphabet
+    too wide to enumerate still writes out in the size of its diagrams.
+    """
+
+    def test_automaton_round_trip(self):
+        from autstr.sparse_tree_automata import SparseTreeAutomatonSerializer
+        from autstr.tree_arithmetic import skolem_arithmetic
+
+        original = skolem_arithmetic().automata['M']      # x * y = z
+        reloaded = SparseTreeAutomatonSerializer.from_bytes(
+            SparseTreeAutomatonSerializer.to_bytes(original))
+
+        assert reloaded.num_states == original.num_states
+        assert reloaded.default_state == original.default_state
+        assert reloaded.symbol_arity == original.symbol_arity
+        assert reloaded.base_alphabet_frozen == original.base_alphabet_frozen
+        assert list(reloaded.is_accepting) == list(original.is_accepting)
+        assert list(reloaded.pair_keys) == list(original.pair_keys)
+
+    def test_corruption_is_detected(self):
+        from autstr.sparse_tree_automata import SparseTreeAutomatonSerializer
+        from autstr.tree_arithmetic import skolem_arithmetic
+
+        data = bytearray(SparseTreeAutomatonSerializer.to_bytes(
+            skolem_arithmetic().automata['U']))
+        data[-1] ^= 0xFF                          # flip a byte of the payload
+        with pytest.raises(ValueError, match='corruption'):
+            SparseTreeAutomatonSerializer.from_bytes(bytes(data))
+
+    def test_presentation_round_trip_answers_the_same_questions(self, tmp_path):
+        from autstr.tree_arithmetic import skolem_arithmetic
+        from autstr.tree_presentations import TreeAutomaticPresentation
+
+        skolem = skolem_arithmetic()
+        path = str(tmp_path / 'skolem.autstr')
+        skolem.automatic_presentation_to_file(path)
+
+        reloaded = TreeAutomaticPresentation.automatic_presentation_from_file(path)
+
+        assert set(reloaded.get_relation_symbols()) == \
+            set(skolem.get_relation_symbols())
+        assert reloaded.padding_symbol == skolem.padding_symbol
+        for phi in ('exists x.(all y.(M(x,y,y)))',      # a multiplicative unit
+                    'all x.(exists y.(M(x,y,x)))'):
+            assert reloaded.check(phi) == skolem.check(phi)
+
+        # the signature is not stored, so hand the reloaded structure the
+        # original's and check that elements still mean what they meant
+        S = reloaded.symbolic(skolem.default_signature())
+        x, y, z = S.vars('x y z')
+        assert (6, 35, 210) in (x * y).eq(z)
+        assert (6, 35, 211) not in (x * y).eq(z)
+
+    def test_an_expensive_relation_survives(self, tmp_path):
+        """The case this exists for: `Reach` costs real time to build, and a
+        reloaded copy must still be the reachability relation."""
+        from autstr.collapsible import Level2CPS
+        from autstr.tree_presentations import TreeAutomaticPresentation
+
+        system = Level2CPS([('0', None, 'c', '1', 'clone'),
+                            ('1', None, 'o', '0', 'pop 2')], symbols=('a',))
+        presentation = system.configuration_graph().presentation
+        presentation.relation('Reach')                  # build it
+
+        path = str(tmp_path / 'reach.autstr')
+        presentation.automatic_presentation_to_file(path)
+        reloaded = TreeAutomaticPresentation.automatic_presentation_from_file(path)
+
+        assert 'Reach' in reloaded.get_relation_symbols()
+        assert reloaded.check('all x.(Reach(x,x))')
+        assert reloaded.check('all x.(all y.(E(x,y) -> Reach(x,y)))')
+        assert reloaded.check(
+            'all x.(all y.(all z.((Reach(x,y) & Reach(y,z)) -> Reach(x,z))))')

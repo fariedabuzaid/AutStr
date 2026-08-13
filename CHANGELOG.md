@@ -100,6 +100,15 @@ automata are carried on annotation tapes that are projected away — the move
 MONA makes. `reach_along` builds the label-constrained `Reach_L` by putting
 the label automaton into a product system; ε-contraction is a special case.
 
+**Serialization for the tree engine.** `SparseTreeAutomatonSerializer` and
+`TreeAutomaticPresentationSerializer`, with the same method names as the string
+side (`automatic_presentation_to_file` / `..._from_file`). A tree automaton's
+compiled form is a sorted table of child pairs with one decision-diagram root
+each, so the payload is the pair keys plus the shared sub-DAG below those
+roots — a relation over an alphabet too wide to enumerate still writes out in
+the size of its diagrams. This is where it earns its keep: `Reach` is
+exponential in the control states, and a reloaded copy is still reachability.
+
 **Deferred relations.** A presentation may declare a relation now and build it
 on first use. `get_relation_symbols()` lists it, a query that mentions it
 triggers the build. This is how `Reach` avoids costing anything until asked
@@ -139,7 +148,7 @@ relation on every presentation.
   why it went unseen.
 - **Serializing such a presentation.** JSON has no tuples, so a reloaded
   product alphabet was a set of lists (unhashable) and the padding symbol a
-  list. Both are restored on load.
+  list. Both are restored on load, on both engines.
 - A universal quantifier that silently became an existential.
 - Sentence markers that dropped the structure's alphabet.
 - Relation automata are restricted to the universe on *every* tape, not all but

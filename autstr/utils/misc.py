@@ -1,3 +1,4 @@
+import json
 from functools import cmp_to_key
 from heapq import heapify, heappop, heappush
 from typing import FrozenSet, Set, List, Tuple, Union
@@ -114,3 +115,14 @@ def complement(values, min_val: int, max_val: int) -> np.ndarray:
     if values.size == 0:
         return np.array([], dtype=values.dtype)
     return np.setdiff1d(np.arange(min_val, max_val + 1), values)
+
+
+def alphabet_from_json(raw) -> set:
+    """The base alphabet as stored in a serialized payload.
+
+    JSON has no tuples, so a product alphabet's letters -- which is what an
+    interpreted structure of dimension > 1 has -- come back as lists. Restore
+    them, or the set() built from them raises on the first unhashable letter.
+    """
+    return {tuple(letter) if isinstance(letter, list) else letter
+            for letter in json.loads(raw)}
