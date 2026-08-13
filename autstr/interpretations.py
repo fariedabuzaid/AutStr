@@ -231,20 +231,30 @@ def _tree_representatives(raw):
     choice this makes.
 
     The shadow itself never has to be computed. A description is a member `u`
-    for which *some* set of positions `n` is contained in every member of the
-    class and has `u` within ``|A_∼|`` levels of it; both halves grow with `n`,
-    so the existential quantifier settles on the shadow by itself, and the
-    hard half of the paper's argument — recognizing that a set of positions
-    *contains* the shadow — is never needed. What is left is one formula::
+    for which *some* set of positions `n` lies inside every member of the class
+    and holds `u` within ``|A_∼|`` levels of itself::
 
         u is a description of [t]  ≡  u ~ t ∧ ∃n. (∀s. t ~ s → dom(n) ⊆ dom(s))
                                                  ∧ dom(u) ⊆ dom(n)·{1,2}^{≤k}
 
-    read over a scratch presentation whose universe is *every* tree, since `n`
-    ranges over sets of positions rather than over elements. The exponential
-    blowup Kuske and Weidner prove unavoidable lives in that ``∀s`` — it is a
-    projection followed by a complement, and the subset construction inside it
-    is the ``2^Q`` of their Lemma 3.4.
+    The two conditions on `n` sandwich `u` rather than pulling against each
+    other. The first makes `n` a *lower* bound on the whole class, so — `u`
+    being a member — ``dom(n) ⊆ dom(u)`` already holds; the second is the
+    *upper* bound, and is what cuts an infinite class down to a finite set of
+    candidates, which is the whole point.
+
+    So the existential settles on the shadow by itself: the first condition
+    admits exactly the `n` below the shadow, and the second only gets weaker as
+    `n` grows, so the best `n` is the largest admissible one — the shadow. That
+    is why the hard half of the paper's argument, recognizing that a set of
+    positions *contains* the shadow, is never needed: nothing here ever asks
+    `n` to be at least the shadow.
+
+    The formula is read over a scratch presentation whose universe is *every*
+    tree, since `n` ranges over sets of positions rather than over elements.
+    The exponential blowup Kuske and Weidner prove unavoidable lives in that
+    ``∀s`` — it is a projection followed by a complement, and the subset
+    construction inside it is the ``2^Q`` of their Lemma 3.4.
 
     Expect the representatives themselves to be *large* trees, and much larger
     than the smallest member of their class: the order prefers a tree that

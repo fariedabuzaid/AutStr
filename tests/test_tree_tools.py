@@ -10,7 +10,7 @@ from autstr.sparse_tree_automata import (
 from autstr.utils.misc import encode_symbol
 from autstr.utils.tree_automata_tools import (
     attach_padding, domain_within, equivalent, expand, fold_tapes, minimize,
-    partial_tree_automaton, project, tree_order,
+    partial_tree_automaton, project, restrict_alphabet, tree_order,
 )
 from test_tree_automata import RefDTA, random_sta, random_tree
 
@@ -612,3 +612,35 @@ class TestDomainWithin:
     def test_a_negative_depth_is_refused(self):
         with pytest.raises(ValueError, match="depth"):
             domain_within(self.ALPHABET, '*', -1)
+
+
+class TestRestrictAlphabet:
+    """Reading an automaton over fewer letters keeps what it does on the ones
+    that remain — which is what a construction needs once an annotation it was
+    built to read has been quantified away."""
+
+    WIDE = {'*', 'a', 'b', 'c'}
+    NARROW = {'*', 'a', 'b'}
+
+    def automaton(self, rng, alphabet):
+        names = ['s0', 's1', 's2']
+        table = {(rng.choice([None] + names), rng.choice([None] + names),
+                  (rng.choice(sorted(alphabet)),)): rng.choice(names)
+                 for _ in range(rng.randint(3, 14))}
+        return partial_tree_automaton(alphabet, 1, table,
+                                      set(rng.sample(names, 2)))
+
+    def test_the_language_over_the_kept_letters_is_unchanged(self):
+        rng = random.Random(3)
+        sample = [random_labelled_tree(rng, ['a', 'b']) for _ in range(40)]
+        for _ in range(20):
+            wide = self.automaton(rng, self.WIDE)
+            narrow = restrict_alphabet(wide, self.NARROW)
+            assert narrow.base_alphabet_frozen == frozenset(self.NARROW)
+            for tree in sample:
+                assert narrow.accepts(tree) == wide.accepts(tree), tree
+
+    def test_widening_is_refused(self):
+        rng = random.Random(4)
+        with pytest.raises(ValueError, match="no letter"):
+            restrict_alphabet(self.automaton(rng, self.NARROW), self.WIDE)
