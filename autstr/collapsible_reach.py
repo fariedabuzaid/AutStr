@@ -716,11 +716,17 @@ class Relations:
         def chain(kind, label, first, final):
             return f'{kind}|{label}|{first}|{final}'
 
+        # Where the trees agree, carry up the annotation of the word the top
+        # path ends at. With no letter gained at all, C is a single high loop
+        # of that word — the run may touch where it started, which is what
+        # separates C from A and B — and this is where the root checks it.
+        agreed = [f'same {name}' for name in annotations]
         for label, annotation in marks:
-            for left in (None, 'same'):
-                for right in (None, 'same'):
+            for left in [None] + agreed:
+                for right in [None] + agreed:
+                    ends = right or left or f'same {annotation}'
                     table[(left, right, (label, label, annotation, self.NONE))] \
-                        = 'same'
+                        = ends
         # the separator the first tree carries, where its last word ends, and
         # the one the second loses
         table[(None, None, (SEP, PAD, PAD, self.NONE))] = 'added'
@@ -779,19 +785,22 @@ class Relations:
                                 source = chain(kind, below, final, deepest)
                                 target = f'{done} {start} {deepest}'
                                 table[(source, None, plain)] = target
-                                table[('same', source, plain)] = target
+                                for kept in agreed:
+                                    table[(kept, source, plain)] = target
                                 table[(None, source, plain)] = target
             for first in states:
                 for final in states:
                     for kind in ('done', 'cutdone'):
                         below_state = f'{kind} {first} {final}'
                         table[(below_state, None, plain)] = below_state
-                        table[('same', below_state, plain)] = below_state
+                        for kept in agreed:
+                            table[(kept, below_state, plain)] = below_state
                         table[(None, below_state, plain)] = below_state
                     grown = f'grown {first} {final}'
                     table[(f'cutdone {first} {final}', 'added', plain)] = grown
                     table[(grown, None, plain)] = grown
-                    table[('same', grown, plain)] = grown
+                    for kept in agreed:
+                        table[(kept, grown, plain)] = grown
                     table[(None, grown, plain)] = grown
 
         for source in states:
@@ -800,25 +809,34 @@ class Relations:
                           self.NONE)
                 for kind in ('done', 'grown'):
                     table[(f'{kind} {source} {target}', None, labels)] = 'accept'
-                if source == target:
-                    table[('same', None, labels)] = 'accept'
+                # no letter gained: one high loop of the topmost word
+                for name in annotations:
+                    summary = self.summary_of(name)
+                    if summary is not None and \
+                            (source, target) in summary.hloop:
+                        table[(f'same {name}', None, labels)] = 'accept'
         return partial_tree_automaton(self.alphabet, 4, table, {'accept'})
 
-    def a_returns(self) -> SparseTreeAutomaton:
-        """``A`` as far as returns take it: the stack loses whole words, one
-        return each.
+    def a(self) -> SparseTreeAutomaton:
+        """``A``: the stack loses whole words.
 
-        Kartzow's Lemma 4.11 decomposes a run of ``A`` into pieces that are
-        returns (F1), or a 1-loop followed by a level 2 collapse (F2), or a
-        1-loop followed by a pop that some later F2 closes off (F3). This
-        builds the F1 case. It is all of ``A`` for a system whose runs never
-        collapse on a level 2 link, since F2 and F3 both end in one; where they
-        can occur this under-approximates, and `collapses_on_links` says so.
+        Kartzow's Lemma 4.11 decomposes such a run into pieces that are
+        returns (F1), a 1-loop then a level 2 collapse (F2), or a 1-loop then a
+        pop that some later F2 closes off (F3). The words dropped are the
+        encoding's separators, and the run drops them from the last backwards
+        — so within a subtree the chain runs through the right child's
+        separators, then the left child's, then the node itself, which is
+        reverse traversal order.
 
-        The words the stack drops are the separators of the encoding, and the
-        run pops them from the last backwards — so within a subtree the chain
-        runs through the right child's separators, then the left child's, then
-        the node itself, which is reverse traversal order.
+        A collapse spans several words at once, which sounds like a link
+        reaching across the tree. It is not: a level 2 link records the number
+        of separators up to its letter, and the stack it points at is the
+        tree's prefix at that separator — which is exactly where the region
+        being deleted begins. So an F3-F2 group is a chain climbing the top
+        path *inside* that region, a 1-loop and a pop at each letter and a
+        1-loop and the collapse at the last, closed off by the region's own
+        root. Every check stays local, and the group then contributes a pair of
+        states to the outer chain just as a return does.
         """
         table = {}
         annotations = list(self.annotation.names.values())
@@ -855,6 +873,71 @@ class Relations:
                         table[(left, f'ret {entered} {first}', symbols)] = \
                             f'ret {entered} {last}'
 
+        # an F3*F2 group: the run climbs the region's top path, taking a
+        # letter off after each 1-loop, and collapses on the last of them
+        for label, annotation in marks:
+            if label not in self.encoding.letters:
+                continue
+            summary = self.summary_of(annotation)
+            symbol, _, level = label.rpartition(':')
+            for guess in self.guesses:
+                pair = self.guessed(guess)
+                if pair is None or summary is None:
+                    continue
+                first, last = pair
+                symbols = (label, PAD, annotation, guess)
+                # The 1-loop before each step may leave the stack as it was:
+                # a collapse straight off the top is no return -- it drops
+                # more than one word -- so nothing else would cover it.
+                idling = summary.oneloop | summary.loop
+                # ... a letter the group pops on its way up
+                if pair in compose(idling,
+                                   self.drop_moves(symbol, int(level))):
+                    for below in (None, 'gone'):
+                        table[(below, None, symbols)] = f'group {first} {last}'
+                    for start in states:
+                        # the node the chain came from is this one's left
+                        # child where the word goes on, and its right where a
+                        # separator ends the word -- the path takes either
+                        for other in (None, 'gone'):
+                            table[(f'group {start} {first}', other,
+                                   symbols)] = f'group {start} {last}'
+                            table[(other, f'group {start} {first}',
+                                   symbols)] = f'group {start} {last}'
+                # ... and the letter it collapses on, which ends the group
+                if int(level) == 2 and pair in compose(
+                        idling, self.summaries.moves(symbol, 'collapse')):
+                    for below in (None, 'gone'):
+                        table[(below, None, symbols)] = f'sprung {first} {last}'
+                        table[(None, below, symbols)] = f'sprung {first} {last}'
+                    for start in states:
+                        for other in (None, 'gone'):
+                            table[(f'group {start} {first}', other,
+                                   symbols)] = f'sprung {start} {last}'
+                            table[(other, f'group {start} {first}',
+                                   symbols)] = f'sprung {start} {last}'
+
+        # below the collapsed letter the region is dropped without any run
+        # step of its own, and the group closes at the region's root
+        for label, annotation in marks:
+            symbols = (label, PAD, annotation, self.NONE)
+            for first in states:
+                for last in states:
+                    sprung = f'sprung {first} {last}'
+                    if label in self.encoding.letters:
+                        for other in (None, 'gone'):
+                            table[(sprung, other, symbols)] = sprung
+                            table[(other, sprung, symbols)] = sprung
+                    else:                       # the region's root separator
+                        for other in (None, 'gone'):
+                            table[(sprung, other, symbols)] = \
+                                f'ret {first} {last}'
+                            table[(other, sprung, symbols)] = \
+                                f'ret {first} {last}'
+                        for entered in states:
+                            table[(sprung, f'ret {entered} {first}',
+                                   symbols)] = f'ret {entered} {last}'
+
         # a node both trees keep, below which words were dropped
         for label, annotation in marks:
             plain = (label, label, annotation, self.NONE)
@@ -878,8 +961,9 @@ class Relations:
         return partial_tree_automaton(self.alphabet, 4, table, {'accept'})
 
     def collapses_on_links(self) -> bool:
-        """Whether the system can collapse on a level 2 link at all — if it
-        cannot, `a_returns` is the whole of ``A``."""
+        """Whether the system can collapse on a level 2 link at all — the
+        case that makes `a` need its F2 and F3 pieces rather than returns
+        alone."""
         pushes = {(rule.operation.symbol, rule.operation.level)
                   for rule in self.system.rules
                   if rule.operation.kind == 'push'}

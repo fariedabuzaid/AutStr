@@ -476,11 +476,14 @@ def drops_to(source, target):
 
 
 def b_oracle(system, source, target, bound=3000):
-    """``B``: a run to a shorter topmost word that never dips below it."""
+    """``B``: a run to a shorter topmost word that never dips below it.
+
+    As with ``A``, dropping no letter at all leaves only the empty run.
+    """
     if not drops_to(source.stack, target.stack):
         return False
-    if source == target:
-        return True                             # the run of no steps
+    if source.stack == target.stack:
+        return source == target
     forbidden = set(substacks(target.stack))
     seen, frontier, steps = {source}, deque([source]), 0
     while frontier and steps < bound:
@@ -669,11 +672,17 @@ def pops_words_to(source, target):
 
 
 def a_oracle(system, source, target, bound=3000):
-    """``A``: a run that drops whole words and never dips below the target."""
+    """``A``: a run that drops whole words and never dips below the target.
+
+    With no word dropped at all the condition already fails at the run's first
+    step — the stack it starts on *is* a substack of the target — so nothing
+    but the empty run qualifies. A loop that stays where it is belongs to C,
+    whose condition excludes only the *proper* substacks.
+    """
     if not pops_words_to(source.stack, target.stack):
         return False
-    if source == target:
-        return True
+    if source.stack == target.stack:
+        return source == target
     forbidden = set(substacks(target.stack))
     seen, frontier, steps = {source}, deque([source]), 0
     while frontier and steps < bound:
@@ -692,15 +701,16 @@ def a_oracle(system, source, target, bound=3000):
     return False
 
 
-class TestRelationAFromReturns:
-    """``A`` as far as returns take it.
+class TestRelationA:
+    """``A`` — the stack loses whole words.
 
     Kartzow's decomposition allows three kinds of piece: a return, a 1-loop
     then a level 2 collapse, and a 1-loop then a pop that a later collapse
-    closes off. Only the first is built here, which is all of ``A`` unless a
-    collapse drops *several* words at once — a single word's worth is already
-    inside a return, since the summaries count a pushed link collapsed after a
-    1-loop as one.
+    closes off. A collapse spanning several words looks like a link reaching
+    across the tree, but a level 2 link records the number of separators up to
+    its letter, and the stack it points at is the tree's prefix at that
+    separator — exactly where the deleted region begins. So the group is a
+    chain climbing that region's own top path.
     """
 
     EXACT = {
@@ -712,17 +722,17 @@ class TestRelationAFromReturns:
         'a collapse over one word': [('0', None, 'u', '1', 'push a 2'),
                                      ('1', 'a', 'x', '2', 'collapse')],
     }
-    #: a collapse that drops every word the clones added — F2 and F3 territory
-    INCOMPLETE = [('0', None, 'c', '0', 'clone'),
-                  ('0', None, 'u', '1', 'push a 2'),
-                  ('1', None, 'k', '1', 'clone'),
-                  ('1', 'a', 'x', '2', 'collapse')]
+    #: a collapse that drops every word the clones added
+    SPANNING = [('0', None, 'c', '0', 'clone'),
+                ('0', None, 'u', '1', 'push a 2'),
+                ('1', None, 'k', '1', 'clone'),
+                ('1', 'a', 'x', '2', 'collapse')]
 
     def relation(self, rules):
         system = Level2CPS(rules, symbols=SYMBOLS)
         relations = Relations(system)
         return system, relations, relations.without_scaffolding(
-            relations.a_returns())
+            relations.a())
 
     def holds(self, relations, relation, source, target):
         return relation.accepts(convolve_trees(
@@ -730,7 +740,7 @@ class TestRelationAFromReturns:
             frozenset(relations.encoding.alphabet), PAD))
 
     @pytest.mark.parametrize("case", sorted(EXACT))
-    def test_it_is_exact_where_no_collapse_spans_words(self, case):
+    def test_against_the_search(self, case):
         system, relations, relation = self.relation(self.EXACT[case])
         configurations = [Configuration(state, stack)
                           for stack in walk_stacks(5, 8, width=3, height=3)
@@ -740,22 +750,36 @@ class TestRelationAFromReturns:
                 assert self.holds(relations, relation, source, target) == \
                     a_oracle(system, source, target), (source, target)
 
-    def test_it_is_sound_where_it_is_not_complete(self):
-        """Where a collapse spans several words the runs are missed, but none
-        are invented — the relation stays inside the truth."""
-        system, relations, relation = self.relation(self.INCOMPLETE)
+    def test_a_collapse_that_spans_several_words(self):
+        system, relations, relation = self.relation(self.SPANNING)
         assert relations.collapses_on_links()
         configurations = [Configuration(state, stack)
                           for stack in walk_stacks(5, 8, width=3, height=3)
                           for state in system.states]
-        missed = 0
         for source in configurations:
             for target in configurations:
-                got = self.holds(relations, relation, source, target)
-                want = a_oracle(system, source, target)
-                assert not (got and not want), (source, target)
-                missed += want and not got
-        assert missed, "this system is meant to show the gap"
+                assert self.holds(relations, relation, source, target) == \
+                    a_oracle(system, source, target), (source, target)
+
+    def test_a_collapse_no_sequence_of_returns_could_make(self):
+        """The only rule is a collapse, so the system has no return at all —
+        and the stack still drops two words in one step, which nothing but the
+        1-loop-and-collapse piece can account for."""
+        system = Level2CPS([('p', 'a', 'x', 'q', 'collapse')], symbols=SYMBOLS)
+        relations = Relations(system)
+        relation = relations.without_scaffolding(relations.a())
+        assert all(not summary.ret
+                   for summary in relations.summaries.values.values())
+
+        word = (Letter('⊥'), Letter('a', 2, 1))
+        tall = Stack(((Letter('⊥'),), word, word))
+        short = Stack(((Letter('⊥'),),))
+        assert tall.collapse() == short          # two words in one step
+        assert self.holds(relations, relation, Configuration('p', tall),
+                          Configuration('q', short))
+        # and only from the state the collapse fires in
+        assert not self.holds(relations, relation, Configuration('q', tall),
+                              Configuration('q', short))
 
     def test_it_is_reflexive(self):
         system, relations, relation = self.relation(self.EXACT['clone and pop'])
