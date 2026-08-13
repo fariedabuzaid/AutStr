@@ -43,7 +43,9 @@ graphs = ["networkx>=3.0"]
 # plotting for the runtime-curve benchmark (benchmarks/runtime_curves.py)
 benchmarks = ["matplotlib>=3.5"]
 # everything the test suite needs (networkx for the graph classes)
-test = ["pytest>=7.4", "networkx>=3.0"]
+# xdist: the suite is CPU-bound and its tests are independent, so `-n auto`
+# is a straight division of wall time (11 min -> 4 min on 16 cores)
+test = ["pytest>=7.4", "pytest-xdist>=3.5", "networkx>=3.0"]
 # building the documentation: API reference from the docstrings plus the
 # showcase notebooks, executed during the build (myst-nb needs a kernel)
 docs = ["sphinx>=7.2", "sphinx-book-theme>=1.1", "sphinx-autodoc-typehints>=1.25",
@@ -53,6 +55,7 @@ docs = ["sphinx>=7.2", "sphinx-book-theme>=1.1", "sphinx-autodoc-typehints>=1.25
 [dependency-groups]
 dev = [
     "pytest~=7.4.0",
+    "pytest-xdist~=3.5",
     "pytest-cov~=4.1.0",
     "pytest-mock~=3.10.0",
     "pytest-asyncio>=0.22.0",
