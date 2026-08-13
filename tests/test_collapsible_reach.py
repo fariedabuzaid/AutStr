@@ -825,14 +825,14 @@ def d_oracle(system, source, target, bound=3000):
 
 
 class TestRelationD:
-    """``D`` — the stack grows. **Not correct yet.**
+    """``D`` — the stack grows, and the run never dips below where it started.
 
     Kartzow's Cor. 4.10 walks the milestones of the stack being built, which
-    the encoding puts in traversal order. What this does not yet handle are
-    the *generalised* milestones: between one word and the next the run passes
-    through the previous word cloned whole, and only then pops it down to
-    where the two words part. Getting that wrong shows up in both directions,
-    and the two cases below are kept as a record of it.
+    the encoding puts in traversal order, so the run only ever moves forward
+    through the tree. Measuring that walk gives three moves: a push to a left
+    child, a clone to a right child, and an ascent that clones at the *deepest*
+    node reached and then pops one letter per level, each node giving up its
+    own. A separator carries no letter, so it pops nothing.
     """
 
     CLONE_ONLY = [('0', None, 'c', '1', 'clone')]
@@ -865,9 +865,6 @@ class TestRelationD:
                 assert self.holds(relations, relation, configuration,
                                   configuration)
 
-    @pytest.mark.xfail(reason="the generalised milestones are not handled: "
-                              "the run clones the whole word before popping "
-                              "it down to where the two words part")
     def test_a_word_shorter_than_its_clone_needs_pops(self):
         """The system can only clone and pop words, never letters — so the
         second word cannot be shorter than the first."""
@@ -878,3 +875,97 @@ class TestRelationD:
             relations, relation,
             Configuration('0', Stack((long_word,))),
             Configuration('1', Stack((long_word, short_word))))
+        # the cloned copy itself, however, is one step away
+        assert self.holds(relations, relation,
+                          Configuration('0', Stack((long_word,))),
+                          Configuration('1', Stack((long_word, long_word))))
+
+    @pytest.mark.parametrize("case", ['clone only', 'clone, pop, push'])
+    def test_against_the_search(self, case):
+        rules = {'clone only': self.CLONE_ONLY,
+                 'clone, pop, push': [('0', None, 'c', '1', 'clone'),
+                                      ('1', 'a', 'p', '2', 'pop 1'),
+                                      ('2', None, 'u', '0', 'push b 1'),
+                                      ('0', None, 'k', '0', 'clone')]}[case]
+        system, relations, relation = self.relation(rules)
+        # a random walk alone rarely produces two stacks that are actually
+        # related, so grow the sample from each stack's clone and pops
+        stacks = walk_stacks(5, 6, width=2, height=3)
+        related = list(stacks)
+        for stack in stacks:
+            related += [stack.clone()] + \
+                ([stack.pop2()] if stack.pop2() else []) + \
+                ([stack.clone().pop1()] if stack.clone().pop1() else [])
+        seen, unique = set(), []
+        for stack in related:
+            if repr(stack) not in seen and stack.width <= 3:
+                seen.add(repr(stack))
+                unique.append(stack)
+        configurations = [Configuration(state, stack) for stack in unique
+                          for state in system.states]
+        for source in configurations:
+            for target in configurations:
+                assert self.holds(relations, relation, source, target) == \
+                    d_oracle(system, source, target), (source, target)
+
+
+class TestReach:
+    """Reachability itself: the composition of the four.
+
+    Every run splits into words coming off, letters coming off, letters going
+    on and words going on, and all four relations are reflexive — so the
+    composition excludes nothing, and it is a first-order formula rather than
+    an automaton of its own.
+    """
+
+    CASES = {
+        'clone and pop back': [('0', None, 'c', '1', 'clone'),
+                               ('1', None, 'o', '0', 'pop 2')],
+        'push and pop letters': [('0', None, 'u', '1', 'push a 1'),
+                                 ('1', 'a', 'p', '0', 'pop 1')],
+    }
+
+    def search(self, system, source, bound=4000):
+        seen, frontier, steps = {source}, deque([source]), 0
+        while frontier and steps < bound:
+            configuration = frontier.popleft()
+            steps += 1
+            for _, successor in system.step(configuration):
+                if successor in seen:
+                    continue
+                if successor.stack.width > 3 or \
+                        max(map(len, successor.stack.words)) > 4:
+                    continue
+                seen.add(successor)
+                frontier.append(successor)
+        return seen
+
+    @pytest.mark.parametrize("case", sorted(CASES))
+    def test_against_the_search(self, case):
+        system = Level2CPS(self.CASES[case], symbols=SYMBOLS)
+        relations = Relations(system)
+        reach = relations.reach()
+        alphabet = frozenset(relations.encoding.alphabet)
+        configurations = [Configuration(state, stack)
+                          for stack in walk_stacks(4, 5, width=2, height=3)
+                          for state in system.states]
+        for source in configurations:
+            found = self.search(system, source)
+            for target in configurations:
+                got = reach.accepts(convolve_trees(
+                    [encode_configuration(source),
+                     encode_configuration(target)], alphabet, PAD))
+                assert got == (target in found), (source, target)
+
+    def test_it_is_reflexive_and_transitive(self):
+        """Two first-order questions about reachability — which is the whole
+        point of having it as a relation of the structure."""
+        from autstr.tree_presentations import TreeAutomaticPresentation
+        system = Level2CPS(self.CASES['clone and pop back'], symbols=SYMBOLS)
+        relations = Relations(system)
+        structure = TreeAutomaticPresentation(
+            {'U': relations.encoding.universe(),
+             'Reach': relations.reach()}, padding_symbol=PAD)
+        assert structure.check('all x.(Reach(x,x))')
+        assert structure.check('all x.(all y.(all z.('
+                               '(Reach(x,y) & Reach(y,z)) -> Reach(x,z))))')

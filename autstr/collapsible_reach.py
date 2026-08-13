@@ -160,7 +160,6 @@ class Summaries:
         self.converged = False
         self.values: Dict[tuple, Summary] = {}
         self.depth = depth
-        previous_bound = 0
         #: the words whose summary stopped growing when the bound last rose —
         #: a value can only grow, so agreeing twice means it is the truth
         self.stable: set = set()
@@ -169,15 +168,32 @@ class Summaries:
             self.depth = bound
             self.stable = {path for path in previous
                            if previous[path] == self.values[path]}
-            # the longest words of a round are the ones whose own extensions
-            # were pinned empty, so they always improve when the bound rises;
-            # convergence is about the words below that edge
-            if previous and all(
-                    previous[path] == self.values[path] for path in previous
-                    if len(path) < previous_bound):
-                self.converged = True
+            # Converged means the merged automaton is *closed*: every summary
+            # it can reach has a transition for every letter, all of them
+            # witnessed by words that have stopped growing. Anything less and
+            # a word the structure really contains may have no summary at all,
+            # which downstream shows up as a tree that cannot be annotated.
+            try:
+                start, table = self._merge()
+            except ValueError:
+                continue
+            reachable, frontier = {start}, [start]
+            while frontier:
+                current = frontier.pop()
+                for letter in self.letters:
+                    following = table.get((current, letter))
+                    if following is None:
+                        break
+                    if following not in reachable:
+                        reachable.add(following)
+                        frontier.append(following)
+                else:
+                    continue
                 break
-            previous_bound = bound
+            else:
+                self.converged = True
+                self._merged = (start, table)
+                break
 
     # -- the transitions available on one topmost symbol ----------------
     def _transitions(self, symbol: str) -> Dict[object, Relation]:
@@ -240,6 +256,16 @@ class Summaries:
 
     def transitions(self) -> Tuple[Summary, Dict[Tuple[Summary, Letter],
                                                  Summary]]:
+        """The merged automaton, as `_merge` builds it, once it is closed."""
+        if not self.converged:
+            raise ValueError(
+                f"the summaries were still growing, or the automaton they "
+                f"merge into is not closed, at {self.depth} letters; raise "
+                f"the limit")
+        return self._merged
+
+    def _merge(self) -> Tuple[Summary, Dict[Tuple[Summary, Letter],
+                                            Summary]]:
         """The summaries as an automaton: the summary of the bottom letter,
         and a table saying how one letter extends a summary.
 
@@ -248,11 +274,6 @@ class Summaries:
         fixpoint are left out of the merge: their own extensions were pinned
         empty, so what they say about a letter is not yet the truth.
         """
-        if not self.converged:
-            raise ValueError(
-                f"the summaries were still growing at {self.depth} letters, so "
-                f"words that look alike need not behave alike yet; raise the "
-                f"limit")
         # a word near the edge has its own extensions pinned empty, so what
         # it says about a letter is short of the truth; only the words whose
         # summary has stopped growing may speak
@@ -500,6 +521,10 @@ class Relations:
 
     #: a node no run visits, and so carries no guessed states
     NONE = '@-'
+    #: a node one collapse takes away along with everything around it — told
+    #: apart from an ordinary dropped letter on the tape, since the two inert
+    #: regions would otherwise want the same entry
+    BURIED = '@buried'
 
     def __init__(self, system: Level2CPS, summaries: Optional[Summaries] = None
                  ) -> None:
@@ -513,7 +538,16 @@ class Relations:
         self.guesses = [self.NONE] + [
             f'@{before},{after}' for before in system.states
             for after in system.states]
-        self.alphabet = set(self.annotation.alphabet) | set(self.guesses)
+        # D needs one thing more: whether the run ENDS in this subtree, passes
+        # through it, or is climbing out of what the two stacks share. A leaf
+        # can be any of the three, and a table has one entry per key, so the
+        # choice has to be on the tape rather than in the state.
+        self.guesses.append(self.BURIED)
+        self.walks = [f'&{before},{after},{kind}'
+                      for before in system.states for after in system.states
+                      for kind in ('end', 'thru', 'rise', 'start')]
+        self.alphabet = set(self.annotation.alphabet) | set(self.guesses) \
+            | set(self.walks)
 
     def summary_of(self, annotation: str) -> Optional[Summary]:
         """The summary an annotation letter stands for."""
@@ -532,10 +566,17 @@ class Relations:
 
     def guessed(self, guess: str) -> Optional[Tuple[str, str]]:
         """The pair of states a guess letter carries, or None."""
-        if guess == self.NONE:
+        if guess == self.NONE or guess.startswith('&'):
             return None
         before, _, after = guess[1:].partition(',')
         return before, after
+
+    def walked(self, guess: str) -> Optional[Tuple[str, str, str]]:
+        """The two states and the kind of walk a `D` guess letter carries."""
+        if not guess.startswith('&'):
+            return None
+        before, after, kind = guess[1:].split(',')
+        return before, after, kind
 
     def dropping(self, annotation: str, label: str, guess: str) -> bool:
         """Whether a letter may be dropped as the guess says: a high loop of
@@ -610,6 +651,37 @@ class Relations:
                 table[(None, f'chain {first} {last}', symbols)] = \
                     f'cutchain {first} {last}'
 
+        # A letter the run drops need not be one the second tree loses: when
+        # the word below shares it, the letter stays and only the separator
+        # moves up. So the chain carries on through nodes both trees keep,
+        # dropping their letters too.
+        for label, annotation in marks:
+            if label not in self.encoding.letters:
+                continue
+            for guess in self.guesses:
+                if not self.dropping(annotation, label, guess):
+                    continue
+                before, after = self.guessed(guess)
+                shared = (label, label, annotation, guess)
+                # the chain may even begin here, where the word loses only
+                # letters the word below it shares: then nothing is deleted
+                # but the separator that used to end it
+                # ... and the node it hangs from may carry it on either side:
+                # a letter's continuation is its left child, a separator its
+                # right
+                table[('cut', None, shared)] = f'cutrise {before} {after}'
+                table[(None, 'cut', shared)] = f'cutrise {before} {after}'
+                for start_state in self.system.states:
+                    # only once a separator has gone: a letter that stays may
+                    # be dropped exactly when the word below shares it, and
+                    # then the separator that ended the word moves up
+                    for kind in ('cutchain', 'cutrise'):
+                        for side in (None, 'same'):
+                            table[(f'{kind} {start_state} {before}', side,
+                                   shared)] = f'cutrise {start_state} {after}'
+                            table[(side, f'{kind} {start_state} {before}',
+                                   shared)] = f'cutrise {start_state} {after}'
+
         # the chain stops at a node both trees keep. From there up nothing may
         # follow it in either tree: coming from a right child anything already
         # read may sit to the left, but coming from a left child there must be
@@ -618,13 +690,15 @@ class Relations:
             plain = (label, label, annotation, self.NONE)
             for first, last in pairs:
                 for chain, kind in ((f'chain {first} {last}', 'done'),
-                                    (f'cutchain {first} {last}', 'cutdone')):
+                                    (f'cutchain {first} {last}', 'cutdone'),
+                                    (f'cutrise {first} {last}', 'cutdone')):
                     for below in (chain, f'{kind} {first} {last}'):
                         table[(below, None, plain)] = f'{kind} {first} {last}'
                         table[('same', below, plain)] = f'{kind} {first} {last}'
                         table[(None, below, plain)] = f'{kind} {first} {last}'
                 # the deleted separator is made good by the added one
                 for below in (f'cutchain {first} {last}',
+                              f'cutrise {first} {last}',
                               f'cutdone {first} {last}'):
                     table[(below, 'added', plain)] = f'grown {first} {last}'
                 grown = f'grown {first} {last}'
@@ -849,14 +923,25 @@ class Relations:
                 for right in (None, 'same'):
                     table[(left, right, (label, label, annotation, self.NONE))] \
                         = 'same'
-
-        # inside a word the first tree drops, nothing is guessed
+        # Inside a word the first tree drops, nothing is guessed -- but only
+        # its letters. A separator going means a whole word going, and every
+        # word that goes must be paid for by a return or by an F2 group's
+        # collapse; letting one pass as inert drops two words for the price of
+        # one.
         for label, annotation in marks:
+            if label not in self.encoding.letters:
+                continue
             for left in (None, 'gone'):
                 for right in (None, 'gone'):
                     table[(left, right, (label, PAD, annotation, self.NONE))] \
                         = 'gone'
-
+        # below the letter an F2 group collapses on, everything goes at once,
+        # separators included
+        for label, annotation in marks:
+            for left in (None, 'buried'):
+                for right in (None, 'buried'):
+                    table[(left, right,
+                           (label, PAD, annotation, self.BURIED))] = 'buried'
         # a separator the first tree drops: one return of the word it names
         for annotation in annotations:
             summary = self.summary_of(annotation)
@@ -893,13 +978,13 @@ class Relations:
                 # ... a letter the group pops on its way up
                 if pair in compose(idling,
                                    self.drop_moves(symbol, int(level))):
-                    for below in (None, 'gone'):
+                    for below in (None, 'buried'):
                         table[(below, None, symbols)] = f'group {first} {last}'
                     for start in states:
                         # the node the chain came from is this one's left
                         # child where the word goes on, and its right where a
                         # separator ends the word -- the path takes either
-                        for other in (None, 'gone'):
+                        for other in (None, 'buried'):
                             table[(f'group {start} {first}', other,
                                    symbols)] = f'group {start} {last}'
                             table[(other, f'group {start} {first}',
@@ -907,11 +992,11 @@ class Relations:
                 # ... and the letter it collapses on, which ends the group
                 if int(level) == 2 and pair in compose(
                         idling, self.summaries.moves(symbol, 'collapse')):
-                    for below in (None, 'gone'):
+                    for below in (None, 'buried'):
                         table[(below, None, symbols)] = f'sprung {first} {last}'
                         table[(None, below, symbols)] = f'sprung {first} {last}'
                     for start in states:
-                        for other in (None, 'gone'):
+                        for other in (None, 'buried'):
                             table[(f'group {start} {first}', other,
                                    symbols)] = f'sprung {start} {last}'
                             table[(other, f'group {start} {first}',
@@ -925,11 +1010,11 @@ class Relations:
                 for last in states:
                     sprung = f'sprung {first} {last}'
                     if label in self.encoding.letters:
-                        for other in (None, 'gone'):
+                        for other in (None, 'buried'):
                             table[(sprung, other, symbols)] = sprung
                             table[(other, sprung, symbols)] = sprung
                     else:                       # the region's root separator
-                        for other in (None, 'gone'):
+                        for other in (None, 'buried'):
                             table[(sprung, other, symbols)] = \
                                 f'ret {first} {last}'
                             table[(other, sprung, symbols)] = \
@@ -976,28 +1061,34 @@ class Relations:
         """``D``: the stack grows, and the run never dips below where it
         started.
 
-        Kartzow's Cor. 4.10 says such a run visits the milestones of the stack
-        it builds in order, consecutive ones joined by a single operation and a
-        loop — and the encoding puts those milestones in traversal order, one
-        per node. The run therefore only ever moves *forward* through the tree,
-        which is what decides where each operation goes: descending to a left
-        child is a push, and a new word is reached by cloning at the deepest
-        point of the word before it and then popping back up, one letter per
-        level, until the two words part company.
+        Kartzow's Cor. 4.10 walks the milestones of the stack being built,
+        consecutive ones joined by a single operation and a loop, and the
+        encoding lays them out one per node in traversal order. Measuring that
+        walk gives three moves and no others:
 
-        Cloning at the deepest point rather than where the words part is the
-        whole of it. The other way round would let a word be shorter than the
-        copy it came from for nothing, which is a run no system need have.
+            to a left child      push that letter
+            to a right child     clone
+            back up a level      pop, one per level, each node popping its own
+
+        with the clone that starts an ascent happening at the *deepest* node
+        reached, not where the two words part. A separator carries no letter,
+        so it pops nothing on the way out.
+
+        That makes one invariant per subtree: the run arrives at its root's
+        milestone in one state and leaves the subtree in another, having
+        cloned at its deepest node and popped back up to the word its parent
+        names. The run ends inside exactly one subtree, and there it leaves
+        by simply stopping — which is the difference between the two kinds of
+        walk state below.
         """
         table = {}
         annotations = list(self.annotation.names.values())
         marks = [(label, annotation)
                  for label in self.encoding.nodes for annotation in annotations]
-        letters = list(self.encoding.letters)
         states = self.system.states
 
-        def grew(cloned, label, arrive, leave):
-            return f'grew|{int(cloned)}|{label}|{arrive}|{leave}'
+        def walk(label, arrive, leave, kind):
+            return f'w|{label}|{arrive}|{leave}|{kind}'
 
         for label, annotation in marks:
             for left in (None, 'same'):
@@ -1011,82 +1102,136 @@ class Relations:
                 continue
             loop = summary.loop
             clones = self.summaries.moves(summary.symbol or '', 'clone')
-            for guess in self.guesses:
-                pair = self.guessed(guess)
-                if pair is None:
-                    continue
-                arrive, leave = pair
-                symbols = (PAD, label, annotation, guess)
+            # Leaving a subtree: clone down here, and then this node gives up
+            # its own letter -- unless it is a separator, which has none. The
+            # loop that follows that pop belongs to the word the PARENT names,
+            # not this one, so it is left for the parent to apply; each node
+            # loops on its own word before it pops.
+            if label in self.encoding.letters:
+                symbol, _, level = label.rpartition(':')
+                drop = self.drop_moves(symbol, int(level))
+                out = compose(compose(loop, clones), compose(loop, drop))
+                mine = compose(loop, drop)
+            else:
+                out = compose(loop, clones)
+                mine = loop
 
-                # the deepest milestone of a word: the run loops there, and
-                # clones if another word is still to come
-                if (arrive, leave) in loop:
-                    table[(None, None, symbols)] = \
-                        grew(False, label, arrive, leave)
-                if (arrive, leave) in compose(loop, clones):
-                    table[(None, None, symbols)] = \
-                        grew(True, label, arrive, leave)
+            for guess in self.walks:
+                arrive, leave, kind = self.walked(guess)
+                added = (PAD, label, annotation, guess)
+                shared = (label, label, annotation, guess)
 
-                for below in letters:
-                    symbol, _, level = below.rpartition(':')
+                # a milestone with nothing below it: the run either stops
+                # here, or clones and gives this node's letter back up
+                if kind == 'end' and (arrive, leave) in loop:
+                    table[(None, None, added)] = \
+                        walk(label, arrive, leave, 'end')
+                if kind == 'thru' and (arrive, leave) in out:
+                    table[(None, None, added)] = \
+                        walk(label, arrive, leave, 'thru')
+                if kind == 'rise' and (arrive, leave) in out:
+                    # the run starts at the top of the first stack and climbs
+                    # out of the part both trees share
+                    table[(None, None, shared)] = \
+                        walk(label, arrive, leave, 'rise')
+
+                for below in self.encoding.letters:
                     down = compose(loop, self.push_moves(annotation, below))
-                    up = compose(self.drop_moves(symbol, int(level)), loop)
                     for entered in states:
                         if (arrive, entered) not in down:
                             continue
                         for came_back in states:
-                            # deeper and never back: this word is the last
-                            child = grew(False, below, entered, came_back)
-                            if came_back == leave:
-                                table[(child, None, symbols)] = \
-                                    grew(False, label, arrive, leave)
-                            # deeper, cloned down there, and popping back up
-                            cloned = grew(True, below, entered, came_back)
-                            if (came_back, leave) in up:
-                                table[(cloned, None, symbols)] = \
-                                    grew(True, label, arrive, leave)
-                            # ... until the words part, where the new one
-                            # hangs as this node's right child
+                            child = walk(below, entered, came_back, 'thru')
+                            ends = walk(below, entered, came_back, 'end')
+                            # the run ends somewhere below
+                            if kind == 'end' and came_back == leave:
+                                table[(ends, None, added)] = \
+                                    walk(label, arrive, leave, 'end')
+                            # or comes back up and this node gives up its letter
+                            if kind == 'thru' and (came_back, leave) in mine:
+                                table[(child, None, added)] = \
+                                    walk(label, arrive, leave, 'thru')
+                            # or hands on to a word cloned from this one, which
+                            # the ascent has already popped down to
                             for last in states:
-                                sibling = grew(False, SEP, leave, last)
-                                if (came_back, leave) in up:
-                                    table[(cloned, sibling, symbols)] = \
-                                        grew(False, label, arrive, last)
-                                shared = grew(True, SEP, leave, last)
-                                if (came_back, leave) in up:
-                                    table[(cloned, shared, symbols)] = \
-                                        grew(True, label, arrive, last)
+                                for below_kind in ('end', 'thru'):
+                                    sibling = walk(SEP, came_back, last,
+                                                   below_kind)
+                                    if kind == 'end' and below_kind == 'end':
+                                        table[(child, sibling, added)] = \
+                                            walk(label, arrive, last, 'end')
+                                    elif kind == 'thru' and \
+                                            below_kind == 'thru' and \
+                                            (last, leave) in mine:
+                                        table[(child, sibling, added)] = \
+                                            walk(label, arrive, leave, 'thru')
 
-                # a word that parts from this one right here: the clone
-                # happened below, and nothing was popped since
-                for last in states:
-                    for kind in (False, True):
-                        sibling = grew(kind, SEP, leave, last)
-                        if (arrive, leave) in compose(loop, clones):
-                            table[(None, sibling, symbols)] = \
-                                grew(kind, label, arrive, last)
+                # a word cloned from this one, with nothing pushed first
+                across = compose(loop, clones)
+                for entered in states:
+                    if (arrive, entered) not in across:
+                        continue
+                    for last in states:
+                        for below_kind in ('end', 'thru'):
+                            sibling = walk(SEP, entered, last, below_kind)
+                            if kind == 'end' and below_kind == 'end':
+                                table[(None, sibling, added)] = \
+                                    walk(label, arrive, last, 'end')
+                            elif kind == 'thru' and below_kind == 'thru' and \
+                                    (last, leave) in mine:
+                                table[(None, sibling, added)] = \
+                                    walk(label, arrive, leave, 'thru')
 
-        # Where the growth hangs, and the run starts. The first new word is
-        # a clone of the one this node names, and this is the only place that
-        # clone can be checked -- inside the region every node is one the
-        # second tree alone has.
+        # climbing out of the shared part: each node gives up its own letter
+        # until the one the new words hang from
         for label, annotation in marks:
             summary = self.summary_of(annotation)
-            plain = (label, label, annotation, self.NONE)
             if summary is None:
                 continue
-            starts = compose(summary.loop,
-                             self.summaries.moves(summary.symbol or '', 'clone'))
-            for arrive in states:
-                for last in states:
-                    child = grew(False, SEP, arrive, last)
-                    for first in states:
-                        if (first, arrive) not in starts:
-                            continue
-                        done = f'done {first} {last}'
-                        for other in (None, 'same'):
-                            table[(other, child, plain)] = done
-                        table[(child, None, plain)] = done
+            plain = (label, label, annotation, self.NONE)
+            if label in self.encoding.letters:
+                symbol, _, level = label.rpartition(':')
+                mine = compose(summary.loop,
+                               self.drop_moves(symbol, int(level)))
+            else:
+                mine = summary.loop
+            # the state comes up from the child, so it is the CHILD's label
+            # the ascent has to name, not this node's
+            for child_label in self.encoding.nodes:
+                for first in states:
+                    for came_back in states:
+                        below = walk(child_label, first, came_back, 'rise')
+                        for leave in states:
+                            if (came_back, leave) not in mine:
+                                continue
+                            for other in (None, 'same'):
+                                table[(below, other, plain)] = \
+                                    walk(label, first, leave, 'rise')
+                        # where the new words hang: the ascent is over
+                        for last in states:
+                            sibling = walk(SEP, came_back, last, 'end')
+                            table[(below, sibling, plain)] = \
+                                f'done {first} {last}'
+
+            # Or the first stack ends right here, and the clone that starts
+            # the new words happens at this very node. Which state the run
+            # began in is a choice like any other, so it goes on the tape --
+            # two starts would otherwise want the same entry, and the table
+            # has room for one.
+            start = compose(summary.loop,
+                            self.summaries.moves(summary.symbol or '', 'clone'))
+            for entered in states:
+                for first in states:
+                    if (entered, first) not in start:
+                        continue
+                    marked = (label, label, annotation,
+                              f'&{entered},{first},start')
+                    for last in states:
+                        sibling = walk(SEP, first, last, 'end')
+                        # only where the shared part stops: a shared child
+                        # would mean the run began higher up than the first
+                        # stack actually reaches
+                        table[(None, sibling, marked)] = f'done {entered} {last}'
             for first in states:
                 for last in states:
                     done = f'done {first} {last}'
