@@ -69,6 +69,7 @@ DOI: [10.2168/LMCS-3(2:2)2007](https://doi.org/10.2168/LMCS-3%282%3A2%292007)
 (delhomme2004)=
 **Delhommé, C.** *Automaticité des ordinaux et des graphes homogènes.*
 Comptes Rendus Mathématique 339(1), 2004, 5–10.
+DOI: [10.1016/j.crma.2004.03.035](https://doi.org/10.1016/j.crma.2004.03.035)
 : The two lines `autstr.ordinals` sits between: the word-automatic ordinals are
   exactly those below ω^ω, and the tree-automatic ones exactly those below
   ω^(ω^ω). `Ordinal(n)` and `TreeOrdinal(n)` take an exponent rather than being
@@ -76,13 +77,17 @@ Comptes Rendus Mathématique 339(1), 2004, 5–10.
 
 (colcombet2007)=
 **Colcombet, T., & Löding, C.** *Transforming structures by set
-interpretations.* LMCS 3(2), 2007.
-: Existence of injective presentations for tree-automatic quotients — the
-  theorem that makes `interpret(..., quotient=ε)` well posed over trees.
+interpretations.* Logical Methods in Computer Science 3(2:4), 2007, 1–36.
+DOI: [10.2168/LMCS-3(2:4)2007](https://doi.org/10.2168/LMCS-3%282%3A4%292007)
+: Set interpretations, and their application to tree-automatic structures.
+  Every tree-automatic structure admits an *injective* presentation, which is
+  what makes `interpret(..., quotient=ε)` well posed over trees; Kuske and
+  Weidner below make that effective.
 
 (kuske2011)=
-**Kuske, D., & Weidner, T.** *Size and computation of injective tree automatic
-presentations.* MFCS 2011, LNCS vol. 6907.
+**Kuske, D., & Weidner, T.** *Size and Computation of Injective Tree Automatic
+Presentations.* MFCS 2011, LNCS vol. 6907, pp. 424–435.
+DOI: [10.1007/978-3-642-22993-0_39](https://doi.org/10.1007/978-3-642-22993-0_39)
 : The construction `autstr.interpretations` uses for tree quotients. No
   automatic order on trees is well-founded, so a class need have no least
   member; the representative is instead the least *description*. §4 proves the
@@ -122,7 +127,9 @@ DOI: [10.1016/S0166-218X(99)00184-5](https://doi.org/10.1016/S0166-218X%2899%290
 (oum2006)=
 **Oum, S., & Seymour, P.** *Approximating clique-width and branch-width.*
 Journal of Combinatorial Theory Series B 96(4), 2006, 514–528.
-: Rank-width and rank decompositions — the advice of
+DOI: [10.1016/j.jctb.2005.10.006](https://doi.org/10.1016/j.jctb.2005.10.006)
+: The paper that introduces **rank-width**, as the branch-width of the cut-rank
+  function. Rank decompositions are the advice of
   `autstr.tree_graphs.RankWidthClass`, and the width measure the class-2 group
   families in `autstr.groups`, `autstr.tree_groups` and
   `autstr.cocycle_groups` are graded by.
@@ -131,8 +138,9 @@ Journal of Combinatorial Theory Series B 96(4), 2006, 514–528.
 
 (kartzow2013)=
 **Kartzow, A.** *Collapsible Pushdown Graphs of Level 2 are Tree-Automatic.*
-Logical Methods in Computer Science 9(1), 2013.
-arXiv: [1303.2453](https://arxiv.org/abs/1303.2453)
+Logical Methods in Computer Science 9(1:12), 2013.
+arXiv: [1303.2453](https://arxiv.org/abs/1303.2453) ·
+DOI: [10.2168/LMCS-9(1:12)2013](https://doi.org/10.2168/LMCS-9%281%3A12%292013)
 : The encoding `autstr.collapsible` implements — blocks as a tree, collapse
   links recovered from its shape rather than stored — and the reachability
   decomposition `autstr.collapsible_reach` builds: §4 splits every run into
