@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional, Sequence
 
-from autstr.buildin.automata import k_longer_automaton
+from autstr.utils.automata_tools import k_longer_automaton
 from autstr.sparse_tree_automata import Tree, convolve_trees, tree_to_arrays
 from autstr.utils.tree_automata_tools import (
     canonical as tree_canonical, iterate_trees, k_deeper_automaton,

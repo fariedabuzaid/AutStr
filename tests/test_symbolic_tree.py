@@ -8,7 +8,7 @@ from itertools import islice
 
 import pytest
 
-from autstr.buildin.tree_presentations import SkolemArithmetic
+from autstr.tree_arithmetic import SkolemArithmetic
 from autstr.sparse_tree_automata import convolve_trees
 from autstr.symbolic import (
     CompileError, FunctionCodec, Signature, SymbolicSymbolError,

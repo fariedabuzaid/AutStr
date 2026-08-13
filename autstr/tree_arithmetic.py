@@ -1,10 +1,19 @@
-"""Built-in tree-automatic presentations.
+"""Skolem arithmetic: the multiplicative monoid of the naturals.
 
-The flagship example is Skolem arithmetic, the multiplicative monoid
-(N_{>0}, ·): multiplication of naturals is not string-automatic, but the
-prime-factorization encoding makes it tree-automatic — the multiplicative
-structure is the direct sum of countably many copies of (N, +), one per
-prime, and a tree bundles the finitely many nonzero summands.
+:math:`(\\mathbb{N}_{>0}, \\cdot)` is *not* string-automatic, but it is
+tree-automatic, and the prime factorization is why: multiplicatively the
+structure is the direct sum of countably many copies of :math:`(\\mathbb{N},
++)`, one per prime, and a tree bundles the finitely many nonzero summands. So
+multiplication becomes addition of exponents, carried out in parallel across
+the primes.
+
+    >>> S = skolem_arithmetic().symbolic()
+    >>> x, y = S.vars("x y")
+    >>> (6, 35, 210) in (x * y).eq(S.vars("z")[0])
+    True
+
+This is the tree-engine counterpart of `autstr.arithmetic`, whose additive
+structures the string engine can present directly.
 """
 from itertools import product as iter_product
 from typing import List, Optional

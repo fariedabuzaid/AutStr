@@ -16,7 +16,7 @@ import itertools
 
 import pytest
 
-from autstr.buildin.tree_presentations import SkolemArithmetic
+from autstr.tree_arithmetic import SkolemArithmetic
 from autstr.interpretations import _EQUIV, _tree_representatives, interpret
 from autstr.sparse_tree_automata import Tree, convolve_trees
 from autstr.tree_presentations import TreeAutomaticPresentation

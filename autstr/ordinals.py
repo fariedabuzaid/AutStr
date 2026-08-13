@@ -43,7 +43,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
-from autstr.buildin.presentations import BuechiArithmetic
+from autstr.arithmetic import BuechiArithmetic
 from autstr.interpretations import interpret
 from autstr.sparse_tree_automata import SparseTreeAutomaton, Tree
 from autstr.symbolic import FunctionCodec, order_signature

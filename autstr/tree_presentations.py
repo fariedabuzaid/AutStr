@@ -11,12 +11,17 @@ saturation; complements are re-intersected with the domain product; and
 `project` — which produces the canonical (trimmed) language — is followed by
 re-saturation, the tree analog of the string pipeline's pad/unpad dance.
 """
+import json
+import struct
+import zlib
 from typing import Dict, Optional, Union
 
 from nltk.sem import logic
 
 from autstr.presentations import DeferredRelations
-from autstr.sparse_tree_automata import SparseTreeAutomaton
+from autstr.sparse_tree_automata import (
+    SparseTreeAutomaton, SparseTreeAutomatonSerializer,
+)
 from autstr.utils.logic import get_free_elementary_vars, optimize_query
 from autstr.utils.tree_automata_tools import (
     attach_padding, expand, minimize, project,
@@ -33,6 +38,87 @@ def tree_zero(symbol_arity: int = 1, base_alphabet=None) -> SparseTreeAutomaton:
     """Automaton rejecting every tree."""
     return SparseTreeAutomaton(1, 0, [], [], [], [], [False],
                                symbol_arity, base_alphabet or {0})
+
+
+class TreeAutomaticPresentationSerializer:
+    """Binary serialization for `TreeAutomaticPresentation`.
+
+    Mirrors `autstr.presentations.AutomaticPresentationSerializer`, but stores
+    each automaton's payload as raw bytes with a length prefix rather than as
+    a JSON list of integers -- which costs roughly four bytes of file per byte
+    of data.
+    """
+
+    MAGIC = b'TPRS'
+    VERSION = 1
+    HEADER_FORMAT = "4sB3sII"
+    HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
+
+    @classmethod
+    def serialize(cls, presentation, filename: str) -> None:
+        payload = cls._create_payload(presentation)
+        header = struct.pack(cls.HEADER_FORMAT, cls.MAGIC, cls.VERSION,
+                             b'\0\0\0', zlib.crc32(payload), len(payload))
+        with open(filename, 'wb') as handle:
+            handle.write(header)
+            handle.write(payload)
+
+    @classmethod
+    def deserialize(cls, filename: str) -> 'TreeAutomaticPresentation':
+        with open(filename, 'rb') as handle:
+            data = handle.read()
+        magic, version, _, checksum, payload_size = struct.unpack(
+            cls.HEADER_FORMAT, data[:cls.HEADER_SIZE])
+        if magic != cls.MAGIC:
+            raise ValueError("Invalid file format (bad magic number)")
+        if version != cls.VERSION:
+            raise ValueError(f"Unsupported version: {version}")
+        payload = data[cls.HEADER_SIZE:cls.HEADER_SIZE + payload_size]
+        if len(payload) != payload_size:
+            raise ValueError("Payload size mismatch")
+        if zlib.crc32(payload) != checksum:
+            raise ValueError("Data corruption detected (checksum mismatch)")
+        return cls._parse_payload(payload)
+
+    @classmethod
+    def _create_payload(cls, presentation) -> bytes:
+        names = list(presentation.automata)
+        metadata = json.dumps({
+            "padding_symbol": presentation.padding_symbol,
+            "max_states": presentation.max_states,
+            "names": names,
+        }).encode('utf-8')
+        chunks = [struct.pack("I", len(metadata)), metadata]
+        for name in names:
+            blob = SparseTreeAutomatonSerializer.to_bytes(
+                presentation.automata[name])
+            chunks.append(struct.pack("I", len(blob)))
+            chunks.append(blob)
+        return b''.join(chunks)
+
+    @classmethod
+    def _parse_payload(cls, payload: bytes) -> 'TreeAutomaticPresentation':
+        metadata_len, = struct.unpack("I", payload[:4])
+        offset = 4
+        metadata = json.loads(payload[offset:offset + metadata_len])
+        offset += metadata_len
+
+        automata = {}
+        for name in metadata["names"]:
+            size, = struct.unpack("I", payload[offset:offset + 4])
+            offset += 4
+            automata[name] = SparseTreeAutomatonSerializer.from_bytes(
+                payload[offset:offset + size])
+            offset += size
+
+        # over a product alphabet the padding symbol is a tuple, and JSON has
+        # no tuples
+        padding_symbol = metadata["padding_symbol"]
+        if isinstance(padding_symbol, list):
+            padding_symbol = tuple(padding_symbol)
+        return TreeAutomaticPresentation(
+            automata, padding_symbol=padding_symbol,
+            enforce_consistency=False, max_states=metadata["max_states"])
 
 
 class TreeAutomaticPresentation(DeferredRelations):
@@ -81,6 +167,21 @@ class TreeAutomaticPresentation(DeferredRelations):
             domain = minimize(domain.intersection(
                 minimize(expand(self.automata['U'], arity, [i]))))
         return domain
+
+    def automatic_presentation_to_file(self, filename: str) -> None:
+        """Write the presentation -- domain, every built relation, alphabet --
+        to a file. Deferred relations that have not been built are not stored;
+        call `materialize` first to include them."""
+        TreeAutomaticPresentationSerializer.serialize(self, filename)
+
+    @classmethod
+    def automatic_presentation_from_file(cls, filename: str):
+        """Read a presentation written by `automatic_presentation_to_file`.
+
+        The signature is not stored -- a codec is Python code, not data -- so
+        the result is a bare structure until `symbolic` is given one.
+        """
+        return TreeAutomaticPresentationSerializer.deserialize(filename)
 
     def _install_relation(self, name, definition):
         self.update(**{name: definition() if callable(definition)

@@ -132,7 +132,7 @@ class TestConstruction:
     def test_omega_is_the_naturals(self, omega):
         # dimension 1: the interpretation is a definable reduct of ℕ, so the
         # order relation is the source's own, minimized
-        from autstr.buildin.presentations import BuechiArithmetic
+        from autstr.arithmetic import BuechiArithmetic
         assert omega.presentation.automata['Lt'].num_states == \
             BuechiArithmetic().automata['Lt'].num_states
 

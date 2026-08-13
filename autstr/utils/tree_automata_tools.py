@@ -532,7 +532,7 @@ def k_deeper_automaton(k: int, references: int, base_alphabet,
     reference tape: some root-to-leaf path carries `k` nodes at which all
     `references` reference tapes are padding and the last tape is not.
 
-    The tree counterpart of `buildin.automata.k_longer_automaton`, and it
+    The tree counterpart of `automata_tools.k_longer_automaton`, and it
     supports exists-infinity for the same pumping reason. A tree's domain is
     closed under parents, so the nodes outside every reference's domain form a
     suffix of each root-to-leaf path; `k` of them make a body automaton with

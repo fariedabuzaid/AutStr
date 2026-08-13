@@ -3,7 +3,7 @@ import random
 import numpy as np
 import pytest
 
-from autstr.buildin.presentations import BuechiArithmeticZ
+from autstr.arithmetic import BuechiArithmeticZ
 from autstr.sparse_automata import SparseDFA
 from autstr.sparse_tree_automata import Tree
 from autstr.tree_presentations import TreeAutomaticPresentation

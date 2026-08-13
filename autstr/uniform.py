@@ -19,8 +19,9 @@ from nltk.sem import logic
 
 from autstr.presentations import AutomaticPresentation, DeferredRelations
 from autstr.sparse_automata import SparseDFA
-from autstr.buildin.automata import one
-from autstr.buildin.presentations import create_sparse_dfa, encode_symbol
+from autstr.utils.automata_tools import one
+from autstr.utils.automata_tools import create_sparse_dfa
+from autstr.utils.misc import encode_symbol
 from autstr.utils.automata_tools import expand, pad, permute_tapes, projection, word_automaton
 from autstr.utils.logic import get_free_elementary_vars
 from autstr.utils.misc import get_unique_id

@@ -3,7 +3,7 @@ from math import gcd
 
 import pytest
 
-from autstr.buildin.tree_presentations import SkolemArithmetic, _prime
+from autstr.tree_arithmetic import SkolemArithmetic, _prime
 from autstr.sparse_tree_automata import Tree
 
 enc = SkolemArithmetic.encode

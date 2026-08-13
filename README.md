@@ -43,27 +43,39 @@ from different angles.
 pip install autstr
 ```
 
-The friendliest entry point is the arithmetic package: relations over the
-integers are first-class, exactly-represented **infinite** objects that you
-combine with relational algebra.
+Ask any structure for its **symbolic interface** and it hands you variables that
+compose with ordinary Python operators. Relations are first-class,
+exactly-represented **infinite** objects.
 
 ```python
-from autstr.arithmetic import VariableETerm as Var
+from autstr.arithmetic import BuechiArithmeticZ
 
-x, y, z = Var('x'), Var('y'), Var('z')
+Z = BuechiArithmeticZ().symbolic()         # (ℤ, +, <, |₂); no setup required
+x, y, z = Z.vars('x y z')
 
 R = (x + y + 3).lt(2 * x)     # the infinite set { (x, y) : x + y + 3 < 2x }
-R.isempty()                   # False
+R.is_empty()                  # False
 (0, 4) in R                   # False   — membership test
 
 band = (x + y).eq(z) & z.gt(0) & z.lt(3)   # x + y = z  ∧  0 < z < 3
-solutions = band.drop(['z'])               # project z away (an ∃ quantifier)
-for s, _ in zip(solutions, range(3)):      # enumerate lazily, smallest-first
-    print(s)                               # (0, 1), (1, 0), (1, 1), ...
+for s, _ in zip(band.drop(z), range(3)):   # ∃z, then enumerate smallest-first
+    print(s)                               # (0, 1), (1, 0), (1, 1)
 ```
 
 Nothing is materialized until you iterate; `& | ~` are exact operations on
-infinite sets.
+infinite sets. Integers go in and come out because the structure ships a
+**codec** along with its operators — and so does every other structure here, so
+the same expressions work elsewhere unchanged:
+
+```python
+from autstr.powerset import MSO0
+
+a, b, c = MSO0().symbolic().vars('a b c')  # finite sets of naturals
+({0, 1}, {1, 2}, {0, 1, 2}) in (a + b).eq(c)      # union — True
+```
+
+Where a formula reads better as text, `check` and `evaluate` still take
+strings; the two are interchangeable.
 
 ---
 
@@ -82,7 +94,7 @@ fragment these structures capture — and `evaluate` returns the automaton of *a
 satisfying assignments, which you can enumerate or reuse.
 
 ```python
-from autstr.buildin.presentations import BuechiArithmeticZ
+from autstr.arithmetic import BuechiArithmeticZ
 
 Z = BuechiArithmeticZ()                          # (ℤ, +, <, |) as automata
 Z.check('all x.(exists y.(A(x,y,x)))')           # ∀x ∃y: x+y=x   — True
@@ -129,7 +141,7 @@ batch:
 
 | package | structures |
 |---------|------------|
-| `autstr.arithmetic`, `autstr.buildin` | Presburger and Büchi arithmetic (ℤ, +, <, \|₂), Skolem arithmetic (ℕ, ·), the MSO0 finite-powerset structure |
+| `autstr.arithmetic`, `autstr.tree_arithmetic`, `autstr.powerset` | Presburger and Büchi arithmetic (ℤ and ℕ, +, <, \|₂), Skolem arithmetic (ℕ, ·) on the tree engine, the MSO0 finite-powerset structure |
 | `autstr.algebra`, `autstr.tree_algebra` | the localizations **ℤ[1/p]**, finite **Boolean algebras**, and the countable **atomless Boolean algebra** |
 | `autstr.infinite_graphs`, `autstr.ordinals`, `autstr.turing` | the **integer grid** ℤⁿ, the **regular tree** T_k, the **ordinals** below ω^ω and — on the tree engine — below ω^(ω^ω), **Turing-machine configuration graphs** |
 | `autstr.collapsible`, `autstr.collapsible_reach` | **level 2 collapsible pushdown graphs** — tree-automatic by Kartzow's encoding, and the one automatic route to them, since their MSO theory is undecidable. **Reachability** is a relation of the graph, so first-order formulas may ask about runs of any length — the question a Turing machine's configuration graph cannot answer |
@@ -162,8 +174,8 @@ Four capabilities cut across all of these:
   Büchi's theorem to Rabin's.
 
 The executable notebooks in [`notebooks/`](notebooks/) work through all of it,
-one per area — arithmetic & algebra, graphs, groups, composition, and implicit
-evaluation.
+one per area — arithmetic & algebra, infinite structures, graphs, groups,
+composition & interpretations, and implicit evaluation.
 
 ---
 
@@ -184,7 +196,7 @@ Requires Python 3.10–3.14. The core depends only on NumPy, nltk, and graphviz.
 
 ---
 
-## Changelog & an experiment in AI-assisted algorithm engineering
+## An experiment in AI-assisted algorithm engineering
 
 AutStr began in 2022 as a summer project — a hands-on realization of the automatic
 structures its author had studied during his PhD in algorithmic model theory.
@@ -197,160 +209,79 @@ mathematical direction and review kept firmly human.
        alt="Gource animation of the AutStr commit history, showing the file tree growing across the human, DeepSeek and Claude phases">
 </p>
 
-- **v1.0 (2022) — human.** The original library and arithmetic front-end.
-- **v1.x (July 2025) — DeepSeek.** A vibe-coding session (with extensive human
-  testing and supervision) that added the sparse-DFA backend, serialization, and
-  the MSO0 finite-powerset structure, and modernized packaging.
-- **v2.0 (July 2026) — Claude, Anthropic's Fable 5 model.** An intensive two-day
-  pair-programming session inside Claude Code that:
-  - profiled and rewrote the entire automata core as batched, sparsity-aware
-    NumPy — a **10²–10³× speedup** (the reference query dropped from 85 s to
-    0.03 s), with linear memory;
-  - migrated the library from a hard JAX dependency to a NumPy-canonical core with
-    JAX as an optional accelerator;
-  - built the whole uniformly-automatic layer — the generic advice machinery,
-    bounded tree-depth and pathwidth graphs with MSO, finite Boolean algebras,
-    finite abelian groups, the ℤ[1/p] presentations, and the non-abelian group
-    classes — each verified against exhaustive or exact ground-truth oracles;
-  - added the [benchmark suite](benchmarks/) and these docs.
+- **v1.0 (2022) — human.** The original library and arithmetic front end.
+- **v1.x (2025) — DeepSeek.** A vibe-coding session, with extensive human
+  testing and supervision.
+- **v2.0–v3.1 (2026) — Claude.** The automata core rewritten as batched,
+  sparsity-aware NumPy (10²–10³× faster); the uniformly-automatic layer; the
+  step from strings to trees; MTBDD transitions; the rank-width families.
+- **v4.0 (2026) — Claude.** This release.
 
-  The ideas realized in v2 include constructions the author had sketched a decade
-  earlier; several went from a whiteboard description to running, tested code
-  within hours. The code is the model's; the theory, the choices, and the
-  verification protocol were human.
+Several of the constructions realized here were sketched by the author a decade
+earlier and had never been implemented; some went from a whiteboard description
+to running, tested code within hours. The code is the model's; the theory, the
+choices, and the verification protocol are human.
 
-- **v3.0 (July 2026) — Claude, (various models)** A second session, in
-  the same protocol, that took the library from strings to trees and replaced the
-  transition representation underneath both:
-  - **tree-automatic structures.** `autstr.sparse_tree_automata` (bottom-up tree
-    automata), `autstr.tree_presentations`, and `autstr.tree_uniform` — the tree
-    counterparts of the whole stack. New members: **Skolem arithmetic** (ℕ, ·),
-    graphs of bounded **tree-width** and bounded **clique-width** with full MSO,
-    and tree-indexed **extraspecial p-groups**. Cross-validated by embedding the
-    string engine's Büchi arithmetic into the tree engine and re-deciding every
-    sentence through both.
-  - **transitions are shared multi-terminal BDDs** over the symbol's digits, in
-    both engines. `expand` became a variable renaming, `complement` stopped
-    touching diagrams at all, and `minimize` became one `apply` per state per
-    round. Queries that had been impossible for lack of alphabet width now
-    compile: an arity-5 relation over a 14-letter alphabet (14⁵ = 537 824 flat
-    symbols) went from *infeasible* to 0.2 s; tree-depth-4 bipartiteness from
-    17 s to 0.4 s. The test suite went from ~2 min to ~35 s.
+### What is new in v4.0
 
-  - **composing presentations.** `autstr.composition`: disjoint union and
-    synchronous/asynchronous direct products of automatic structures, union of
-    uniformly automatic classes, and the direct-product closure of a class.
-    Composed, they present every finite direct product of index-≤2 cyclic groups
-    and extraspecial p-groups, drawn from either family — and decide that such a
-    product is abelian exactly when all of its factors are.
+- **A symbolic first-order layer.** Write `(x + y).eq(z) & z.lt(100)` instead of
+  a formula string, over any structure or class, on either engine. Every
+  structure declares its own operators and its own **codec**, so Python values
+  go in and come out and `symbolic()` needs no arguments.
+- **First-order interpretations** that *compute* the interpreted presentation,
+  quotients included — over trees too, where the representative of a class is
+  its least description rather than its least member.
+- **Infinite graphs**: the integer grid, the regular tree, and Turing-machine
+  configuration graphs, where first-order logic stops exactly at reachability.
+- **Level 2 collapsible pushdown graphs, with reachability.** Tree-automatic by
+  Kartzow's encoding, and `Reach` is a relation of the graph — so a first-order
+  formula may ask about runs of any length, which is precisely what the Turing
+  graph cannot be asked.
+- **The countable atomless Boolean algebra**, and the ordinals below ω^ω and
+  ω^(ω^n).
+- **Serialization for the tree engine**, so an expensive relation is built once
+  and kept.
+- `autstr.buildin` is gone: every structure the library ships is built in, so
+  its contents moved to modules named for their subject. See the changelog for
+  the upgrade path.
 
-- **v3.1 (July 2026) — Claude, Fable 5.** The rank-width release: new
-  mathematics on top of the v3 engines, in the same human-directed protocol.
-  - **class-2 groups of bounded rank-width.** `CutRankGroups` (linear layouts),
-    `CutRankTreeGroups` (tree layouts) and `CocycleRankWidthGroups`
-    (distributed centers, microcode advice) — the advice spells out rank-≤r
-    factorizations of the commutation form's crossing blocks, cut by cut.
-  - **the chain-ring extension.** Everything generalizes from F_p to
-    R = ℤ/pᵈ (`autstr.chain_ring`: Smith normal form, saturated interfaces,
-    the two-sided factorization lemma) — centers of exponent pᵈ, widths
-    measured as module cut-rank, byte-identical at d = 1.
-  - **factored advice letters.** Beyond ~20000 flat letters the cut-rank
-    classes stream one ring entry per letter through accumulator states,
-    making width r ≥ 2 over the ring representable (q+1 advice letters).
-  - **implicit evaluation.** `check_implicit` / `evaluate_implicit` on every
-    class: first-order model checking and satisfying-set computation that
-    never build a query — or even a base — automaton, reaching members (ℤ/8
-    and ℤ/9 words, ℤ/4 trees, the distributed-center protocol) whose
-    automata are infeasible; `ImplicitClass` / `ImplicitTreeClass` are
-    presentations given purely by transition functions.
-  - **graphs of bounded rank-width.** `RankWidthClass` — rank decompositions
-    as advice, adjacency as a bilinear form on r-bit interface vectors,
-    full MSO; the graph face of the same linear algebra.
-  - Docs are built by CI with all notebooks **executed during the build**
-    (the repository keeps them output-free).
-  - One behavior change to a 3.0 API: `show_diagram` no longer opens an
-    external image viewer by default (headless builds must not spawn one);
-    pass `view=True` for the old behavior.
+📜 **[Full changelog](CHANGELOG.md)** — every release, in detail.
 
 ---
 
 ## References
 
-1. **Abu Zaid, F.** *Algorithmic Solutions via Model Theoretic Interpretations.*
-   Dissertation, RWTH Aachen University, 2016.
-   DOI: [10.18154/RWTH-2017-07663](https://doi.org/10.18154/RWTH-2017-07663)
+AutStr implements a line of work that runs from Büchi's theorem to uniformly
+automatic classes. The four below are the ones it leans on most; the
+**[full bibliography](https://fariedabuzaid.github.io/AutStr/references.html)**
+in the documentation lists the rest — Rabin, Courcelle, Delhommé, Kuske &
+Weidner, Kartzow and others — and says for each what in the library it is.
 
-2. **Abu Zaid, F.** *Uniformly Automatic Classes of Finite Structures.*
-   FSTTCS 2018, LIPIcs vol. 122, pp. 10:1–10:21.
-   DOI: [10.4230/LIPIcs.FSTTCS.2018.10](https://doi.org/10.4230/LIPIcs.FSTTCS.2018.10)
-   *The meta-theorems for finite Boolean algebras, finite groups, and graphs of
-   bounded tree-depth implemented by `autstr.uniform`, `autstr.graphs`,
-   `autstr.algebra`, and `autstr.groups`.*
+1. **Büchi, J. R.** *Weak Second-Order Arithmetic and Finite Automata.*
+   Zeitschrift für math. Logik und Grundlagen der Mathematik 6 (1960), 66–92.
+   DOI: [10.1002/malq.19600060105](https://doi.org/10.1002/malq.19600060105)
+   *Every `evaluate` call in this library is this construction.*
 
-3. **Abu Zaid, F., Grädel, E., & Reinhardt, F.** *Advice Automatic Structures and
-   Uniformly Automatic Classes.* CSL 2017, LIPIcs vol. 82, pp. 35:1–35:20.
-   DOI: [10.4230/LIPIcs.CSL.2017.35](https://doi.org/10.4230/LIPIcs.CSL.2017.35)
-   *Introduces automatic presentations with advice — the foundation of the uniform
-   classes here; the ℤ[1/p] presentation follows its blueprint for (ℚ, +).*
-
-4. **Blumensath, A., & Grädel, E.** *Automatic Structures.* LICS 2000, pp. 51–62.
-   [Proceedings](https://lics.siglog.org/2000/Grdel-AutomaticStructures.html)
-
-5. **Khoussainov, B., & Nerode, A.** *Automatic presentations of structures.*
+2. **Khoussainov, B., & Nerode, A.** *Automatic presentations of structures.*
    LCC 1994, LNCS vol. 960, Springer.
    DOI: [10.1007/3-540-60178-3_93](https://doi.org/10.1007/3-540-60178-3_93)
 
-6. **Khoussainov, B., Rubin, S., & Stephan, F.** *Automatic Structures: Richness
-   and Limitations.* LMCS 3(2), 2007.
-   arXiv: [cs/0703064](https://arxiv.org/abs/cs/0703064) ·
-   DOI: [10.2168/LMCS-3(2:2)2007](https://doi.org/10.2168/LMCS-3%282%3A2%292007)
+3. **Blumensath, A., & Grädel, E.** *Automatic Structures.* LICS 2000, pp. 51–62.
+   [Proceedings](https://lics.siglog.org/2000/Grdel-AutomaticStructures.html)
+   *Closure under first-order definability — the decidability `check` rests on.*
 
-### Foundations
-
-The idea that a logic can be decided by translating formulas into automata long
-predates the term *automatic structure*; this library is a late implementation of
-a line of work that runs through:
-
-7. **Büchi, J. R.** *Weak Second-Order Arithmetic and Finite Automata.*
-   Zeitschrift für math. Logik und Grundlagen der Mathematik 6 (1960), 66–92.
-   DOI: [10.1002/malq.19600060105](https://doi.org/10.1002/malq.19600060105)
-   *Monadic second-order logic over (ℕ, +1) is decidable, by translation into
-   finite automata. Every `evaluate` call in this library is this construction.*
-
-8. **Rabin, M. O.** *Decidability of Second-Order Theories and Automata on
-   Infinite Trees.* Transactions of the AMS 141 (1969), 1–35.
-   DOI: [10.2307/1995086](https://doi.org/10.2307/1995086)
-   *The same programme over trees. `autstr.sparse_tree_automata` and the
-   tree-automatic presentations are the finite-tree fragment of this.*
-
-9. **Courcelle, B.** *The Monadic Second-Order Logic of Graphs I: Recognizable
-   Sets of Finite Graphs.* Information and Computation 85(1), 1990, 12–75.
-   DOI: [10.1016/0890-5401(90)90043-H](https://doi.org/10.1016/0890-5401%2890%2990043-H)
-   *MSO properties of graphs of bounded tree-width are decidable in linear time.
-   `autstr.tree_graphs.TreeWidthClass` builds the automaton the theorem promises.*
-
-10. **Courcelle, B., & Olariu, S.** *Upper Bounds to the Clique Width of Graphs.*
-    Discrete Applied Mathematics 101 (2000), 77–114.
-    DOI: [10.1016/S0166-218X(99)00184-5](https://doi.org/10.1016/S0166-218X%2899%2900184-5)
-    *The k-expressions that `autstr.tree_graphs.CliqueWidthClass` reads as advice.*
-
-11. **Makowsky, J. A.** *Algorithmic Uses of the Feferman–Vaught Theorem.*
-    Annals of Pure and Applied Logic 126 (2004), 159–213.
-    DOI: [10.1016/j.apal.2003.11.002](https://doi.org/10.1016/j.apal.2003.11.002)
-    *The composition method behind meta-theorems of this shape.*
+4. **Abu Zaid, F.** *Uniformly Automatic Classes of Finite Structures.*
+   FSTTCS 2018, LIPIcs vol. 122, pp. 10:1–10:21.
+   DOI: [10.4230/LIPIcs.FSTTCS.2018.10](https://doi.org/10.4230/LIPIcs.FSTTCS.2018.10)
+   *The meta-theorems behind `autstr.uniform`, `autstr.graphs`,
+   `autstr.algebra` and `autstr.groups`.*
 
 ### Related tools
 
-- **[MONA](https://www.brics.dk/mona/)** (Klarlund, Møller, Henriksen et al.)
-  decides WS1S and WS2S by translating formulas to automata whose transitions are
-  shared multi-terminal BDDs over the symbol's bits. AutStr's
-  [`autstr.mtbdd`](autstr/mtbdd.py) adopts exactly that representation, for
-  exactly MONA's reason: over a convolution alphabet, the flat
-  `symbol -> target` table is the bottleneck.
-- **[Walnut](https://cs.uwaterloo.ca/~shallit/walnut.html)** (Mousavi, Shallit)
-  proves theorems about automatic sequences by deciding first-order statements
-  over (ℕ, +) with automata — the same decision procedure, aimed at combinatorics
-  on words rather than at presenting structures.
-
-Both are mature and fast, and neither targets *uniformly* automatic classes or
-arbitrary automatic presentations, which is where AutStr sits.
+**[MONA](https://www.brics.dk/mona/)** decides WS1S and WS2S with automata whose
+transitions are shared multi-terminal BDDs over the symbol's bits;
+[`autstr.mtbdd`](autstr/mtbdd.py) adopts exactly that representation, for
+exactly MONA's reason. **[Walnut](https://cs.uwaterloo.ca/~shallit/walnut.html)**
+proves theorems about automatic sequences by deciding first-order statements
+over (ℕ, +). Both are mature and fast, and neither targets *uniformly* automatic
+classes or arbitrary automatic presentations, which is where AutStr sits.

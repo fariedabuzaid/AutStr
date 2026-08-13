@@ -20,13 +20,16 @@ combinations are pairwise `apply` on the diagrams, complementation relabels
 acceptance and touches no diagram at all, and hash-consing makes two states
 with the same transition function share one node.
 """
+import json
+import struct
+import zlib
 from collections import defaultdict, deque
 from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 import numpy as np
 
 from autstr.mtbdd import NONE, STORE, num_bits, var_tables
-from autstr.utils.misc import encode_symbol
+from autstr.utils.misc import alphabet_from_json, encode_symbol
 
 
 # ====================================================================
@@ -615,3 +618,124 @@ class SparseTreeAutomaton:
         return (f"SparseTreeAutomaton({self.num_states} states, "
                 f"{len(self.pair_keys)} pairs, {self.num_nodes} nodes, "
                 f"default={self.default_state})")
+
+
+# ====================================================================
+# Serialization
+# ====================================================================
+#
+# [Header]  magic 'STAU', version, reserved, CRC32 of payload, payload size
+# [Payload] metadata (24 bytes), base alphabet (JSON), acceptance array,
+#           the packed pair keys, then the shared sub-DAG of the transition
+#           diagrams: var / lo / hi / term arrays and one root per pair.
+#
+# The diagrams are what makes this worth storing: a relation over a
+# convolution alphabet too wide to enumerate still writes out in the size of
+# its decision diagrams, exactly as on the string side.
+
+class SparseTreeAutomatonSerializer:
+    """Binary serialization for `SparseTreeAutomaton`.
+
+    The tree counterpart of `autstr.sparse_automata.SparseDFASerializer`, and
+    the same payload idea: the compiled form is a sorted table of child pairs
+    with one diagram root each, so storing it is storing the pair keys plus
+    the sub-DAG below their roots.
+    """
+
+    MAGIC = b'STAU'
+    VERSION = 1
+    HEADER_FORMAT = "4sB3sII"
+    HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
+    #: num_states, num_nodes, num_pairs, default_state, symbol_arity, alphabet
+    METADATA_FORMAT = "IIIIII"
+    METADATA_SIZE = struct.calcsize(METADATA_FORMAT)
+
+    @classmethod
+    def serialize(cls, automaton: 'SparseTreeAutomaton', filename: str) -> None:
+        with open(filename, 'wb') as handle:
+            handle.write(cls.to_bytes(automaton))
+
+    @classmethod
+    def deserialize(cls, filename: str) -> 'SparseTreeAutomaton':
+        with open(filename, 'rb') as handle:
+            return cls.from_bytes(handle.read())
+
+    @classmethod
+    def to_bytes(cls, automaton: 'SparseTreeAutomaton') -> bytes:
+        payload = cls._create_payload(automaton)
+        header = struct.pack(cls.HEADER_FORMAT, cls.MAGIC, cls.VERSION,
+                             b'\0\0\0', zlib.crc32(payload), len(payload))
+        return header + payload
+
+    @classmethod
+    def from_bytes(cls, data: bytes) -> 'SparseTreeAutomaton':
+        if len(data) < cls.HEADER_SIZE:
+            raise ValueError("Data too short for header")
+        magic, version, _, checksum, payload_size = struct.unpack(
+            cls.HEADER_FORMAT, data[:cls.HEADER_SIZE])
+        if magic != cls.MAGIC:
+            raise ValueError("Invalid SparseTreeAutomaton format")
+        if version != cls.VERSION:
+            raise ValueError(
+                f"Unsupported SparseTreeAutomaton version: {version}")
+        payload = data[cls.HEADER_SIZE:cls.HEADER_SIZE + payload_size]
+        if len(payload) != payload_size:
+            raise ValueError("Payload size mismatch")
+        if zlib.crc32(payload) != checksum:
+            raise ValueError("SparseTreeAutomaton data corruption detected")
+        return cls._parse_payload(payload)
+
+    @classmethod
+    def _create_payload(cls, automaton: 'SparseTreeAutomaton') -> bytes:
+        var, lo, hi, term, roots = STORE.export(automaton.pair_nodes.tolist())
+        alphabet_json = json.dumps(
+            sorted(automaton.base_alphabet_frozen)).encode('utf-8')
+        metadata = struct.pack(
+            cls.METADATA_FORMAT,
+            automaton.num_states,
+            len(var),
+            len(automaton.pair_keys),
+            automaton.default_state,
+            automaton.symbol_arity,
+            len(alphabet_json),
+        )
+        return b''.join([
+            metadata,
+            alphabet_json,
+            np.asarray(automaton.is_accepting, dtype=np.uint8).tobytes(),
+            np.asarray(automaton.pair_keys, dtype=np.int64).tobytes(),
+            var.astype(np.int64).tobytes(),
+            lo.astype(np.int64).tobytes(),
+            hi.astype(np.int64).tobytes(),
+            term.astype(np.int64).tobytes(),
+            np.asarray(roots, dtype=np.int64).tobytes(),
+        ])
+
+    @classmethod
+    def _parse_payload(cls, payload: bytes) -> 'SparseTreeAutomaton':
+        (num_states, num_nodes, num_pairs, default_state, symbol_arity,
+         alphabet_len) = struct.unpack(cls.METADATA_FORMAT,
+                                       payload[:cls.METADATA_SIZE])
+        offset = cls.METADATA_SIZE
+        base_alphabet = alphabet_from_json(payload[offset:offset + alphabet_len])
+        offset += alphabet_len
+
+        is_accepting = np.frombuffer(payload, dtype=np.uint8, count=num_states,
+                                     offset=offset).astype(bool)
+        offset += num_states
+
+        arrays = []
+        for count in (num_pairs, num_nodes, num_nodes, num_nodes, num_nodes,
+                      num_pairs):
+            arrays.append(np.frombuffer(payload, dtype=np.int64, count=count,
+                                        offset=offset))
+            offset += count * 8
+        pair_keys, var, lo, hi, term, roots = arrays
+
+        return SparseTreeAutomaton(
+            num_states, default_state,
+            is_accepting=is_accepting,
+            symbol_arity=symbol_arity,
+            base_alphabet=base_alphabet,
+            pair_keys=pair_keys,
+            pair_nodes=STORE.import_nodes(var, lo, hi, term, roots))

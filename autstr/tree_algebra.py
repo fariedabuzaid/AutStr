@@ -106,7 +106,7 @@ class AtomlessBooleanAlgebra(TreeAutomaticPresentation):
         The lattice operations are terms, not connectives: ``&``, ``|`` and
         ``~`` already mean conjunction, disjunction and negation of *formulas*,
         so binding them here would make ``x & y`` ambiguous — the same reason
-        `autstr.arithmetic` spells its divisibility relation
+        Büchi arithmetic spells its divisibility relation
         ``divided_by_power``.
         """
         signature = Signature(codec=FunctionCodec(self.encode, self.decode))
