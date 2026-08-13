@@ -54,7 +54,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, FrozenSet, Optional, Tuple
 
-from autstr.collapsible import SEP, Level2CPS
+from autstr.collapsible import PAD, SEP, Level2CPS
 from autstr.sparse_tree_automata import SparseTreeAutomaton, Tree
 from autstr.utils.tree_automata_tools import partial_tree_automaton
 
@@ -435,8 +435,12 @@ class Annotation:
                     self.of_tree(tree.left, here) if tree.left else None,
                     self.of_tree(tree.right, here) if tree.right else None)
 
-    def automaton(self) -> SparseTreeAutomaton:
+    def automaton(self, alphabet=None) -> SparseTreeAutomaton:
         """Two tapes: a configuration tree, and its annotation.
+
+        :param alphabet: the alphabet to build over, when a construction has
+            letters of its own beside these — an automaton can only be
+            combined with others that read the same one.
 
         A node's state is what a parent has to know about it — the annotation
         it carries and the label it carries — since the parent is where the
@@ -466,4 +470,197 @@ class Annotation:
             for left in options:
                 if fits(self.START, left):
                     table[(left, None, (state, self.START))] = 'accept'
-        return partial_tree_automaton(self.alphabet, 2, table, {'accept'})
+        return partial_tree_automaton(alphabet or self.alphabet, 2,
+                                      table, {'accept'})
+
+
+# ----------------------------------------------------------------------
+# the relations Reach decomposes into
+# ----------------------------------------------------------------------
+
+class Relations:
+    """The relations whose composition is reachability.
+
+    Kartzow's Remark 4.4 splits every run into four stretches: `A` drops whole
+    words, `B` drops letters from the topmost word, `C` pushes letters back on,
+    and `D` grows the stack again. All four are reflexive, so reachability is
+    their composition and needs no automaton of its own —
+
+        Reach(x,y) ≡ ∃d ∃e ∃f. A(x,d) ∧ B(d,e) ∧ C(e,f) ∧ D(f,y)
+
+    which is a formula the engine evaluates once the four are installed.
+
+    Each is checked on four tapes — the two configurations, the summary
+    annotation of the first, and a guessed control state per node — and the
+    last two are projected away afterwards.
+
+    :param system: the collapsible pushdown system.
+    :param summaries: its summaries; computed if not given.
+    """
+
+    #: a node no run visits, and so carries no guessed states
+    NONE = '@-'
+
+    def __init__(self, system: Level2CPS, summaries: Optional[Summaries] = None
+                 ) -> None:
+        from autstr.collapsible import _Encoding
+        self.system = system
+        self.encoding = _Encoding(system.states, system.symbols, system.bottom)
+        self.summaries = summaries or Summaries(system)
+        self.annotation = Annotation(self.encoding, self.summaries)
+        # a letter the run drops carries the states it is in before and after
+        # dropping it, which is what makes every check local
+        self.guesses = [self.NONE] + [
+            f'@{before},{after}' for before in system.states
+            for after in system.states]
+        self.alphabet = set(self.annotation.alphabet) | set(self.guesses)
+
+    def summary_of(self, annotation: str) -> Optional[Summary]:
+        """The summary an annotation letter stands for."""
+        for summary, name in self.annotation.names.items():
+            if name == annotation:
+                return summary
+        return None
+
+    def drop_moves(self, symbol: str, level: int) -> Relation:
+        """The transitions that take the topmost letter off: a pop of level 1,
+        and a collapse when the link is of level 1."""
+        moves = self.summaries.moves(symbol, 'pop1')
+        if level == 1:
+            moves |= self.summaries.moves(symbol, 'collapse')
+        return moves
+
+    def guessed(self, guess: str) -> Optional[Tuple[str, str]]:
+        """The pair of states a guess letter carries, or None."""
+        if guess == self.NONE:
+            return None
+        before, _, after = guess[1:].partition(',')
+        return before, after
+
+    def dropping(self, annotation: str, label: str, guess: str) -> bool:
+        """Whether a letter may be dropped as the guess says: a high loop of
+        the word ending at it, then one transition that takes it off.
+
+        The word is the one read from the root down to this node, which is
+        what the annotation names — so the check needs nothing but this node's
+        own four tapes.
+        """
+        pair = self.guessed(guess)
+        summary = self.summary_of(annotation)
+        if pair is None or summary is None or label not in self.encoding.letters:
+            return False
+        symbol, _, level = label.rpartition(':')
+        return pair in compose(summary.hloop,
+                               self.drop_moves(symbol, int(level)))
+
+    def b(self) -> SparseTreeAutomaton:
+        """``B``: the topmost word loses letters, and nothing goes below what
+        is left.
+
+        The two trees agree except along a tail of the first one's last path,
+        which is deleted; the second may gain a single separator where its own
+        last word now ends. Climbing that tail is the run: at each letter a
+        high loop and one drop, the state after one drop being the state before
+        the next.
+        """
+        table = {}
+        annotations = list(self.annotation.names.values())
+        marks = [(label, annotation)
+                 for label in self.encoding.nodes for annotation in annotations]
+        pairs = [(before, after) for before in self.system.states
+                 for after in self.system.states]
+
+        # the two trees agree here and no run step happens
+        for label, annotation in marks:
+            for left in (None, 'same'):
+                for right in (None, 'same'):
+                    table[(left, right, (label, label, annotation, self.NONE))] \
+                        = 'same'
+        # the separator the second tree gains, where its last word now ends.
+        # One is added exactly when one is deleted -- the last word\'s
+        # divergence from the word below it moves up -- and never more.
+        table[(None, None, (PAD, SEP, PAD, self.NONE))] = 'added'
+
+        # below the deepest letter dropped, the old last separator goes
+        for annotation in annotations:
+            table[(None, None, (SEP, PAD, annotation, self.NONE))] = 'cut'
+
+        # a letter the run drops: the deepest starts the chain, each one above
+        # continues it, and a deleted separator sets the chain\'s mark
+        for label, annotation in marks:
+            for guess in self.guesses:
+                if not self.dropping(annotation, label, guess):
+                    continue
+                first, last = self.guessed(guess)
+                symbols = (label, PAD, annotation, guess)
+                table[(None, None, symbols)] = f'chain {first} {last}'
+                table[('cut', None, symbols)] = f'cutchain {first} {last}'
+                for start_state in self.system.states:
+                    for kind in ('chain', 'cutchain'):
+                        table[(f'{kind} {start_state} {first}', None,
+                               symbols)] = f'{kind} {start_state} {last}'
+            if label != SEP:
+                continue
+            for first, last in pairs:
+                # a separator on the way marks the chain; a second one would
+                # mean two words ended there, which no chain of pops does
+                symbols = (SEP, PAD, annotation, self.NONE)
+                table[(f'chain {first} {last}', None, symbols)] = \
+                    f'cutchain {first} {last}'
+                table[(None, f'chain {first} {last}', symbols)] = \
+                    f'cutchain {first} {last}'
+
+        # the chain stops at a node both trees keep. From there up nothing may
+        # follow it in either tree: coming from a right child anything already
+        # read may sit to the left, but coming from a left child there must be
+        # no right child at all.
+        for label, annotation in marks:
+            plain = (label, label, annotation, self.NONE)
+            for first, last in pairs:
+                for chain, kind in ((f'chain {first} {last}', 'done'),
+                                    (f'cutchain {first} {last}', 'cutdone')):
+                    for below in (chain, f'{kind} {first} {last}'):
+                        table[(below, None, plain)] = f'{kind} {first} {last}'
+                        table[('same', below, plain)] = f'{kind} {first} {last}'
+                        table[(None, below, plain)] = f'{kind} {first} {last}'
+                # the deleted separator is made good by the added one
+                for below in (f'cutchain {first} {last}',
+                              f'cutdone {first} {last}'):
+                    table[(below, 'added', plain)] = f'grown {first} {last}'
+                grown = f'grown {first} {last}'
+                table[(grown, None, plain)] = grown
+                table[('same', grown, plain)] = grown
+                table[(None, grown, plain)] = grown
+
+        # the root: the states the run began and ended in are the two
+        # configurations\' own, and a run of no steps leaves the tree alone
+        for source in self.system.states:
+            for target in self.system.states:
+                labels = (f'<{source}>', f'<{target}>', Annotation.START,
+                          self.NONE)
+                for kind in ('done', 'grown'):
+                    table[(f'{kind} {source} {target}', None, labels)] = 'accept'
+                if source == target:
+                    table[('same', None, labels)] = 'accept'
+        return partial_tree_automaton(self.alphabet, 4, table, {'accept'})
+
+    def without_scaffolding(self, checker: SparseTreeAutomaton
+                            ) -> SparseTreeAutomaton:
+        """A four-tape checker as a relation on two configurations.
+
+        The annotation is required to be the real one — that is what the
+        annotation automaton says — and then both it and the guess are
+        quantified away, leaving the alphabet to be narrowed back to the one
+        the configurations are written in.
+        """
+        from autstr.utils.tree_automata_tools import (
+            attach_padding, expand, minimize, project, restrict_alphabet,
+        )
+        annotated = minimize(expand(minimize(attach_padding(
+            self.annotation.automaton(self.alphabet), PAD)), 4, [0, 2]))
+        result = minimize(minimize(
+            attach_padding(checker, PAD)).intersection(annotated))
+        for tape in (3, 2):
+            result = minimize(attach_padding(
+                project(result, tape, PAD), PAD))
+        return restrict_alphabet(result, self.encoding.alphabet)

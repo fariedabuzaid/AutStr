@@ -18,10 +18,10 @@ from collections import deque
 import pytest
 
 from autstr.collapsible import (
-    Configuration, Letter, Level2CPS, PAD, Stack, _Encoding,
-    encode_configuration,
+    Configuration, Letter, Level2CPS, Operation, PAD, Stack, _Encoding,
+    encode_configuration, initial_stack,
 )
-from autstr.collapsible_reach import Annotation, Summaries
+from autstr.collapsible_reach import Annotation, Relations, Summaries
 from autstr.sparse_tree_automata import Tree, convolve_trees
 
 
@@ -447,3 +447,124 @@ class TestAnnotation:
         first, table = Summaries(system, depth=4, limit=6).transitions()
         assert first.symbol == '⊥'
         assert all(isinstance(key[1], tuple) for key in table)
+
+
+# ----------------------------------------------------------------------
+# the relations reachability decomposes into
+# ----------------------------------------------------------------------
+
+def substacks(stack):
+    """Every substack: pop the words, then the letters."""
+    out, current = [], stack
+    while current is not None:
+        inner = current
+        while inner is not None:
+            out.append(inner)
+            inner = inner.pop1()
+        current = current.pop2()
+    return out
+
+
+def drops_to(source, target):
+    """Is the target the source with letters taken off its topmost word?"""
+    current = source
+    while current is not None:
+        if current == target:
+            return True
+        current = current.pop1()
+    return False
+
+
+def b_oracle(system, source, target, bound=3000):
+    """``B``: a run to a shorter topmost word that never dips below it."""
+    if not drops_to(source.stack, target.stack):
+        return False
+    if source == target:
+        return True                             # the run of no steps
+    forbidden = set(substacks(target.stack))
+    seen, frontier, steps = {source}, deque([source]), 0
+    while frontier and steps < bound:
+        configuration = frontier.popleft()
+        steps += 1
+        for _, successor in system.step(configuration):
+            if successor == target:
+                return True
+            if successor in seen or successor.stack in forbidden:
+                continue
+            if successor.stack.width > 4 or \
+                    max(map(len, successor.stack.words)) > 6:
+                continue
+            seen.add(successor)
+            frontier.append(successor)
+    return False
+
+
+def walk_stacks(seed, count, width=3, height=4):
+    """Stacks from a random walk, kept small enough to search exhaustively."""
+    rng, stack, out = random.Random(seed), initial_stack(), []
+    operations = ([Operation('clone')]
+                  + [Operation('push', symbol, level)
+                     for symbol in SYMBOLS for level in (1, 2)]
+                  + [Operation('pop', level=1), Operation('pop', level=2)])
+    while len(out) < count:
+        stack = stack.apply(rng.choice(operations)) or initial_stack()
+        if stack.width <= width and max(map(len, stack.words)) <= height:
+            out.append(stack)
+    return out
+
+
+class TestRelationB:
+    """``B`` — the topmost word loses letters, and the run never dips below
+    what is left. The two trees then differ along a tail of the first one's
+    last path, and the second may gain the one separator the first loses."""
+
+    CASES = {
+        'pop and push back': [('0', None, 'p', '1', 'pop 1'),
+                              ('1', None, 'u', '0', 'push a 1')],
+        'a loop before each pop': [('0', None, 'c', '1', 'clone'),
+                                   ('1', None, 'o', '0', 'pop 2'),
+                                   ('0', 'a', 'p', '2', 'pop 1'),
+                                   ('2', None, 'u', '0', 'push b 1')],
+    }
+
+    def relation(self, rules):
+        system = Level2CPS(rules, symbols=SYMBOLS)
+        relations = Relations(system)
+        return system, relations, relations.without_scaffolding(relations.b())
+
+    def holds(self, relations, relation, source, target):
+        return relation.accepts(convolve_trees(
+            [encode_configuration(source), encode_configuration(target)],
+            frozenset(relations.encoding.alphabet), PAD))
+
+    @pytest.mark.parametrize("case", sorted(CASES))
+    def test_against_the_search(self, case):
+        system, relations, relation = self.relation(self.CASES[case])
+        configurations = [Configuration(state, stack)
+                          for stack in walk_stacks(7, 8)
+                          for state in system.states]
+        for source in configurations:
+            for target in configurations:
+                assert self.holds(relations, relation, source, target) == \
+                    b_oracle(system, source, target), (source, target)
+
+    def test_it_is_reflexive(self):
+        """Every configuration reaches itself by the run of no steps, so the
+        two trees are simply equal."""
+        system, relations, relation = self.relation(
+            self.CASES['pop and push back'])
+        for stack in walk_stacks(3, 6):
+            for state in system.states:
+                configuration = Configuration(state, stack)
+                assert self.holds(relations, relation, configuration,
+                                  configuration)
+
+    def test_dropping_a_word_is_not_dropping_letters(self):
+        """A pair whose widths differ is refused whatever the runs do: B moves
+        within the topmost word."""
+        system, relations, relation = self.relation(
+            self.CASES['pop and push back'])
+        tall = Stack(((Letter('⊥'), Letter('a')), (Letter('⊥'), Letter('a'))))
+        assert not self.holds(relations, relation,
+                              Configuration('0', tall),
+                              Configuration('0', Stack((tall.words[0],))))
