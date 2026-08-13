@@ -788,3 +788,93 @@ class TestRelationA:
                 configuration = Configuration(state, stack)
                 assert self.holds(relations, relation, configuration,
                                   configuration)
+
+
+def d_oracle(system, source, target, bound=3000):
+    """``D``: the stack grows, and after the first step nothing is a substack
+    of where it started."""
+    current = target.stack
+    grows = False
+    while current is not None:
+        if current == source.stack:
+            grows = True
+            break
+        current = current.pop2()
+    if not grows:
+        return False
+    if source.stack == target.stack:
+        return source == target
+    forbidden = set(substacks(source.stack))
+    seen, frontier, steps = {source}, deque([source]), 0
+    while frontier and steps < bound:
+        configuration = frontier.popleft()
+        steps += 1
+        for _, successor in system.step(configuration):
+            if successor.stack in forbidden:
+                continue
+            if successor == target:
+                return True
+            if successor in seen:
+                continue
+            if successor.stack.width > 4 or \
+                    max(map(len, successor.stack.words)) > 5:
+                continue
+            seen.add(successor)
+            frontier.append(successor)
+    return False
+
+
+class TestRelationD:
+    """``D`` — the stack grows. **Not correct yet.**
+
+    Kartzow's Cor. 4.10 walks the milestones of the stack being built, which
+    the encoding puts in traversal order. What this does not yet handle are
+    the *generalised* milestones: between one word and the next the run passes
+    through the previous word cloned whole, and only then pops it down to
+    where the two words part. Getting that wrong shows up in both directions,
+    and the two cases below are kept as a record of it.
+    """
+
+    CLONE_ONLY = [('0', None, 'c', '1', 'clone')]
+    NO_POPS = [('0', None, 'c', '1', 'clone'),
+               ('1', None, 'o', '0', 'pop 2')]
+
+    def relation(self, rules):
+        system = Level2CPS(rules, symbols=SYMBOLS)
+        relations = Relations(system)
+        return system, relations, relations.without_scaffolding(
+            relations.d(), annotated=1)
+
+    def holds(self, relations, relation, source, target):
+        return relation.accepts(convolve_trees(
+            [encode_configuration(source), encode_configuration(target)],
+            frozenset(relations.encoding.alphabet), PAD))
+
+    def test_one_clone(self):
+        system, relations, relation = self.relation(self.CLONE_ONLY)
+        for word in ((Letter('⊥'),), (Letter('⊥'), Letter('a'))):
+            assert self.holds(relations, relation,
+                              Configuration('0', Stack((word,))),
+                              Configuration('1', Stack((word, word))))
+
+    def test_it_is_reflexive(self):
+        system, relations, relation = self.relation(self.CLONE_ONLY)
+        for stack in walk_stacks(3, 6):
+            for state in system.states:
+                configuration = Configuration(state, stack)
+                assert self.holds(relations, relation, configuration,
+                                  configuration)
+
+    @pytest.mark.xfail(reason="the generalised milestones are not handled: "
+                              "the run clones the whole word before popping "
+                              "it down to where the two words part")
+    def test_a_word_shorter_than_its_clone_needs_pops(self):
+        """The system can only clone and pop words, never letters — so the
+        second word cannot be shorter than the first."""
+        system, relations, relation = self.relation(self.NO_POPS)
+        long_word = (Letter('⊥'), Letter('a'), Letter('a'))
+        short_word = (Letter('⊥'), Letter('a'))
+        assert not self.holds(
+            relations, relation,
+            Configuration('0', Stack((long_word,))),
+            Configuration('1', Stack((long_word, short_word))))

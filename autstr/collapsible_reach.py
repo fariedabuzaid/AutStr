@@ -971,3 +971,160 @@ class Relations:
             return False
         return any(rule.operation.kind == 'collapse'
                    for rule in self.system.rules)
+
+    def d(self) -> SparseTreeAutomaton:
+        """``D``: the stack grows, and the run never dips below where it
+        started.
+
+        Kartzow's Cor. 4.10 says such a run visits the milestones of the stack
+        it builds in order, consecutive ones joined by a single operation and a
+        loop — and the encoding puts those milestones in traversal order, one
+        per node. The run therefore only ever moves *forward* through the tree,
+        which is what decides where each operation goes: descending to a left
+        child is a push, and a new word is reached by cloning at the deepest
+        point of the word before it and then popping back up, one letter per
+        level, until the two words part company.
+
+        Cloning at the deepest point rather than where the words part is the
+        whole of it. The other way round would let a word be shorter than the
+        copy it came from for nothing, which is a run no system need have.
+        """
+        table = {}
+        annotations = list(self.annotation.names.values())
+        marks = [(label, annotation)
+                 for label in self.encoding.nodes for annotation in annotations]
+        letters = list(self.encoding.letters)
+        states = self.system.states
+
+        def grew(cloned, label, arrive, leave):
+            return f'grew|{int(cloned)}|{label}|{arrive}|{leave}'
+
+        for label, annotation in marks:
+            for left in (None, 'same'):
+                for right in (None, 'same'):
+                    table[(left, right, (label, label, annotation, self.NONE))] \
+                        = 'same'
+
+        for label, annotation in marks:
+            summary = self.summary_of(annotation)
+            if summary is None:
+                continue
+            loop = summary.loop
+            clones = self.summaries.moves(summary.symbol or '', 'clone')
+            for guess in self.guesses:
+                pair = self.guessed(guess)
+                if pair is None:
+                    continue
+                arrive, leave = pair
+                symbols = (PAD, label, annotation, guess)
+
+                # the deepest milestone of a word: the run loops there, and
+                # clones if another word is still to come
+                if (arrive, leave) in loop:
+                    table[(None, None, symbols)] = \
+                        grew(False, label, arrive, leave)
+                if (arrive, leave) in compose(loop, clones):
+                    table[(None, None, symbols)] = \
+                        grew(True, label, arrive, leave)
+
+                for below in letters:
+                    symbol, _, level = below.rpartition(':')
+                    down = compose(loop, self.push_moves(annotation, below))
+                    up = compose(self.drop_moves(symbol, int(level)), loop)
+                    for entered in states:
+                        if (arrive, entered) not in down:
+                            continue
+                        for came_back in states:
+                            # deeper and never back: this word is the last
+                            child = grew(False, below, entered, came_back)
+                            if came_back == leave:
+                                table[(child, None, symbols)] = \
+                                    grew(False, label, arrive, leave)
+                            # deeper, cloned down there, and popping back up
+                            cloned = grew(True, below, entered, came_back)
+                            if (came_back, leave) in up:
+                                table[(cloned, None, symbols)] = \
+                                    grew(True, label, arrive, leave)
+                            # ... until the words part, where the new one
+                            # hangs as this node's right child
+                            for last in states:
+                                sibling = grew(False, SEP, leave, last)
+                                if (came_back, leave) in up:
+                                    table[(cloned, sibling, symbols)] = \
+                                        grew(False, label, arrive, last)
+                                shared = grew(True, SEP, leave, last)
+                                if (came_back, leave) in up:
+                                    table[(cloned, shared, symbols)] = \
+                                        grew(True, label, arrive, last)
+
+                # a word that parts from this one right here: the clone
+                # happened below, and nothing was popped since
+                for last in states:
+                    for kind in (False, True):
+                        sibling = grew(kind, SEP, leave, last)
+                        if (arrive, leave) in compose(loop, clones):
+                            table[(None, sibling, symbols)] = \
+                                grew(kind, label, arrive, last)
+
+        # Where the growth hangs, and the run starts. The first new word is
+        # a clone of the one this node names, and this is the only place that
+        # clone can be checked -- inside the region every node is one the
+        # second tree alone has.
+        for label, annotation in marks:
+            summary = self.summary_of(annotation)
+            plain = (label, label, annotation, self.NONE)
+            if summary is None:
+                continue
+            starts = compose(summary.loop,
+                             self.summaries.moves(summary.symbol or '', 'clone'))
+            for arrive in states:
+                for last in states:
+                    child = grew(False, SEP, arrive, last)
+                    for first in states:
+                        if (first, arrive) not in starts:
+                            continue
+                        done = f'done {first} {last}'
+                        for other in (None, 'same'):
+                            table[(other, child, plain)] = done
+                        table[(child, None, plain)] = done
+            for first in states:
+                for last in states:
+                    done = f'done {first} {last}'
+                    table[(done, None, plain)] = done
+                    table[('same', done, plain)] = done
+                    table[(None, done, plain)] = done
+
+        for source in states:
+            for target in states:
+                labels = (f'<{source}>', f'<{target}>', Annotation.START,
+                          self.NONE)
+                table[(f'done {source} {target}', None, labels)] = 'accept'
+                if source == target:
+                    table[('same', None, labels)] = 'accept'
+        return partial_tree_automaton(self.alphabet, 4, table, {'accept'})
+
+    def reach(self) -> SparseTreeAutomaton:
+        """Reachability: a run of any length, between any two configurations.
+
+        Kartzow's Remark 4.4 splits every run into four stretches — words come
+        off, then letters, then letters go back on, then words — and each is
+        reflexive, so no run is excluded by having to pass through all four.
+        The relation is therefore the composition, which is a first-order
+        formula over the four and needs no automaton of its own::
+
+            Reach(x,y) ≡ ∃u ∃v ∃w. A(x,u) ∧ B(u,v) ∧ C(v,w) ∧ D(w,y)
+
+        The quantifiers range over configurations, so the domain of the scratch
+        structure is the encoding trees themselves.
+        """
+        from autstr.tree_presentations import TreeAutomaticPresentation
+        scratch = TreeAutomaticPresentation(
+            {'U': self.encoding.universe(),
+             'A': self.without_scaffolding(self.a()),
+             'B': self.without_scaffolding(self.b()),
+             'C': self.without_scaffolding(self.c(), annotated=1),
+             'D': self.without_scaffolding(self.d(), annotated=1)},
+            padding_symbol=PAD)
+        return scratch.evaluate(
+            'exists u.(exists v.(exists w.('
+            'A(x,u) & B(u,v) & C(v,w) & D(w,y))))')
