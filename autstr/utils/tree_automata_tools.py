@@ -48,7 +48,7 @@ from typing import Dict, FrozenSet, List, Optional, Set, Tuple
 
 import numpy as np
 
-from autstr.mtbdd import NONE, ComputedTable, bits_of, var_tables
+from autstr.mtbdd import NONE, ComputedTable, bits_of, num_bits, var_tables
 from autstr.sparse_tree_automata import SparseTreeAutomaton, Tree
 from autstr.utils.misc import encode_symbol
 
@@ -697,6 +697,43 @@ def iterate_trees(sta: SparseTreeAutomaton, max_entries: int = 10 ** 7):
                     for tree in trees]
         accepted.sort(key=_shortlex_key)
         yield from accepted
+
+
+def restrict_alphabet(sta: SparseTreeAutomaton, base_alphabet
+                      ) -> SparseTreeAutomaton:
+    """The same automaton, read over a smaller alphabet.
+
+    Every letter of `base_alphabet` must be one the automaton already has, and
+    the automaton keeps its behaviour on exactly those; what it did on the
+    letters being dropped simply goes away. That is what a construction wants
+    once a scaffolding letter has served its purpose — an annotation the
+    automaton was built to read and a projection has since quantified away
+    leaves the alphabet wider than the structure it belongs to.
+
+    The rewrite is one memoized pass over the diagrams: dropping letters
+    narrows the digit blocks rather than rebuilding any transition table.
+    """
+    old_letters = sorted(sta.base_alphabet_frozen)
+    new_letters = sorted(frozenset(base_alphabet))
+    index = {letter: position for position, letter in enumerate(old_letters)}
+    missing = [letter for letter in new_letters if letter not in index]
+    if missing:
+        raise ValueError(
+            f"the automaton has no letter {missing[0]!r}; an alphabet can only "
+            f"be restricted to letters it already reads")
+
+    source = [index[letter] for letter in new_letters]
+    new_m = len(new_letters)
+    new_bits = num_bits(new_m)
+    store = sta.store
+    nodes = [store.map_letters(int(node), sta.symbol_arity, sta.m, sta.bits,
+                               new_m, new_bits, source, sta.default_state)
+             for node in sta.pair_nodes.tolist()]
+    return SparseTreeAutomaton(
+        sta.num_states, sta.default_state,
+        is_accepting=sta.is_accepting, symbol_arity=sta.symbol_arity,
+        base_alphabet=set(new_letters),
+        pair_keys=sta.pair_keys, pair_nodes=np.array(nodes, dtype=np.int64))
 
 
 def partial_tree_automaton(base_alphabet, symbol_arity: int,
