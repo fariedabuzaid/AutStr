@@ -54,7 +54,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, FrozenSet, Optional, Tuple
 
-from autstr.collapsible import Level2CPS
+from autstr.collapsible import SEP, Level2CPS
+from autstr.sparse_tree_automata import SparseTreeAutomaton, Tree
+from autstr.utils.tree_automata_tools import partial_tree_automaton
 
 #: a relation on control states
 Relation = FrozenSet[Tuple[str, str]]
@@ -159,9 +161,14 @@ class Summaries:
         self.values: Dict[tuple, Summary] = {}
         self.depth = depth
         previous_bound = 0
+        #: the words whose summary stopped growing when the bound last rose —
+        #: a value can only grow, so agreeing twice means it is the truth
+        self.stable: set = set()
         for bound in range(depth, limit + 1):
             previous, self.values = self.values, self._fixpoint(bound)
             self.depth = bound
+            self.stable = {path for path in previous
+                           if previous[path] == self.values[path]}
             # the longest words of a round are the ones whose own extensions
             # were pinned empty, so they always improve when the bound rises;
             # convergence is about the words below that edge
@@ -230,6 +237,53 @@ class Summaries:
             if grown == values:
                 return values
             values = grown
+
+    def transitions(self) -> Tuple[Summary, Dict[Tuple[Summary, Letter],
+                                                 Summary]]:
+        """The summaries as an automaton: the summary of the bottom letter,
+        and a table saying how one letter extends a summary.
+
+        This is the merge Kartzow's Prop. 4.20 licenses — words with the same
+        summary behave alike, so they are one state. Words at the edge of the
+        fixpoint are left out of the merge: their own extensions were pinned
+        empty, so what they say about a letter is not yet the truth.
+        """
+        if not self.converged:
+            raise ValueError(
+                f"the summaries were still growing at {self.depth} letters, so "
+                f"words that look alike need not behave alike yet; raise the "
+                f"limit")
+        # a word near the edge has its own extensions pinned empty, so what
+        # it says about a letter is short of the truth; only the words whose
+        # summary has stopped growing may speak
+        table: Dict[Tuple[Summary, Letter], Summary] = {}
+        for path in sorted(self.stable, key=len):
+            summary = self.values[path]
+            for letter in self.letters:
+                longer = self.values.get(path + (letter,))
+                if longer is None or path + (letter,) not in self.stable:
+                    continue
+                seen = table.setdefault((summary, letter), longer)
+                if seen != longer:
+                    raise ValueError(
+                        f"two words with the same summary disagree about the "
+                        f"letter {letter!r}, so the summaries do not determine "
+                        f"the automaton; raise the limit")
+        start = self.values[(self.bottom,)]
+
+        # the merge has to reproduce what the fixpoint computed
+        for path in self.stable:
+            summary = self.values[path]
+            walked = start
+            for letter in path[1:]:
+                walked = table.get((walked, letter))
+                if walked is None:
+                    break
+            if walked is not None and walked != summary:
+                raise ValueError(
+                    f"the merged automaton disagrees with the summary of "
+                    f"{path}; raise the limit")
+        return start, table
 
     def of_word(self, word) -> Summary:
         """The summary of a word, given as its letters from the bottom up."""
@@ -314,3 +368,102 @@ class Summaries:
         return (f"<Summaries of {self.system!r}: {len(set(self.values.values()))}"
                 f" distinct over {len(self.values)} words, depth {self.depth}"
                 f"{'' if self.converged else ', not converged'}>")
+
+
+# ----------------------------------------------------------------------
+# reading a word down the tree
+# ----------------------------------------------------------------------
+
+class Annotation:
+    """The summary of the word from the root of an encoding tree to each node,
+    written on a tape of its own.
+
+    Kartzow's automata ask, at a node `d`, which returns and loops the stack
+    that node stands for has — and that stack's topmost word is the word read
+    from the root *down* to `d`. A bottom-up automaton cannot read downwards,
+    so the answer is carried on a second tape, where the check becomes local: a
+    node's annotation is its parent's extended by the node's own letter, and a
+    separator carries its parent's along unchanged.
+
+    The tape is scaffolding — the construction pushes it through a projection
+    and then drops it, which is what
+    `autstr.utils.tree_automata_tools.restrict_alphabet` is for.
+
+    :param encoding: the tree alphabet of the system, from `autstr.collapsible`.
+    :param summaries: the summaries of that system's words.
+    """
+
+    #: the annotation of the root, where no letter has been read yet
+    START = '~start'
+
+    def __init__(self, encoding, summaries: Summaries) -> None:
+        self.encoding = encoding
+        self.summaries = summaries
+        first, table = summaries.transitions()
+        self.names = {}
+        for summary in [first] + [value for _, value in sorted(
+                table.items(), key=lambda item: repr(item[0]))]:
+            self.names.setdefault(summary, f'~{len(self.names)}')
+        #: annotation letter -> letter -> annotation letter
+        self.table = {(self.names[summary], letter): self.names[value]
+                      for (summary, letter), value in table.items()}
+        self.first = self.names[first]
+        self.letters = [self.START] + sorted(self.names.values())
+        self.alphabet = set(encoding.alphabet) | set(self.letters)
+
+    def extend(self, annotation: str, label: str) -> Optional[str]:
+        """The annotation a node carries, given its parent's and its own
+        label — or None where no encoding tree has that shape."""
+        if label == SEP:
+            return annotation                   # a separator reads no letter
+        if label not in self.encoding.letters:
+            return None                         # a state labels only the root
+        symbol, _, level = label.rpartition(':')
+        if annotation == self.START:
+            return self.first if label == self.encoding.bottom_label else None
+        return self.table.get((annotation, (symbol, int(level))))
+
+    def of_tree(self, tree, annotation: Optional[str] = None) -> Tree:
+        """The annotation of a configuration tree, as a tree of its own — the
+        oracle the automaton is checked against."""
+        annotation = self.START if annotation is None else annotation
+        here = annotation if tree.label in self.encoding.states \
+            else self.extend(annotation, tree.label)
+        if here is None:
+            raise ValueError(f"{tree.label!r} cannot follow {annotation!r}")
+        return Tree(here,
+                    self.of_tree(tree.left, here) if tree.left else None,
+                    self.of_tree(tree.right, here) if tree.right else None)
+
+    def automaton(self) -> SparseTreeAutomaton:
+        """Two tapes: a configuration tree, and its annotation.
+
+        A node's state is what a parent has to know about it — the annotation
+        it carries and the label it carries — since the parent is where the
+        two can be compared.
+        """
+        table = {}
+        pairs = [(label, annotation) for label in self.encoding.nodes
+                 for annotation in self.names.values()]
+        options = [None] + [f'{annotation}|{label}'
+                            for label, annotation in pairs]
+
+        def fits(parent: str, child) -> bool:
+            """Whether a child may hang below a node annotated `parent`."""
+            if child is None:
+                return True
+            annotation, _, label = child.partition('|')
+            return self.extend(parent, label) == annotation
+
+        for label, annotation in pairs:
+            for left in options:
+                for right in options:
+                    if fits(annotation, left) and fits(annotation, right):
+                        table[(left, right, (label, annotation))] = \
+                            f'{annotation}|{label}'
+        # the root carries the state and reads no letter of its own
+        for state in self.encoding.states:
+            for left in options:
+                if fits(self.START, left):
+                    table[(left, None, (state, self.START))] = 'accept'
+        return partial_tree_automaton(self.alphabet, 2, table, {'accept'})

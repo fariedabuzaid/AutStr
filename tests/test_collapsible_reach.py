@@ -17,8 +17,12 @@ from collections import deque
 
 import pytest
 
-from autstr.collapsible import Configuration, Letter, Level2CPS, Stack
-from autstr.collapsible_reach import Summaries
+from autstr.collapsible import (
+    Configuration, Letter, Level2CPS, PAD, Stack, _Encoding,
+    encode_configuration,
+)
+from autstr.collapsible_reach import Annotation, Summaries
+from autstr.sparse_tree_automata import Tree, convolve_trees
 
 
 def zeroed(word):
@@ -364,3 +368,82 @@ class TestSummaries:
     def test_summaries_have_a_readable_repr(self):
         system = Level2CPS(self.CASES['a single pop'], symbols=SYMBOLS)
         assert 'Summaries' in repr(Summaries(system, depth=2, limit=2))
+
+
+class TestAnnotation:
+    """The summary annotation tape: a node carries the summary of the word
+    read from the root down to it, and the automaton checks that locally."""
+
+    @pytest.fixture(scope="class")
+    def setup(self):
+        system = Level2CPS([('0', None, 'Cl', '1', 'clone'),
+                            ('1', None, 'A', '0', 'push a 2'),
+                            ('1', None, 'B', '2', 'push a 1'),
+                            ('2', 'a', 'P', '2', 'pop 1'),
+                            ('2', 'a', 'Co', '0', 'collapse')])
+        encoding = _Encoding(system.states, system.symbols, system.bottom)
+        annotation = Annotation(encoding, Summaries(system, depth=4, limit=6))
+        return system, annotation, annotation.automaton()
+
+    def convolution(self, annotation, tree, marks):
+        return convolve_trees([tree, marks], frozenset(annotation.alphabet),
+                              PAD)
+
+    def test_the_right_annotation_is_accepted(self, setup):
+        system, annotation, automaton = setup
+        for configuration in system.reachable(bound=6):
+            tree = encode_configuration(configuration)
+            marks = annotation.of_tree(tree)
+            assert automaton.accepts(
+                self.convolution(annotation, tree, marks)), configuration
+
+    def test_the_annotation_follows_the_word_down_the_tree(self, setup):
+        _, annotation, _ = setup
+        # the root reads no letter; below it the annotations follow the
+        # summaries of ⊥, ⊥a, ... and a separator repeats its parent's
+        tree = encode_configuration(Configuration(
+            '0', Stack(((Letter('⊥'), Letter('a', 2, 0)),
+                        (Letter('⊥'),)))))
+        marks = annotation.of_tree(tree)
+        assert marks.label == Annotation.START
+        assert marks.left.label == annotation.first
+        assert marks.left.right.label == marks.left.label   # a separator
+
+    def test_a_wrong_annotation_is_rejected(self, setup):
+        system, annotation, automaton = setup
+        others = [letter for letter in annotation.letters
+                  if letter != Annotation.START]
+        for configuration in system.reachable(bound=5):
+            tree = encode_configuration(configuration)
+            marks = annotation.of_tree(tree)
+            if marks.left is None:
+                continue
+            for wrong in others:
+                if wrong == marks.left.label:
+                    continue
+                spoiled = Tree(marks.label,
+                               Tree(wrong, marks.left.left, marks.left.right),
+                               marks.right)
+                assert not automaton.accepts(
+                    self.convolution(annotation, tree, spoiled))
+
+    def test_an_annotation_of_the_wrong_shape_is_rejected(self, setup):
+        system, annotation, automaton = setup
+        configuration = system.reachable(bound=4)[-1]
+        tree = encode_configuration(configuration)
+        marks = annotation.of_tree(tree)
+        # one node short, and one node too many
+        assert not automaton.accepts(
+            self.convolution(annotation, tree, Tree(marks.label)))
+        assert not automaton.accepts(self.convolution(
+            annotation, tree,
+            Tree(marks.label, marks.left, Tree(annotation.first))))
+
+    def test_summaries_merge_into_an_automaton(self):
+        """Words that behave alike are one state — and while the fixpoint is
+        still moving, the merge is refused rather than guessed at."""
+        system = Level2CPS([('0', None, 'c', '0', 'clone'),
+                            ('0', None, 'p', '0', 'push a 2')])
+        first, table = Summaries(system, depth=4, limit=6).transitions()
+        assert first.symbol == '⊥'
+        assert all(isinstance(key[1], tuple) for key in table)
